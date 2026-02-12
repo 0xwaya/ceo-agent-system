@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Frontend Button Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #00ff00; }
+        .test-result { margin: 10px 0; padding: 10px; background: #2a2a2a; border-left: 4px solid #00ff00; }
+        .test-result.fail { border-left-color: #ff0000; color: #ff6666; }
+        .test-result.pass { border-left-color: #00ff00; color: #00ff00; }
+        button { 
+            padding: 10px 20px; 
+            margin: 5px; 
+            background: #00ff00; 
+            color: #000; 
+            border: none; 
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover { background: #00cc00; }
+        #output { margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Frontend Button Test Suite</h1>
+    <p>Server: http://localhost:5001</p>
+    
+    <div>
+        <button onclick="testAnalyze()">Test Analyze Only</button>
+        <button onclick="testOrchestration()">Test Full Orchestration</button>
+        <button onclick="testExecuteAgent('branding')">Test Execute Branding</button>
+        <button onclick="testExecuteAgent('legal')">Test Execute Legal</button>
+        <button onclick="testViewDetails('branding')">Test View Branding Details</button>
+        <button onclick="testAllButtons()">🚀 Test All Buttons</button>
+        <button onclick="clearOutput()">Clear Output</button>
+    </div>
+
+    <div id="output"></div>
+
+    <script>
+        const socket = io('http://localhost:5001');
+        let testResults = [];
+
+        socket.on('connect', () => {
+            logResult('✅ SocketIO Connected', true);
+        });
+
+        socket.on('orchestration_started', (data) => {
+            logResult('✅ Orchestration Started: ' + JSON.stringify(data), true);
+        });
+
+        socket.on('phase', (data) => {
+            logResult('📊 Phase: ' + data.name + ' - ' + data.status, true);
+        });
+
+        socket.on('agent_deploying', (data) => {
+            logResult('🤖 Deploying: ' + data.agent, true);
+        });
+
+        socket.on('agent_deployed', (data) => {
+            logResult('✅ Deployed: ' + data.agent, true);
+        });
+
+        socket.on('orchestration_complete', (data) => {
+            logResult('🎉 Orchestration Complete! Budget: $' + data.budget_used, true);
+        });
+
+        socket.on('orchestration_error', (data) => {
+            logResult('❌ Orchestration Error: ' + data.error, false);
+        });
+
+        function logResult(message, success) {
+            const output = document.getElementById('output');
+            const div = document.createElement('div');
+            div.className = 'test-result ' + (success ? 'pass' : 'fail');
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong>: ${message}`;
+            output.insertBefore(div, output.firstChild);
+            testResults.push({message, success, time: new Date()});
+        }
+
+        function clearOutput() {
+            document.getElementById('output').innerHTML = '';
+            testResults = [];
+        }
+
+        async function testAnalyze() {
+            logResult('🧪 Testing Analyze Only...', true);
+            try {
+                const response = await fetch('http://localhost:5001/api/cfo/analyze', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        company_name: 'Test Company',
+                        industry: 'Technology',
+                        location: 'New York',
+                        budget: 5000,
+                        timeline: 90
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    logResult(`✅ Analyze Success! Tasks: ${data.tasks.length}, Budget: $${Object.values(data.budget_allocation).reduce((a,b)=>a+b,0)}`, true);
+                } else {
+                    logResult('❌ Analyze Failed: ' + data.error, false);
+                }
+            } catch (error) {
+                logResult('❌ Analyze Error: ' + error.message, false);
+            }
+        }
+
+        async function testOrchestration() {
+            logResult('🧪 Testing Full Orchestration...', true);
+            socket.emit('execute_full_orchestration', {
+                company_info: {
+                    company_name: 'Test Company',
+                    dba_name: 'Test DBA',
+                    industry: 'Technology',
+                    location: 'New York'
+                },
+                objectives: [
+                    'Test objective 1',
+                    'Test objective 2',
+                    'Test objective 3'
+                ]
+            });
+            logResult('📤 Orchestration request sent', true);
+        }
+
+        async function testExecuteAgent(agentType) {
+            logResult(`🧪 Testing Execute ${agentType}...`, true);
+            try {
+                const response = await fetch(`http://localhost:5001/api/agent/execute/${agentType}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        task: `Execute ${agentType} tasks`,
+                        company_info: {
+                            company_name: 'Test Company',
+                            name: 'Test Company',
+                            dba_name: 'Test DBA',
+                            industry: 'Technology',
+                            location: 'New York'
+                        }
+                    })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    logResult(`✅ ${agentType} Execute Success! Budget: $${data.result.budget_used}, Deliverables: ${data.result.deliverables.length}`, true);
+                } else {
+                    logResult(`❌ ${agentType} Execute Failed: ` + data.error, false);
+                }
+            } catch (error) {
+                logResult(`❌ ${agentType} Execute Error: ` + error.message, false);
+            }
+        }
+
+        async function testViewDetails(agentType) {
+            logResult(`🧪 Testing View Details ${agentType}...`, true);
+            try {
+                const response = await fetch(`http://localhost:5001/api/guard-rails/${agentType}`);
+                const data = await response.json();
+                if (data.success) {
+                    logResult(`✅ ${agentType} Details Success! Max Budget: $${data.guard_rail.max_budget}, Tasks: ${data.guard_rail.permitted_tasks.length}`, true);
+                } else {
+                    logResult(`❌ ${agentType} Details Failed: ` + data.error, false);
+                }
+            } catch (error) {
+                logResult(`❌ ${agentType} Details Error: ` + error.message, false);
+            }
+        }
+
+        async function testAllButtons() {
+            clearOutput();
+            logResult('🚀 Running Full Test Suite...', true);
+            
+            // Test Analyze
+            await testAnalyze();
+            await new Promise(r => setTimeout(r, 500));
+            
+            // Test all agent executes
+            for (const agent of ['branding', 'web_development', 'legal', 'martech', 'content', 'campaigns']) {
+                await testExecuteAgent(agent);
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            // Test all view details
+            for (const agent of ['branding', 'web_development', 'legal', 'martech', 'content', 'campaigns']) {
+                await testViewDetails(agent);
+                await new Promise(r => setTimeout(r, 300));
+            }
+            
+            // Test orchestration last
+            await testOrchestration();
+            
+            // Summary
+            setTimeout(() => {
+                const passed = testResults.filter(r => r.success).length;
+                const total = testResults.length;
+                logResult(`\n📊 Test Summary: ${passed}/${total} tests passed`, passed === total);
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

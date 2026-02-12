@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Button Test</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+    <h1>Button Test Console</h1>
+    <div id="output" style="background: #f0f0f0; padding: 20px; margin: 20px 0; font-family: monospace;">
+        Waiting for test results...
+    </div>
+
+    <button onclick="testOrchestration()">Test Launch Full Orchestration</button>
+    <button onclick="testExecuteAgent('branding')">Test Execute Branding Agent</button>
+    <button onclick="testViewDetails('legal')">Test View Legal Agent Details</button>
+
+    <script>
+        const socket = io('http://localhost:5001');
+        const output = document.getElementById('output');
+
+        function log(message) {
+            output.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + message;
+        }
+
+        socket.on('connect', () => {
+            log('✅ Socket connected');
+        });
+
+        socket.on('disconnect', () => {
+            log('❌ Socket disconnected');
+        });
+
+        socket.on('orchestration_started', (data) => {
+            log('🚀 Orchestration started: ' + JSON.stringify(data));
+        });
+
+        socket.on('phase', (data) => {
+            log('📊 Phase: ' + data.name + ' - ' + data.status);
+        });
+
+        socket.on('agent_deploying', (data) => {
+            log('🤖 Deploying ' + data.agent + ' agent');
+        });
+
+        socket.on('agent_deployed', (data) => {
+            log('✅ Agent deployed: ' + data.agent);
+        });
+
+        socket.on('orchestration_complete', (data) => {
+            log('🎉 Orchestration complete! Budget used: $' + data.budget_used);
+        });
+
+        socket.on('orchestration_error', (data) => {
+            log('❌ Orchestration error: ' + data.error);
+        });
+
+        async function testOrchestration() {
+            log('🧪 Testing orchestration...');
+            
+            const companyInfo = {
+                company_name: 'Test Company',
+                dba_name: 'Test DBA',
+                industry: 'Technology',
+                location: 'New York'
+            };
+
+            const objectives = [
+                'Test objective 1',
+                'Test objective 2'
+            ];
+
+            socket.emit('execute_full_orchestration', {
+                company_info: companyInfo,
+                objectives: objectives
+            });
+
+            log('📤 Orchestration request emitted');
+        }
+
+        async function testExecuteAgent(agentType) {
+            log('🧪 Testing execute agent: ' + agentType);
+            
+            try {
+                const response = await fetch(`http://localhost:5001/api/agent/execute/${agentType}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        task: `Execute ${agentType} tasks`,
+                        company_info: {
+                            company_name: 'Test Company',
+                            name: 'Test Company',
+                            dba_name: 'Test DBA',
+                            industry: 'Technology',
+                            location: 'New York'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                log('✅ Execute response: ' + JSON.stringify(data).substring(0, 200));
+            } catch (error) {
+                log('❌ Execute error: ' + error.message);
+            }
+        }
+
+        async function testViewDetails(agentType) {
+            log('🧪 Testing view details: ' + agentType);
+            
+            try {
+                const response = await fetch(`http://localhost:5001/api/guard-rails/${agentType}`);
+                const data = await response.json();
+                log('✅ Guard rails response: ' + JSON.stringify(data).substring(0, 200));
+            } catch (error) {
+                log('❌ Guard rails error: ' + error.message);
+            }
+        }
+    </script>
+</body>
+</html>

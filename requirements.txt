@@ -1,0 +1,49 @@
+# Multi-Agent System - Production Requirements
+# All dependencies with pinned versions for reproducibility
+
+# Core Framework
+Flask==3.0.0
+Werkzeug==3.0.1
+
+# Real-time Communication
+flask-socketio==5.3.5
+python-socketio==5.10.0
+eventlet==0.33.3
+
+# Data Validation and Models
+pydantic>=2.7.4
+pydantic-core>=2.18.0
+
+# AI/ML Framework - LangGraph & LangChain
+langgraph==0.0.20
+langchain>=0.1.0
+langchain-openai>=0.0.5
+langchain-anthropic>=0.1.1
+openai>=1.12.0
+anthropic>=0.18.0
+
+# Environment Configuration
+python-decouple==3.8
+python-dotenv==1.0.0
+
+# Security & Encryption
+cryptography>=41.0.0
+Flask-Limiter==3.5.0
+Flask-Talisman==1.1.0
+Flask-Login==0.6.3
+PyJWT==2.8.0
+
+# Caching
+Flask-Caching==2.1.0
+redis==5.0.1
+
+# Utilities
+typing-extensions>=4.12.0
+
+# Development Tools (optional, can be moved to requirements-dev.txt)
+# black==23.12.1
+# flake8==7.0.0
+# mypy==1.8.0
+# pytest==7.4.3
+# pytest-cov==4.1.0
+# pytest-mock==3.12.0

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CFO Catalyst - Multi-Agent System</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="main-header">
+      <div class="container">
+        <div class="logo">
+          <h1><span class="logo-icon">💼</span> CFO Catalyst</h1>
+          <p>AI-Powered Chief Financial Officer Orchestration</p>
+        </div>
+        <div class="budget-display">
+          <div class="budget-item">
+            <span class="label">Total Budget:</span>
+            <span class="value" id="totalBudget">$5,000</span>
+          </div>
+          <div class="budget-item">
+            <span class="label">Remaining:</span>
+            <span class="value success" id="remainingBudget">$5,000</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <main class="dashboard">
+      <div class="container">
+        <!-- Control Panel -->
+        <section class="control-panel">
+          <h2>🎯 Strategic Objectives</h2>
+          <div class="objectives-form">
+            <div class="form-group">
+              <label>Company Name:</label>
+              <input type="text" id="companyName" value="Amazon Granite LLC" />
+            </div>
+            <div class="form-group">
+              <label>DBA Name:</label>
+              <input type="text" id="dbaName" value="SURFACECRAFT STUDIO" />
+            </div>
+            <div class="form-group">
+              <label>Industry:</label>
+              <input
+                type="text"
+                id="industry"
+                value="Granite & Engineered Quartz Countertops"
+              />
+            </div>
+            <div class="form-group">
+              <label>Location:</label>
+              <input type="text" id="location" value="Cincinnati, Ohio" />
+            </div>
+            <div class="form-group">
+              <label>Total Budget ($):</label>
+              <input
+                type="number"
+                id="budget"
+                value="5000"
+                min="1000"
+                max="100000"
+              />
+            </div>
+            <div class="form-group">
+              <label>Timeline (days):</label>
+              <input
+                type="number"
+                id="timeline"
+                value="90"
+                min="30"
+                max="365"
+              />
+            </div>
+            <button
+              class="btn btn-primary"
+              id="launchOrchestration"
+              onclick="runFullOrchestration()"
+              type="button"
+            >
+              🚀 Launch Full Orchestration
+            </button>
+            <button
+              class="btn btn-secondary"
+              id="analyzeBtn"
+              onclick="analyzeObjectives()"
+              type="button"
+            >
+              🔍 Analyze Only
+            </button>
+          </div>
+        </section>
+
+        <!-- Execution Report -->
+        <section class="execution-report">
+          <h2>📊 Execution Report</h2>
+          <div id="reportDisplay" class="report-display">
+            <div class="report-placeholder">
+              <p>
+                🎯 Ready to execute. Configure objectives above and click
+                "Execute" on any agent card or "Launch Full Orchestration"
+              </p>
+              <p style="margin-top: 1rem; opacity: 0.7; font-size: 0.9rem">
+                Agent execution reports will appear here with detailed
+                deliverables, budget breakdown, and recommendations.
+              </p>
+            </div>
+          </div>
+          <div id="progressBar" class="progress-bar" style="display: none">
+            <div class="progress-fill" id="progressFill"></div>
+            <span class="progress-text" id="progressText">0%</span>
+          </div>
+        </section>
+
+        <!-- Available Agents -->
+        <section class="agents-grid">
+          <h2>🤖 Available AI Agents</h2>
+          <div id="agentsContainer" class="agents-container">
+            <!-- Agents will be loaded here dynamically -->
+          </div>
+        </section>
+
+        <!-- Tasks Breakdown -->
+        <section class="tasks-section">
+          <h2>📋 Task Decomposition</h2>
+          <div id="tasksContainer" class="tasks-container">
+            <p class="empty-state">
+              Run strategic analysis to see task breakdown
+            </p>
+          </div>
+        </section>
+
+        <!-- Agent Execution Log -->
+        <section class="execution-log">
+          <h2>📝 Execution Log</h2>
+          <div id="executionLog" class="log-container">
+            <div class="log-entry">
+              <span class="timestamp">[System]</span>
+              <span class="message"
+                >Multi-Agent System initialized and ready</span
+              >
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <!-- Agent Details Modal -->
+    <div id="agentModal" class="modal">
+      <div class="modal-content">
+        <span class="modal-close" onclick="closeModal()">&times;</span>
+        <div id="modalContent">
+          <!-- Agent details will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent Results Modal -->
+    <div id="resultsModal" class="modal">
+      <div class="modal-content modal-large">
+        <span class="modal-close" onclick="closeResultsModal()">&times;</span>
+        <div id="resultsContent">
+          <!-- Agent execution results will be loaded here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive Chat Interface -->
+    <div id="chatInterface" class="chat-interface">
+      <div class="chat-header">
+        <div class="chat-title">
+          <span class="chat-icon">💬</span>
+          <span>CFO Catalyst Chat</span>
+        </div>
+        <div class="chat-controls">
+          <button id="clearChat" class="chat-btn-clear" title="Clear chat">
+            🗑️
+          </button>
+          <button id="toggleChat" class="chat-btn-toggle" title="Minimize">
+            −
+          </button>
+        </div>
+      </div>
+      <div id="chatMessages" class="chat-messages">
+        <div class="chat-message system">
+          <div class="chat-message-content">
+            <strong>System:</strong> Welcome to CFO Catalyst! I can help you
+            configure and execute AI agents. Ask me anything!
+          </div>
+          <div class="chat-message-time">Just now</div>
+        </div>
+      </div>
+      <div class="chat-input-container">
+        <input
+          type="text"
+          id="chatInput"
+          class="chat-input"
+          placeholder="Type your message... (e.g., 'Execute branding agent' or 'Show me agent status')"
+          maxlength="5000"
+        />
+        <button id="sendChat" class="chat-btn-send" title="Send message">
+          <span>📤</span>
+        </button>
+      </div>
+      <div class="chat-status" id="chatStatus"></div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+  </body>
+</html>

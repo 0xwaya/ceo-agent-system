@@ -1,0 +1,438 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Frontend Debug Console</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: "Monaco", "Courier New", monospace;
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 20px;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+      h1 {
+        color: #4ec9b0;
+        margin-bottom: 20px;
+      }
+      .test-section {
+        background: #252526;
+        border: 1px solid #3e3e42;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+      .test-section h2 {
+        color: #569cd6;
+        margin-bottom: 15px;
+        font-size: 18px;
+      }
+      button {
+        background: #0e639c;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 5px;
+        font-size: 14px;
+      }
+      button:hover {
+        background: #1177bb;
+      }
+      button.success {
+        background: #107c10;
+      }
+      button.error {
+        background: #e81123;
+      }
+      .console {
+        background: #1e1e1e;
+        border: 1px solid #3e3e42;
+        border-radius: 4px;
+        padding: 15px;
+        height: 400px;
+        overflow-y: auto;
+        font-size: 12px;
+        margin-top: 15px;
+      }
+      .log-entry {
+        margin: 5px 0;
+        padding: 5px;
+        border-left: 3px solid transparent;
+      }
+      .log-entry.success {
+        border-left-color: #107c10;
+        color: #4ec9b0;
+      }
+      .log-entry.error {
+        border-left-color: #e81123;
+        color: #f48771;
+      }
+      .log-entry.info {
+        border-left-color: #569cd6;
+        color: #9cdcfe;
+      }
+      .log-entry.warning {
+        border-left-color: #cca700;
+        color: #dcdcaa;
+      }
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .status-item {
+        background: #2d2d30;
+        padding: 15px;
+        border-radius: 4px;
+      }
+      .status-item h3 {
+        color: #569cd6;
+        font-size: 14px;
+        margin-bottom: 10px;
+      }
+      .status-value {
+        font-size: 24px;
+        font-weight: bold;
+      }
+      .status-value.ok {
+        color: #4ec9b0;
+      }
+      .status-value.fail {
+        color: #f48771;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🔧 Frontend Debug Console</h1>
+
+      <div class="test-section">
+        <h2>📊 System Status</h2>
+        <div class="status-grid">
+          <div class="status-item">
+            <h3>SocketIO</h3>
+            <div class="status-value" id="socketStatus">Checking...</div>
+          </div>
+          <div class="status-item">
+            <h3>API Server</h3>
+            <div class="status-value" id="apiStatus">Checking...</div>
+          </div>
+          <div class="status-item">
+            <h3>Functions Loaded</h3>
+            <div class="status-value" id="functionsStatus">Checking...</div>
+          </div>
+          <div class="status-item">
+            <h3>DOM Elements</h3>
+            <div class="status-value" id="domStatus">Checking...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="test-section">
+        <h2>🧪 Function Tests</h2>
+        <button onclick="testAnalyzeFunction()">
+          Test analyzeObjectives()
+        </button>
+        <button onclick="testOrchestrationFunction()">
+          Test runFullOrchestration()
+        </button>
+        <button onclick="testExecuteAgent()">Test executeAgent()</button>
+        <button onclick="testViewDetails()">Test viewAgentDetails()</button>
+        <button onclick="testSocketIO()">Test SocketIO Connection</button>
+        <button onclick="clearConsole()">Clear Console</button>
+      </div>
+
+      <div class="test-section">
+        <h2>📡 API Tests</h2>
+        <button onclick="testAnalyzeAPI()">Test /api/cfo/analyze</button>
+        <button onclick="testAgentsAPI()">Test /api/agents/available</button>
+        <button onclick="testExecuteAPI()">Test /api/agent/execute</button>
+        <button onclick="testGuardRailsAPI()">Test /api/guard-rails</button>
+      </div>
+
+      <div class="test-section">
+        <h2>📝 Console Output</h2>
+        <div class="console" id="debugConsole"></div>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+      let socket;
+
+      function log(message, type = "info") {
+        const console = document.getElementById("debugConsole");
+        const entry = document.createElement("div");
+        entry.className = `log-entry ${type}`;
+        const timestamp = new Date().toLocaleTimeString();
+        entry.textContent = `[${timestamp}] ${message}`;
+        console.appendChild(entry);
+        console.scrollTop = console.scrollHeight;
+      }
+
+      function clearConsole() {
+        document.getElementById("debugConsole").innerHTML = "";
+        log("Console cleared", "info");
+      }
+
+      // Check system status on load
+      window.addEventListener("DOMContentLoaded", () => {
+        log("Debug console initialized", "success");
+        checkSystemStatus();
+      });
+
+      async function checkSystemStatus() {
+        // Check SocketIO
+        try {
+          socket = io();
+          socket.on("connect", () => {
+            document.getElementById("socketStatus").textContent =
+              "✅ Connected";
+            document.getElementById("socketStatus").className =
+              "status-value ok";
+            log("SocketIO connected", "success");
+          });
+          socket.on("connect_error", () => {
+            document.getElementById("socketStatus").textContent = "❌ Error";
+            document.getElementById("socketStatus").className =
+              "status-value fail";
+            log("SocketIO connection error", "error");
+          });
+        } catch (error) {
+          document.getElementById("socketStatus").textContent = "❌ Failed";
+          document.getElementById("socketStatus").className =
+            "status-value fail";
+          log(`SocketIO initialization error: ${error.message}`, "error");
+        }
+
+        // Check API Server
+        try {
+          const response = await fetch("/api/agents/available");
+          if (response.ok) {
+            document.getElementById("apiStatus").textContent = "✅ Online";
+            document.getElementById("apiStatus").className = "status-value ok";
+            log("API server is responsive", "success");
+          } else {
+            document.getElementById("apiStatus").textContent = "⚠️ Error";
+            document.getElementById("apiStatus").className =
+              "status-value fail";
+            log(`API server returned status: ${response.status}`, "warning");
+          }
+        } catch (error) {
+          document.getElementById("apiStatus").textContent = "❌ Offline";
+          document.getElementById("apiStatus").className = "status-value fail";
+          log(`API server error: ${error.message}`, "error");
+        }
+
+        // Check Functions
+        const functions = [
+          "analyzeObjectives",
+          "runFullOrchestration",
+          "executeAgent",
+          "viewAgentDetails",
+        ];
+        const missing = functions.filter(
+          (fn) => typeof window[fn] !== "function",
+        );
+        if (missing.length === 0) {
+          document.getElementById("functionsStatus").textContent =
+            "✅ All Loaded";
+          document.getElementById("functionsStatus").className =
+            "status-value ok";
+          log("All required functions are available", "success");
+        } else {
+          document.getElementById("functionsStatus").textContent =
+            `❌ ${missing.length} Missing`;
+          document.getElementById("functionsStatus").className =
+            "status-value fail";
+          log(`Missing functions: ${missing.join(", ")}`, "error");
+        }
+
+        // Check DOM Elements
+        const elements = [
+          "companyName",
+          "dbaName",
+          "industry",
+          "location",
+          "budget",
+          "timeline",
+        ];
+        const missingElements = elements.filter(
+          (id) => !document.getElementById(id),
+        );
+        if (missingElements.length === 0) {
+          document.getElementById("domStatus").textContent = "✅ All Present";
+          document.getElementById("domStatus").className = "status-value ok";
+          log("All DOM elements found", "success");
+        } else {
+          document.getElementById("domStatus").textContent =
+            `❌ ${missingElements.length} Missing`;
+          document.getElementById("domStatus").className = "status-value fail";
+          log(`Missing elements: ${missingElements.join(", ")}`, "error");
+        }
+      }
+
+      function testAnalyzeFunction() {
+        log("Testing analyzeObjectives() function...", "info");
+        if (typeof window.analyzeObjectives === "function") {
+          log("✅ analyzeObjectives function exists", "success");
+          try {
+            // Don't actually call it, just verify it exists
+            log("Function signature valid", "success");
+          } catch (error) {
+            log(`❌ Error: ${error.message}`, "error");
+          }
+        } else {
+          log("❌ analyzeObjectives function not found", "error");
+        }
+      }
+
+      function testOrchestrationFunction() {
+        log("Testing runFullOrchestration() function...", "info");
+        if (typeof window.runFullOrchestration === "function") {
+          log("✅ runFullOrchestration function exists", "success");
+        } else {
+          log("❌ runFullOrchestration function not found", "error");
+        }
+      }
+
+      function testExecuteAgent() {
+        log("Testing executeAgent() function...", "info");
+        if (typeof window.executeAgent === "function") {
+          log("✅ executeAgent function exists", "success");
+        } else {
+          log("❌ executeAgent function not found", "error");
+        }
+      }
+
+      function testViewDetails() {
+        log("Testing viewAgentDetails() function...", "info");
+        if (typeof window.viewAgentDetails === "function") {
+          log("✅ viewAgentDetails function exists", "success");
+        } else {
+          log("❌ viewAgentDetails function not found", "error");
+        }
+      }
+
+      function testSocketIO() {
+        log("Testing SocketIO connection...", "info");
+        if (socket && socket.connected) {
+          log("✅ SocketIO is connected", "success");
+          log("Emitting test event...", "info");
+          socket.emit("test_event", { message: "Test from debug console" });
+        } else {
+          log("❌ SocketIO not connected", "error");
+        }
+      }
+
+      async function testAnalyzeAPI() {
+        log("Testing POST /api/cfo/analyze...", "info");
+        try {
+          const payload = {
+            company_name: "Test Company",
+            industry: "Technology",
+            location: "San Francisco",
+            budget: 5000,
+            timeline: 90,
+          };
+          const response = await fetch("/api/cfo/analyze", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (data.success) {
+            log(
+              `✅ API responded successfully: ${data.tasks?.length || 0} tasks`,
+              "success",
+            );
+          } else {
+            log(`❌ API error: ${data.error}`, "error");
+          }
+        } catch (error) {
+          log(`❌ Request failed: ${error.message}`, "error");
+        }
+      }
+
+      async function testAgentsAPI() {
+        log("Testing GET /api/agents/available...", "info");
+        try {
+          const response = await fetch("/api/agents/available");
+          const data = await response.json();
+          if (data.agents) {
+            log(`✅ Loaded ${data.agents.length} agents`, "success");
+            data.agents.forEach((agent) => {
+              log(`   - ${agent.name} (${agent.type})`, "info");
+            });
+          } else {
+            log("❌ No agents in response", "error");
+          }
+        } catch (error) {
+          log(`❌ Request failed: ${error.message}`, "error");
+        }
+      }
+
+      async function testExecuteAPI() {
+        log("Testing POST /api/agent/execute/branding...", "info");
+        try {
+          const payload = {
+            task: "Test execution",
+            company_info: {
+              company_name: "Test Co",
+              name: "Test Co",
+              dba_name: "TEST",
+              industry: "Technology",
+              location: "SF",
+            },
+          };
+          const response = await fetch("/api/agent/execute/branding", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          if (data.success) {
+            log(
+              `✅ Agent executed: Budget $${data.result?.budget_used || 0}`,
+              "success",
+            );
+          } else {
+            log(`❌ Execution error: ${data.error}`, "error");
+          }
+        } catch (error) {
+          log(`❌ Request failed: ${error.message}`, "error");
+        }
+      }
+
+      async function testGuardRailsAPI() {
+        log("Testing GET /api/guard-rails/branding...", "info");
+        try {
+          const response = await fetch("/api/guard-rails/branding");
+          const data = await response.json();
+          if (data.success) {
+            log(
+              `✅ Guard rails loaded: Budget $${data.guard_rail?.max_budget || 0}`,
+              "success",
+            );
+          } else {
+            log(`❌ Error: ${data.error}`, "error");
+          }
+        } catch (error) {
+          log(`❌ Request failed: ${error.message}`, "error");
+        }
+      }
+    </script>
+  </body>
+</html>

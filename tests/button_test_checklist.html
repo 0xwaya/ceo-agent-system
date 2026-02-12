@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Button Test Checklist</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 40px 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            color: #1e293b;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 30px;
+            font-size: 16px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 24px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #667eea;
+        }
+        
+        .checklist {
+            list-style: none;
+        }
+        
+        .checklist-item {
+            background: #f8fafc;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            border-left: 5px solid #cbd5e1;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .checklist-item:hover {
+            background: #f1f5f9;
+            transform: translateX(5px);
+        }
+        
+        .checklist-item.completed {
+            border-left-color: #10b981;
+            background: #f0fdf4;
+        }
+        
+        .checklist-item label {
+            display: flex;
+            align-items: start;
+            cursor: pointer;
+            gap: 12px;
+        }
+        
+        .checklist-item input[type="checkbox"] {
+            margin-top: 3px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+        
+        .item-content {
+            flex: 1;
+        }
+        
+        .item-title {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 4px;
+        }
+        
+        .item-description {
+            color: #64748b;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        
+        .badge-new {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+        }
+        
+        .badge-critical {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .progress-container {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+        }
+        
+        .progress-label {
+            font-weight: 600;
+            color: #1e293b;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .progress-bar {
+            height: 40px;
+            background: #e2e8f0;
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            width: 0%;
+        }
+        
+        .instructions {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-left: 5px solid #3b82f6;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .instructions h3 {
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+        
+        .instructions p {
+            color: #1e293b;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+        
+        .link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .link:hover {
+            text-decoration: underline;
+        }
+        
+        .section-note {
+            color: #64748b;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Manual Button Test Checklist</h1>
+        <p class="subtitle">Verify all buttons work correctly with the new UX/UI improvements</p>
+        
+        <div class="instructions">
+            <h3>📋 Instructions</h3>
+            <p><strong>1.</strong> Open the dashboard in a separate tab: <a href="http://localhost:5001" target="_blank" rel="noopener" class="link">http://localhost:5001</a></p>
+            <p><strong>2.</strong> Open Browser DevTools (F12) and go to the Console tab</p>
+            <p><strong>3.</strong> Check each item below as you test it on the dashboard</p>
+            <p><strong>4.</strong> Your progress is automatically saved in this page</p>
+        </div>
+        
+        <div class="progress-container">
+            <div class="progress-label">
+                <span>Overall Progress</span>
+                <span id="progress-text">0/17 (0%)</span>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progress-fill">
+                    0%
+                </div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <h2>🎯 Control Panel Buttons</h2>
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">
+                                "🔍 Analyze Only" Button
+                                <span class="badge badge-new">NEW STYLE</span>
+                            </div>
+                            <div class="item-description">
+                                ✓ Button is bright ORANGE and highly visible<br>
+                                ✓ Click triggers analysis and displays report in "Execution Report" section<br>
+                                ✓ Orange glow effect appears for 2 seconds<br>
+                                ✓ Report smoothly scrolls into center view<br>
+                                ✓ Tasks appear in "Task Decomposition" below<br>
+                                ✓ Console shows [displayAnalysisReport] logs
+                            </div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">"🚀 Launch Full Orchestration" Button</div>
+                            <div class="item-description">
+                                ✓ Button is purple gradient<br>
+                                ✓ Click starts full CFO orchestration<br>
+                                ✓ Progress bar appears and animates<br>
+                                ✓ Chat shows orchestration status updates<br>
+                                ✓ Multiple agents execute sequentially
+                            </div>
+                        </div>
+                    </label>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>🤖 Agent Card Buttons (12 buttons total)</h2>
+            <p class="section-note">
+                Each of the 6 agent cards has 2 buttons: "View Details" and "Execute"
+            </p>
+            
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">
+                                Branding Agent - "View Details"
+                            </div>
+                            <div class="item-description">
+                                ✓ Opens modal with agent capabilities<br>
+                                ✓ Shows budget limit and permitted tasks<br>
+                                ✓ Modal has smooth animation<br>
+                                ✓ Close button (×) works
+                            </div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">
+                                Branding Agent - "Execute"
+                                <span class="badge badge-critical">CRITICAL</span>
+                            </div>
+                            <div class="item-description">
+                                ✓ Report appears in "Execution Report" section<br>
+                                ✓ Purple glow effect for 2 seconds<br>
+                                ✓ Smooth scroll to center view<br>
+                                ✓ Shows deliverables, budget, and metrics<br>
+                                ✓ Modal popup with detailed results<br>
+                                ✓ Chat notification appears
+                            </div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Web Development Agent - "View Details"</div>
+                            <div class="item-description">✓ Modal opens with guard rails</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Web Development Agent - "Execute"</div>
+                            <div class="item-description">✓ Report displays with tech stack and timeline</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Legal Agent - "View Details"</div>
+                            <div class="item-description">✓ Modal opens with guard rails</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Legal Agent - "Execute"</div>
+                            <div class="item-description">✓ Report displays with compliance documents</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">MarTech Agent - "View Details"</div>
+                            <div class="item-description">✓ Modal opens with guard rails</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">MarTech Agent - "Execute"</div>
+                            <div class="item-description">✓ Report displays with tech stack configuration</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Content Agent - "View Details"</div>
+                            <div class="item-description">✓ Modal opens with guard rails</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Content Agent - "Execute"</div>
+                            <div class="item-description">✓ Report displays with created assets</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Campaigns Agent - "View Details"</div>
+                            <div class="item-description">✓ Modal opens with guard rails</div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">Campaigns Agent - "Execute"</div>
+                            <div class="item-description">✓ Report displays with campaign details</div>
+                        </div>
+                    </label>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>💬 Chat Interface Buttons</h2>
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">"📤 Send" Button</div>
+                            <div class="item-description">
+                                ✓ Sends message when clicked<br>
+                                ✓ Also works with Enter key<br>
+                                ✓ Message appears in chat history<br>
+                                ✓ Try: "Execute branding agent"
+                            </div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">"🗑️ Clear" Button</div>
+                            <div class="item-description">
+                                ✓ Clears all chat messages<br>
+                                ✓ Leaves only system welcome message
+                            </div>
+                        </div>
+                    </label>
+                </li>
+                
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">"−" Minimize Button</div>
+                            <div class="item-description">
+                                ✓ Minimizes chat interface<br>
+                                ✓ Changes to "+" when minimized<br>
+                                ✓ Click again to restore
+                            </div>
+                        </div>
+                    </label>
+                </li>
+            </ul>
+        </div>
+        
+        <div class="section">
+            <h2>🎨 Visual Verification</h2>
+            <ul class="checklist">
+                <li class="checklist-item">
+                    <label>
+                        <input type="checkbox" onchange="updateProgress()">
+                        <div class="item-content">
+                            <div class="item-title">
+                                Background Colors
+                                <span class="badge badge-new">NEW</span>
+                            </div>
+                            <div class="item-description">
+                                ✓ All sections have soft gray gradient (no harsh white)<br>
+                                ✓ Task cards have ghost white gradient<br>
+                                ✓ Page background is cosmic gradient (purple/violet/pink)
+                            </div>
+                        </div>
+                    </label>
+                </li>
+            </ul>
+        </div>
+    </div>
+    
+    <script>
+        function updateProgress() {
+            const checkboxes = document.querySelectorAll('.checklist-item input[type="checkbox"]');
+            const total = checkboxes.length;
+            let checked = 0;
+            
+            checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                    checked++;
+                    checkbox.closest('.checklist-item').classList.add('completed');
+                } else {
+                    checkbox.closest('.checklist-item').classList.remove('completed');
+                }
+            });
+            
+            const percentage = Math.round((checked / total) * 100);
+            
+            document.getElementById('progress-text').textContent = `${checked}/${total} (${percentage}%)`;
+            document.getElementById('progress-fill').style.width = `${percentage}%`;
+            document.getElementById('progress-fill').textContent = `${percentage}%`;
+            
+            // Save progress to localStorage
+            const state = Array.from(checkboxes).map(cb => cb.checked);
+            localStorage.setItem('buttonTestProgress', JSON.stringify(state));
+        }
+        
+        // Restore progress from localStorage
+        window.addEventListener('DOMContentLoaded', function() {
+            const saved = localStorage.getItem('buttonTestProgress');
+            if (saved) {
+                const state = JSON.parse(saved);
+                const checkboxes = document.querySelectorAll('.checklist-item input[type="checkbox"]');
+                checkboxes.forEach((checkbox, index) => {
+                    if (state[index]) {
+                        checkbox.checked = true;
+                    }
+                });
+                updateProgress();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,605 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CEO Agent - Admin Dashboard</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/admin.css') }}"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <!-- Main Container -->
+    <div class="admin-container">
+      <!-- Sidebar Navigation -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="logo-container">
+            <div class="logo-icon">👔</div>
+            <div class="logo-text">
+              <h1>CEO Agent</h1>
+              <p>Executive AI System</p>
+            </div>
+          </div>
+        </div>
+
+        <nav class="sidebar-nav">
+          <a href="#dashboard" class="nav-item active" data-section="dashboard">
+            <span class="nav-icon">📊</span>
+            <span class="nav-label">Dashboard</span>
+          </a>
+          <a href="#agents" class="nav-item" data-section="agents">
+            <span class="nav-icon">🤖</span>
+            <span class="nav-label">Agents</span>
+            <span class="nav-badge">6</span>
+          </a>
+          <a href="#training" class="nav-item" data-section="training">
+            <span class="nav-icon">🎓</span>
+            <span class="nav-label">Training</span>
+          </a>
+          <a href="#research" class="nav-item" data-section="research">
+            <span class="nav-icon">🔬</span>
+            <span class="nav-label">Research</span>
+          </a>
+          <a href="#approvals" class="nav-item" data-section="approvals">
+            <span class="nav-icon">✅</span>
+            <span class="nav-label">Approvals</span>
+            <span class="nav-badge alert" id="pending-approvals-count">0</span>
+          </a>
+          <a href="#reports" class="nav-item" data-section="reports">
+            <span class="nav-icon">📈</span>
+            <span class="nav-label">Reports</span>
+          </a>
+          <a href="#settings" class="nav-item" data-section="settings">
+            <span class="nav-icon">⚙️</span>
+            <span class="nav-label">Settings</span>
+          </a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <div class="system-status">
+            <div class="status-indicator online"></div>
+            <span>System Online</span>
+          </div>
+          <div class="admin-info">
+            <div class="admin-avatar">👤</div>
+            <div class="admin-details">
+              <span class="admin-name">Administrator</span>
+              <span class="admin-role">System Owner</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="main-content">
+        <!-- Top Bar -->
+        <header class="top-bar">
+          <div class="breadcrumb">
+            <span class="breadcrumb-item">CEO Agent</span>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-item active" id="current-section"
+              >Dashboard</span
+            >
+          </div>
+
+          <div class="top-bar-actions">
+            <button class="action-btn" id="refresh-btn">
+              <span>🔄</span>
+              Refresh
+            </button>
+            <div class="notification-bell" id="notification-bell">
+              <span>🔔</span>
+              <span class="notification-badge" id="notification-count">0</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Dashboard Section -->
+        <section id="section-dashboard" class="content-section active">
+          <div class="section-header">
+            <h2>Executive Dashboard</h2>
+            <p>Real-time overview of CEO Agent system performance</p>
+          </div>
+
+          <!-- Key Metrics -->
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-icon">🤖</div>
+              <div class="metric-content">
+                <span class="metric-label">Active Agents</span>
+                <span class="metric-value" id="metric-active-agents">6</span>
+                <span class="metric-change positive">+0% from last week</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon">✅</div>
+              <div class="metric-content">
+                <span class="metric-label">Tasks Completed</span>
+                <span class="metric-value" id="metric-tasks-completed">0</span>
+                <span class="metric-change">This session</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon">💰</div>
+              <div class="metric-content">
+                <span class="metric-label">Budget Remaining</span>
+                <span class="metric-value" id="metric-budget">$50,000</span>
+                <span class="metric-change">100% available</span>
+              </div>
+            </div>
+
+            <div class="metric-card">
+              <div class="metric-icon">⏱️</div>
+              <div class="metric-content">
+                <span class="metric-label">System Uptime</span>
+                <span class="metric-value" id="metric-uptime">0:00:00</span>
+                <span class="metric-change">Running smoothly</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Actions -->
+          <div class="quick-actions">
+            <h3>Quick Actions</h3>
+            <div class="action-buttons">
+              <button
+                class="quick-action-btn primary"
+                onclick="startCEOAnalysis()"
+              >
+                <span class="btn-icon">🎯</span>
+                <span class="btn-text">
+                  <strong>Strategic Analysis</strong>
+                  <small>CEO analyzes objectives</small>
+                </span>
+              </button>
+
+              <button class="quick-action-btn" onclick="openTrainingModule()">
+                <span class="btn-icon">🎓</span>
+                <span class="btn-text">
+                  <strong>Train Agents</strong>
+                  <small>Interactive training session</small>
+                </span>
+              </button>
+
+              <button class="quick-action-btn" onclick="startResearch()">
+                <span class="btn-icon">🔬</span>
+                <span class="btn-text">
+                  <strong>Daily Research</strong>
+                  <small>Update tools & best practices</small>
+                </span>
+              </button>
+
+              <button class="quick-action-btn" onclick="viewApprovals()">
+                <span class="btn-icon">✅</span>
+                <span class="btn-text">
+                  <strong>Pending Approvals</strong>
+                  <small id="approvals-summary">No pending items</small>
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Activity Feed -->
+          <div class="activity-section">
+            <div class="activity-header">
+              <h3>Recent Activity</h3>
+              <button class="clear-btn" onclick="clearActivity()">
+                Clear All
+              </button>
+            </div>
+            <div class="activity-feed" id="activity-feed">
+              <div class="activity-item welcome">
+                <div class="activity-icon">👋</div>
+                <div class="activity-content">
+                  <p><strong>Welcome to CEO Agent Admin Dashboard</strong></p>
+                  <p>
+                    Your executive AI system is ready. Start by analyzing
+                    strategic objectives or training agents.
+                  </p>
+                  <span class="activity-time">Just now</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Agents Section -->
+        <section id="section-agents" class="content-section">
+          <div class="section-header">
+            <h2>Agent Management</h2>
+            <p>Monitor, configure, and interact with your AI agents</p>
+          </div>
+
+          <div class="agents-grid" id="agents-grid">
+            <!-- Agents will be loaded dynamically -->
+          </div>
+        </section>
+
+        <!-- Training Section -->
+        <section id="section-training" class="content-section">
+          <div class="section-header">
+            <h2>Agent Training Interface</h2>
+            <p>
+              Interactive training environment for AI agents (Development Mode)
+            </p>
+          </div>
+
+          <div class="training-container">
+            <div class="training-sidebar">
+              <h3>Training Modules</h3>
+              <div class="training-modules">
+                <div
+                  class="training-module"
+                  onclick="loadTrainingModule('communication')"
+                >
+                  <span class="module-icon">💬</span>
+                  <span class="module-name">Communication Skills</span>
+                  <span class="module-status completed">✓</span>
+                </div>
+                <div
+                  class="training-module"
+                  onclick="loadTrainingModule('decision-making')"
+                >
+                  <span class="module-icon">🎯</span>
+                  <span class="module-name">Decision Making</span>
+                  <span class="module-status in-progress">→</span>
+                </div>
+                <div
+                  class="training-module"
+                  onclick="loadTrainingModule('risk-assessment')"
+                >
+                  <span class="module-icon">⚠️</span>
+                  <span class="module-name">Risk Assessment</span>
+                  <span class="module-status pending">○</span>
+                </div>
+                <div
+                  class="training-module"
+                  onclick="loadTrainingModule('budget-management')"
+                >
+                  <span class="module-icon">💰</span>
+                  <span class="module-name">Budget Management</span>
+                  <span class="module-status pending">○</span>
+                </div>
+                <div
+                  class="training-module"
+                  onclick="loadTrainingModule('collaboration')"
+                >
+                  <span class="module-icon">🤝</span>
+                  <span class="module-name">Agent Collaboration</span>
+                  <span class="module-status pending">○</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="training-workspace">
+              <div class="training-header">
+                <h3 id="training-module-title">Select a Training Module</h3>
+                <div class="training-controls">
+                  <button class="training-btn" onclick="saveTrainingProgress()">
+                    💾 Save Progress
+                  </button>
+                  <button
+                    class="training-btn primary"
+                    onclick="runTrainingScenario()"
+                  >
+                    ▶️ Run Scenario
+                  </button>
+                </div>
+              </div>
+
+              <div class="training-content" id="training-content">
+                <div class="training-placeholder">
+                  <div class="placeholder-icon">🎓</div>
+                  <h3>Interactive Training Environment</h3>
+                  <p>
+                    Select a module from the left to begin training your agents.
+                  </p>
+                  <p>
+                    This is your development environment to test, train, and
+                    refine agent behaviors before production deployment.
+                  </p>
+                </div>
+              </div>
+
+              <div class="training-chat">
+                <div class="chat-messages" id="training-chat-messages">
+                  <div class="chat-message system">
+                    <strong>Training System:</strong> Ready for interactive
+                    training session.
+                  </div>
+                </div>
+                <div class="chat-input-container">
+                  <input
+                    type="text"
+                    id="training-chat-input"
+                    placeholder="Give instructions, provide feedback, or test scenarios..."
+                  />
+                  <button onclick="sendTrainingMessage()">Send</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Research Section -->
+        <section id="section-research" class="content-section">
+          <div class="section-header">
+            <h2>Daily Research & Evolution</h2>
+            <p>
+              Agents autonomously research latest tools, APIs, and best
+              practices
+            </p>
+          </div>
+
+          <div class="research-container">
+            <div class="research-config">
+              <h3>Research Configuration</h3>
+
+              <div class="config-group">
+                <label>Research Schedule</label>
+                <select id="research-schedule">
+                  <option value="daily">Daily (Recommended)</option>
+                  <option value="weekly">Weekly</option>
+                  <option value="manual">Manual Only</option>
+                </select>
+              </div>
+
+              <div class="config-group">
+                <label>Research Topics</label>
+                <div class="checkbox-group">
+                  <label
+                    ><input type="checkbox" checked /> Latest APIs &
+                    Tools</label
+                  >
+                  <label
+                    ><input type="checkbox" checked /> Industry Best
+                    Practices</label
+                  >
+                  <label
+                    ><input type="checkbox" checked /> Competitive
+                    Analysis</label
+                  >
+                  <label><input type="checkbox" /> Market Trends</label>
+                  <label><input type="checkbox" /> Emerging Technologies</label>
+                  <label><input type="checkbox" /> Cost Optimization</label>
+                </div>
+              </div>
+
+              <div class="config-group">
+                <label>Research Depth</label>
+                <input
+                  type="range"
+                  min="1"
+                  max="5"
+                  value="3"
+                  id="research-depth"
+                />
+                <div class="range-labels">
+                  <span>Quick</span>
+                  <span>Comprehensive</span>
+                </div>
+              </div>
+
+              <button
+                class="research-btn primary"
+                onclick="startManualResearch()"
+              >
+                🔬 Start Research Now
+              </button>
+            </div>
+
+            <div class="research-results">
+              <div class="results-header">
+                <h3>Research Findings</h3>
+                <span class="last-update">Last updated: Never</span>
+              </div>
+
+              <div class="research-feed" id="research-feed">
+                <div class="research-placeholder">
+                  <div class="placeholder-icon">🔬</div>
+                  <h4>No Research Data Yet</h4>
+                  <p>
+                    Start your first research session to discover new tools and
+                    optimize agent performance.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Approvals Section -->
+        <section id="section-approvals" class="content-section">
+          <div class="section-header">
+            <h2>Payment Approvals</h2>
+            <p>Review and approve agent spending requests</p>
+          </div>
+
+          <div class="approvals-container" id="approvals-container">
+            <div class="approvals-placeholder">
+              <div class="placeholder-icon">✅</div>
+              <h3>No Pending Approvals</h3>
+              <p>
+                When agents request payments for services or tools, they'll
+                appear here for your approval.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="section-reports" class="content-section">
+          <div class="section-header">
+            <h2>Executive Reports</h2>
+            <p>Comprehensive insights and analytics</p>
+          </div>
+
+          <div class="reports-grid">
+            <div class="report-card" onclick="generateReport('ceo')">
+              <div class="report-icon">👔</div>
+              <h3>CEO Strategic Report</h3>
+              <p>Executive summary with decisions, tasks, and outcomes</p>
+              <button class="report-btn">Generate Report</button>
+            </div>
+
+            <div class="report-card" onclick="generateReport('cfo')">
+              <div class="report-icon">💰</div>
+              <h3>CFO Financial Report</h3>
+              <p>Budget tracking, spending analysis, and cost optimization</p>
+              <button class="report-btn">Generate Report</button>
+            </div>
+
+            <div
+              class="report-card"
+              onclick="generateReport('agent-performance')"
+            >
+              <div class="report-icon">📊</div>
+              <h3>Agent Performance</h3>
+              <p>Task completion rates, efficiency metrics, quality scores</p>
+              <button class="report-btn">Generate Report</button>
+            </div>
+
+            <div
+              class="report-card"
+              onclick="generateReport('training-progress')"
+            >
+              <div class="report-icon">🎓</div>
+              <h3>Training Progress</h3>
+              <p>Agent learning curves, skill development, readiness status</p>
+              <button class="report-btn">Generate Report</button>
+            </div>
+          </div>
+
+          <div class="report-viewer" id="report-viewer" style="display: none">
+            <div class="report-viewer-header">
+              <h3 id="report-title">Report</h3>
+              <button onclick="closeReportViewer()">✕</button>
+            </div>
+            <div class="report-viewer-content" id="report-content">
+              <!-- Report content loaded here -->
+            </div>
+          </div>
+        </section>
+
+        <!-- Settings Section -->
+        <section id="section-settings" class="content-section">
+          <div class="section-header">
+            <h2>System Settings</h2>
+            <p>Configure CEO Agent system parameters</p>
+          </div>
+
+          <div class="settings-container">
+            <div class="settings-group">
+              <h3>General Settings</h3>
+
+              <div class="setting-item">
+                <div class="setting-label">
+                  <strong>System Mode</strong>
+                  <p>
+                    Training mode allows experimentation; Production mode is for
+                    live execution
+                  </p>
+                </div>
+                <select id="system-mode">
+                  <option value="training" selected>Training Mode</option>
+                  <option value="production">Production Mode</option>
+                </select>
+              </div>
+
+              <div class="setting-item">
+                <div class="setting-label">
+                  <strong>Auto-Approve API Fees</strong>
+                  <p>CFO automatically approves API fees under $100</p>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="auto-approve-api" checked />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <div class="setting-item">
+                <div class="setting-label">
+                  <strong>Enable Email Notifications</strong>
+                  <p>Receive email alerts for pending approvals</p>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="email-notifications" />
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <h3>Budget Controls</h3>
+
+              <div class="setting-item">
+                <label>Total Budget</label>
+                <input
+                  type="number"
+                  id="total-budget"
+                  value="50000"
+                  min="0"
+                  step="1000"
+                />
+              </div>
+
+              <div class="setting-item">
+                <label>CFO Auto-Approve Limit (API Fees)</label>
+                <input
+                  type="number"
+                  id="cfo-api-limit"
+                  value="100"
+                  min="0"
+                  step="10"
+                />
+              </div>
+
+              <div class="setting-item">
+                <label>CFO Auto-Approve Limit (Legal Fees)</label>
+                <input
+                  type="number"
+                  id="cfo-legal-limit"
+                  value="500"
+                  min="0"
+                  step="50"
+                />
+              </div>
+            </div>
+
+            <div class="settings-actions">
+              <button class="settings-btn" onclick="resetSettings()">
+                Reset to Defaults
+              </button>
+              <button class="settings-btn primary" onclick="saveSettings()">
+                Save Settings
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Real-time Connection Status -->
+    <div class="connection-status" id="connection-status">
+      <div class="status-dot"></div>
+      <span>Connected</span>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+  </body>
+</html>

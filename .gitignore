@@ -1,0 +1,163 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environments
+venv/
+ENV/
+env/
+.venv
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Logs and Databases
+logs/
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment Variables (CRITICAL - DO NOT COMMIT)
+.env
+.env.local
+.env.*.local
+.env.key
+*.key
+secrets/
+credentials/
+
+# Encrypted env is SAFE to commit
+# .env.encrypted
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Type Checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb
+
+# Backup files (old versions we moved)
+backup_old_files/
+backups/
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*~
+
+# Production server files
+*.pid
+*.sock
+
+# Security - API Keys and Secrets
+**/config/secrets.json
+**/config/credentials.json
+firebase-admin-sdk.json
+
+# Large data files
+*.csv
+*.xlsx
+data/
+datasets/
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Package files
+*.tar.gz
+*.zip
+*.7z
+
+# Windows
+$RECYCLE.BIN/
+
+# macOS
+.AppleDouble
+.LSOverride
+Icon
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.fseventsd
+.TemporaryItems
+.apdisk
+.Spotlight-V100
+.Trashes
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+
+# Linux
+*~
+.directory
+.Trash-*
+.nfs*
+
+# Flask
+instance/
+.webassets-cache
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# Redis
+dump.rdb
+
+# Debug and profiling
+*.prof
+*.lprof
+
