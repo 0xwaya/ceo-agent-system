@@ -6,6 +6,8 @@
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+PYTHON_BIN="python3"
+
 if [ -d ".venv" ]; then
     ENV_DIR=".venv"
 elif [ -d "venv" ]; then
@@ -30,7 +32,7 @@ echo ""
 
 # Check Python version
 echo -e "${BLUE}Checking Python version...${NC}"
-python_version=$(python3 --version 2>&1 | awk '{print $2}')
+python_version=$($PYTHON_BIN --version 2>&1 | awk '{print $2}')
 required_version="3.10"
 
 if [[ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" = "$required_version" ]]; then
@@ -44,7 +46,7 @@ fi
 if [ ! -d "$ENV_DIR" ]; then
     echo -e "${YELLOW}⚠ No virtual environment found${NC}"
     echo -e "${BLUE}Creating virtual environment...${NC}"
-    python3 -m venv "$ENV_DIR"
+    $PYTHON_BIN -m venv "$ENV_DIR"
     echo -e "${GREEN}✓ Virtual environment created${NC}"
 fi
 
@@ -55,10 +57,10 @@ echo -e "${GREEN}✓ Virtual environment activated${NC}"
 
 # Check dependencies
 echo -e "${BLUE}Checking dependencies...${NC}"
-if ! python3 -c "import flask" 2>/dev/null; then
+if ! $PYTHON_BIN -c "import flask" 2>/dev/null; then
     echo -e "${YELLOW}⚠ Dependencies not installed${NC}"
     echo -e "${BLUE}Installing dependencies...${NC}"
-    pip3 install -r requirements.txt --quiet
+    $PYTHON_BIN -m pip install -r requirements.txt --quiet
     echo -e "${GREEN}✓ Dependencies installed${NC}"
 else
     echo -e "${GREEN}✓ Dependencies OK${NC}"
@@ -98,4 +100,4 @@ echo -e "${GREEN}═════════════════════
 echo ""
 
 # Start the application
-python3 app.py
+$PYTHON_BIN app.py

@@ -2,6 +2,8 @@
 
 # Multi-Agent System Web Interface Startup Script
 
+PYTHON_BIN="python3"
+
 echo ""
 echo "========================================================================"
 echo "🚀 SURFACECRAFT STUDIO - Multi-Agent System"
@@ -10,7 +12,7 @@ echo "========================================================================"
 echo ""
 
 # Check if Python is installed
-if ! command -v python3 &> /dev/null; then
+if ! command -v "$PYTHON_BIN" &> /dev/null; then
     echo "❌ Error: Python 3 is not installed"
     echo "   Please install Python 3.8 or higher"
     exit 1
@@ -23,7 +25,7 @@ REQUIRED_PACKAGES=("Flask" "flask-socketio" "eventlet")
 MISSING_PACKAGES=()
 
 for package in "${REQUIRED_PACKAGES[@]}"; do
-    if ! python3 -c "import ${package,,}" &> /dev/null; then
+    if ! "$PYTHON_BIN" -c "import ${package,,}" &> /dev/null; then
         MISSING_PACKAGES+=("$package")
     fi
 done
@@ -32,7 +34,7 @@ if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
     echo "❌ Missing packages: ${MISSING_PACKAGES[*]}"
     echo ""
     echo "Installing missing packages..."
-    pip3 install Flask flask-socketio eventlet python-socketio
+    "$PYTHON_BIN" -m pip install Flask flask-socketio eventlet python-socketio
 
     if [ $? -ne 0 ]; then
         echo "❌ Failed to install packages"
@@ -64,7 +66,7 @@ echo "🌐 Starting web server..."
 echo ""
 
 # Start the Flask app
-python3 app.py
+"$PYTHON_BIN" app.py
 
 # If the script reaches here, the server has stopped
 echo ""

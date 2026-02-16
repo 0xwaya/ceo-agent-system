@@ -1,10 +1,12 @@
 .PHONY: consistency smoke test
 
+PYTHON := python3
+
 consistency:
-	python3 tools/enforce_consistency_gate.py
+	$(PYTHON) tools/enforce_consistency_gate.py
 
 smoke:
-	python3 tools/smoke_dashboard_render.py
+	$(PYTHON) tools/smoke_dashboard_render.py
 
 test:
-	pytest -q
+	$(PYTHON) -m pytest -q

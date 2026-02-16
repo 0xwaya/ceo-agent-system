@@ -11,9 +11,11 @@ COMMAND_PATTERNS = [
     re.compile(r"^\s*(?:\$\s*)?python\s+"),
     re.compile(r"^\s*[-*]\s+python\s+"),
     re.compile(r"`python\s+[^`]*`"),
+    re.compile(r"\bpython\s+-m\s+"),
 ]
 IGNORED_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".svg", ".webp", ".ico", ".pdf"}
-CHECK_EXTENSIONS = {".md", ".sh", ".yml", ".yaml", ".txt"}
+CHECK_EXTENSIONS = {".md", ".sh", ".yml", ".yaml", ".txt", ".mk"}
+CHECK_FILENAMES = {"Makefile"}
 IGNORED_DIR_NAMES = {
     ".git",
     ".venv",
@@ -28,6 +30,8 @@ def should_check(path: Path) -> bool:
         return False
     if path.suffix.lower() in IGNORED_EXTENSIONS:
         return False
+    if path.name in CHECK_FILENAMES:
+        return True
     return path.suffix.lower() in CHECK_EXTENSIONS
 
 
