@@ -548,18 +548,20 @@ Returns list of available agents.
 }
 ```
 
-#### POST /api/cfo/analyze
+#### POST /api/ceo/analyze
 
-Analyze objectives and create task breakdown.
+Analyze objectives and return CEO strategic execution output.
 
 **Request**:
 
 ```json
 {
-  "company_name": "TechCorp",
-  "industry": "Software",
-  "target_audience": "Enterprise",
-  "objectives": "Launch new product"
+    "company_name": "TechCorp",
+    "industry": "Software",
+    "location": "Cincinnati, OH",
+    "objectives": ["Launch new product"],
+    "budget": 5000,
+    "timeline": 90
 }
 ```
 
@@ -567,9 +569,23 @@ Analyze objectives and create task breakdown.
 
 ```json
 {
-  "tasks": [...],
-  "budget_projection": {...},
-  "execution_plan": [...]
+    "success": true,
+    "tasks": [...],
+    "budget_allocation": {...},
+    "risks": [...],
+    "top_priorities": [...],
+    "immediate_actions": [...],
+    "approval_actions": [...],
+    "executive_summary": "...",
+    "artifacts": [
+        {
+            "title": "Execution Result",
+            "type": "json",
+            "url": "/static/generated_outputs/ceo/.../result.json"
+        }
+    ],
+    "artifact_run_id": "20260216-...",
+    "artifact_directory": "generated_outputs/ceo/..."
 }
 ```
 
@@ -581,10 +597,12 @@ Execute specific agent.
 
 ```json
 {
-  "company_name": "TechCorp",
-  "industry": "Software",
-  "target_audience": "Enterprise",
-  "objectives": "Launch product"
+    "task": "Generate deliverables for branding",
+    "company_info": {
+        "company_name": "TechCorp",
+        "industry": "Software",
+        "location": "Cincinnati, OH"
+    }
 }
 ```
 
@@ -593,11 +611,38 @@ Execute specific agent.
 ```json
 {
   "success": true,
-  "deliverables": [...],
-  "cost": 150.0,
-  "execution_time": 2.5
+    "result": {
+        "agent_type": "branding",
+        "deliverables": [...],
+        "budget_used": 150.0,
+        "artifacts": [...],
+        "artifact_run_id": "20260216-...",
+        "artifact_directory": "generated_outputs/branding/..."
+    }
 }
 ```
+
+#### GET /api/cfo/report
+
+Returns CFO financial report plus persisted artifact metadata for dashboard review.
+
+#### GET /api/artifacts/runs
+
+Lists latest artifact runs across all agents.
+
+#### GET /api/artifacts/runs/<agent_type>
+
+Lists artifact runs scoped to one agent type.
+
+### Artifact Persistence
+
+All supported execution endpoints persist reviewable files under:
+
+```text
+static/generated_outputs/<agent_type>/<run_id>_<company_slug>/
+```
+
+Each run includes a normalized bundle (`bundle.json`) and typed artifact entries consumable by the admin UI.
 
 ### WebSocket Events
 

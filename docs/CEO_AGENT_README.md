@@ -25,6 +25,8 @@
 - **📊 Executive Reports**: CEO strategic summaries, CFO financial reports, performance analytics
 - **🛡️ Financial Guard Rails**: Prevents unauthorized spending and liability exposure
 - **⚡ Real-time Dashboard**: Professional admin interface for complete system control
+- **🗂️ Artifact Persistence**: Each execution writes structured output files to `static/generated_outputs/`
+- **🖼️ In-UI File Preview**: `Run & View Output` now includes a Generated Files section with previews/links
 
 ---
 
@@ -103,7 +105,32 @@ Click "Daily Research" → Configure topics → Start research → Review findin
 
 // Approve Payments
 Click "Pending Approvals" → Review request → Approve/Reject
+
+// Review Real Outputs
+Click "Run & View Output" on any agent → inspect Generated Files previews → open saved artifacts
 ```
+
+### Generated Artifact Workflow
+
+```text
+1) User runs agent from Admin dashboard
+2) API returns structured result + artifact list
+3) Backend persists bundle under static/generated_outputs/
+4) Dashboard renders Generated Files with preview/open links
+5) Team reviews artifacts and iterates with next run
+```
+
+Standard run bundle files:
+
+- `metadata.json`
+- `result.json`
+- `summary.md`
+- agent-specific outputs (e.g., branding SVG logo proposals, social avatars, palette files)
+
+Run listing endpoints:
+
+- `GET /api/artifacts/runs`
+- `GET /api/artifacts/runs/<agent_type>`
 
 ---
 

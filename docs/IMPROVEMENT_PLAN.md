@@ -4,6 +4,13 @@
 ║                     Multi-Agent System Optimization                           ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
+## Latest Implemented Updates (2026-02-16)
+
+- Added real execution artifact pipeline with persisted output bundles in `static/generated_outputs/`
+- Added dashboard Generated Files viewer with image previews and direct artifact links
+- Extended CEO analysis output with executive summary, top priorities, immediate actions, approval queue, and risk snapshot
+- Added artifact listing APIs: `GET /api/artifacts/runs` and `GET /api/artifacts/runs/<agent_type>`
+
 
 📊 CURRENT STATE ASSESSMENT
 ================================================================================

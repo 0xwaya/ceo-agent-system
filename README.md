@@ -27,6 +27,9 @@ Open: http://localhost:5001/reports # Reports section (direct)
 - 📊 **Executive Reports** - CEO/CFO reports in easy-to-read format
 - 🛡️ **Financial Guard Rails** - 98% of budget requires user approval
 - 🔄 **Scenario Sync to Admin** - Main dashboard scenario (company/industry/location/objectives/budget/timeline) is reused in `/admin` reports and analysis
+- 🗂️ **Real Artifact Pipeline** - Every agent run now persists reviewable output files in `static/generated_outputs/`
+- 🖼️ **Live Artifact Viewer** - Admin workspace now shows generated files with previews and open links
+- 👔 **Enhanced CEO Output UX** - CEO run now surfaces executive summary, top priorities, immediate actions, approvals, and risk snapshot
 
 > **First Push to Empty Repo:** If your GitHub repository exists but has no commits yet, use the quick upload commands in [GITHUB_SETUP.md → Fast Path (Your Current Status)](GITHUB_SETUP.md#fast-path-your-current-status).
 
@@ -115,6 +118,15 @@ Specialized in brand analysis and marketing for granite/quartz industry.
 ---
 
 ## ✨ Quick Start
+
+### Verify Real Output Artifacts
+
+After running an agent from `/admin` → `Agents` → `Run & View Output`, you can review saved files in two ways:
+
+- In-app: generated files appear directly in the workspace under **Generated Files**
+- On disk: open `static/generated_outputs/<agent_type>/<run_id>_<company_slug>/`
+
+Common generated outputs include `result.json`, `summary.md`, and agent-specific artifacts (for branding this includes SVG logo proposals and social avatars).
 
 ### Interactive Chat Example
 

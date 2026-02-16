@@ -24,6 +24,7 @@ This folder contains non-core project documentation moved out of the repository 
 - `CEO_AGENT_README.md`
 - `CEO_CFO_QUICK_REFERENCE.md`
 - `GRAPH_DASHBOARD_QUICK_START.md`
+- `ARTIFACT_WORKFLOW.md`
 
 ## Historical Material
 - `archive/`

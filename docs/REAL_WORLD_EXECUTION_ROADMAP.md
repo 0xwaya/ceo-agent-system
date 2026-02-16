@@ -30,6 +30,8 @@ Transform your multi-agent system from **planning & simulation** to **autonomous
 - **Agents**: 6 specialized agents with domain expertise
 - **Guard Rails**: Budget limits, scope validation, quality standards
 - **Exception Handling**: Comprehensive error hierarchy including `APIError`
+- **Human-in-the-Loop**: Active approval workflow in admin dashboard
+- **Execution Artifacts**: Persisted run outputs in `static/generated_outputs/` with UI previews
 
 ### ❌ What's Missing
 
@@ -37,7 +39,7 @@ Transform your multi-agent system from **planning & simulation** to **autonomous
 - **Tool Execution**: Agents simulate work, don't perform real actions
 - **API Connectors**: 100+ APIs planned but not implemented
 - **State Persistence**: No checkpoint/resume for long-running tasks
-- **Human-in-Loop**: No approval workflows for critical actions
+- **External Media APIs**: No direct photoreal image generation provider wired yet
 
 ---
 

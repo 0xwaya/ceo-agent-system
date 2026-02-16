@@ -76,6 +76,7 @@ except ImportError as e:
 
 from agents.specialized_agents import AgentFactory
 from agents.agent_guard_rails import AgentGuardRail, AgentDomain, create_execution_summary
+from services.artifact_service import artifact_service
 
 # Import utilities
 try:
@@ -905,15 +906,90 @@ def analyze_objectives():
 
         print(f"✅ Analysis complete. Tasks: {len(result.get('identified_tasks', []))}")
 
-        return jsonify(
-            {
-                "success": True,
-                "tasks": result.get("identified_tasks", []),
-                "budget_allocation": result.get("budget_allocated", {}),
-                "risks": result.get("risks", []),
-                "timeline": result.get("target_completion_days", 90),
-            }
+        identified_tasks_raw = result.get("identified_tasks", [])
+        identified_tasks = [task for task in identified_tasks_raw if isinstance(task, dict)]
+        critical_tasks = [
+            task for task in identified_tasks if str(task.get("priority", "")).upper() == "CRITICAL"
+        ]
+        high_tasks = [
+            task for task in identified_tasks if str(task.get("priority", "")).upper() == "HIGH"
+        ]
+
+        top_priorities = []
+        for task in critical_tasks[:2] + high_tasks[:2]:
+            top_priorities.append(
+                f"{task.get('task_id', 'TASK')}: {task.get('task_name', 'Priority task')}"
+            )
+
+        pending_approval_items = result.get("pending_approvals", [])
+        immediate_actions = [
+            f"Start: {task.get('task_name', task.get('description', 'Task'))}"
+            for task in identified_tasks
+            if not task.get("requires_payment")
+        ][:5]
+
+        approval_actions = [
+            f"Approval needed: {item.get('task_name', item.get('task_id', 'Task'))} (${item.get('amount', 0)})"
+            for item in pending_approval_items
+        ][:5]
+
+        risk_items = result.get("risks", [])
+        risk_lines = [
+            risk.get("description", "Risk identified") if isinstance(risk, dict) else str(risk)
+            for risk in risk_items
+        ]
+
+        executive_summary = (
+            f"CEO identified {len(identified_tasks)} strategic tasks for "
+            f"{normalized_scenario['company_name']} with "
+            f"{len(pending_approval_items)} payment approvals pending."
         )
+
+        response_payload = {
+            "success": True,
+            "tasks": identified_tasks,
+            "budget_allocation": result.get("budget_allocated", {}),
+            "risks": risk_items,
+            "timeline": result.get("target_completion_days", 90),
+            "pending_approvals": pending_approval_items,
+            "top_priorities": top_priorities,
+            "immediate_actions": immediate_actions,
+            "approval_actions": approval_actions,
+            "executive_summary": executive_summary,
+            "risk_summary": risk_lines[:5],
+            "executive_report_markdown": result.get("final_executive_summary", ""),
+            "execution_mode": "AI_PERFORMED",
+        }
+
+        try:
+            artifact_bundle = artifact_service.persist_agent_execution(
+                agent_type="ceo",
+                agent_name="CEO Agent",
+                task="Analyze strategic objectives and execution plan",
+                company_info={
+                    "name": normalized_scenario.get("company_name"),
+                    "dba_name": normalized_scenario.get("dba_name"),
+                    "industry": normalized_scenario.get("industry"),
+                    "location": normalized_scenario.get("location"),
+                },
+                result={
+                    "status": "analysis_complete",
+                    "deliverables": response_payload.get("tasks", []),
+                    "risks": response_payload.get("risks", []),
+                    "budget_allocation": response_payload.get("budget_allocation", {}),
+                    "timeline_days": response_payload.get("timeline"),
+                    "summary": response_payload.get("executive_summary"),
+                    "recommendations": response_payload.get("approval_actions", []),
+                },
+            )
+            response_payload["artifacts"] = artifact_bundle.get("artifacts", [])
+            response_payload["artifact_run_id"] = artifact_bundle.get("run_id")
+            response_payload["artifact_directory"] = artifact_bundle.get("directory")
+        except Exception as artifact_error:
+            if UTILS_AVAILABLE:
+                logger.warning(f"CEO artifact persistence failed: {artifact_error}")
+
+        return jsonify(response_payload)
     except Exception as e:
         print(f"❌ Analysis error: {str(e)}")
         import traceback
@@ -1286,6 +1362,21 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         ]
     if "budget_used" not in result:
         result["budget_used"] = agent.budget if hasattr(agent, "budget") else 0
+
+    try:
+        artifact_bundle = artifact_service.persist_agent_execution(
+            agent_type=agent_type,
+            agent_name=agent.name,
+            task=data.get("task", "Agent task execution"),
+            company_info=company_info,
+            result=result,
+        )
+        result["artifacts"] = artifact_bundle.get("artifacts", [])
+        result["artifact_run_id"] = artifact_bundle.get("run_id")
+        result["artifact_directory"] = artifact_bundle.get("directory")
+    except Exception as artifact_error:
+        if UTILS_AVAILABLE:
+            logger.warning(f"Artifact persistence failed for {agent_type}: {artifact_error}")
 
     return result
 
@@ -1662,23 +1753,71 @@ def get_cfo_report():
                 "audit_trail": [],
             }
             report = generate_financial_report(state)
-            return jsonify({"success": True, "report": report})
+            response_payload = {"success": True, "report": report}
+            try:
+                artifact_bundle = artifact_service.persist_agent_execution(
+                    agent_type="cfo",
+                    agent_name="CFO Agent",
+                    task="Generate financial report",
+                    company_info={
+                        "name": "CEO Agent Platform",
+                        "industry": "AI Technology",
+                        "location": "United States",
+                    },
+                    result={
+                        "status": "report_generated",
+                        "report": report,
+                        "deliverables": report.get("cfo_recommendations", []),
+                    },
+                )
+                response_payload["artifacts"] = artifact_bundle.get("artifacts", [])
+                response_payload["artifact_run_id"] = artifact_bundle.get("run_id")
+                response_payload["artifact_directory"] = artifact_bundle.get("directory")
+            except Exception as artifact_error:
+                if UTILS_AVAILABLE:
+                    logger.warning(f"CFO artifact persistence failed: {artifact_error}")
+            return jsonify(response_payload)
         else:
             # Fallback report
-            return jsonify(
-                {
-                    "success": True,
-                    "report": {
-                        "total_budget": system_settings["total_budget"],
-                        "cfo_managed": system_settings["cfo_api_limit"]
-                        + system_settings["cfo_legal_limit"],
-                        "user_approval_required": system_settings["total_budget"]
-                        - (system_settings["cfo_api_limit"] + system_settings["cfo_legal_limit"]),
-                        "pending_approvals": len(pending_approvals),
-                    },
-                }
-            )
+            fallback_report = {
+                "total_budget": system_settings["total_budget"],
+                "cfo_managed": system_settings["cfo_api_limit"]
+                + system_settings["cfo_legal_limit"],
+                "user_approval_required": system_settings["total_budget"]
+                - (system_settings["cfo_api_limit"] + system_settings["cfo_legal_limit"]),
+                "pending_approvals": len(pending_approvals),
+            }
+            response_payload = {"success": True, "report": fallback_report}
+            try:
+                artifact_bundle = artifact_service.persist_agent_execution(
+                    agent_type="cfo",
+                    agent_name="CFO Agent",
+                    task="Generate fallback financial report",
+                    company_info={"name": "CEO Agent Platform"},
+                    result={"status": "report_generated", "report": fallback_report},
+                )
+                response_payload["artifacts"] = artifact_bundle.get("artifacts", [])
+                response_payload["artifact_run_id"] = artifact_bundle.get("run_id")
+                response_payload["artifact_directory"] = artifact_bundle.get("directory")
+            except Exception as artifact_error:
+                if UTILS_AVAILABLE:
+                    logger.warning(f"CFO fallback artifact persistence failed: {artifact_error}")
+            return jsonify(response_payload)
     except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/artifacts/runs", methods=["GET"])
+@app.route("/api/artifacts/runs/<agent_type>", methods=["GET"])
+def list_artifact_runs(agent_type=None):
+    """List generated artifact runs for dashboard review."""
+    try:
+        limit = request.args.get("limit", default=20, type=int)
+        runs = artifact_service.list_artifact_runs(agent_type=agent_type, limit=limit)
+        return jsonify({"success": True, "runs": runs, "count": len(runs)})
+    except Exception as e:
+        if UTILS_AVAILABLE:
+            logger.error(f"Error listing artifact runs: {str(e)}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 

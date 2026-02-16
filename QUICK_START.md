@@ -77,6 +77,8 @@ Then visit: **http://localhost:5001**
 - Real-time WebSocket updates
 - Visual dashboards and charts
 - Execute agents via API endpoints
+- Persist generated execution artifacts to `static/generated_outputs/`
+- Show generated files with previews in the agent workspace panel
 - Debug console
 
 **Use case:** Production deployment, team collaboration
@@ -177,7 +179,21 @@ python3 app.py
 # - Click "Analyze Strategy" for CFO analysis
 # - Click individual agent buttons to deploy them
 # - View real-time progress
+# - Open "Run & View Output" for any agent to see generated files
+# - Review saved artifacts in static/generated_outputs/
 ```
+
+### Artifact Review Flow
+
+1. Open `/admin` and run an agent via **Run & View Output**
+2. Inspect **Generated Files** in the workspace panel (preview + open links)
+3. Access saved output folder at `static/generated_outputs/<agent>/<run_id>_<company>/`
+
+Generated bundle includes:
+- `metadata.json` (run context)
+- `result.json` (full structured agent result)
+- `summary.md` (execution summary)
+- agent-specific files (for example branding SVG concepts and avatar exports)
 
 ---
 
