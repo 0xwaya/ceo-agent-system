@@ -66,7 +66,7 @@ Ollama = "0.1.6"                 # Local LLMs (privacy)
 Essential:
   - openai_dalle: "Image generation" # $0.04/image (1024x1024)
   - stability_ai: "Alternative generation" # $0.02/image
-  
+
 Production:
   - canva_api: "Template-based design" # $13/month
   - figma_api: "Professional design" # $15/user/month
@@ -80,7 +80,7 @@ Production:
 Essential:
   - sendgrid: "Transactional email" # Free 100/day → $15/month
   - resend: "Developer-friendly email" # Free 3k/month → $20/month
-  
+
 Production:
   - gmail_api: "Gmail integration" # Free
   - microsoft_graph: "Outlook integration" # Free
@@ -93,7 +93,7 @@ Production:
 Essential:
   - google_calendar_api: "Event management" # Free
   - calendly_api: "Scheduling automation" # $8/month
-  
+
 Production:
   - microsoft_graph: "Outlook calendar" # Free
   - acuity_scheduling: "Appointment booking" # $16/month
@@ -105,7 +105,7 @@ Production:
 Essential:
   - twitter_api_v2: "Tweet posting" # $100/month (Basic)
   - linkedin_api: "Professional posts" # Free (limited)
-  
+
 Production:
   - meta_graph_api: "Facebook/Instagram" # Free
   - buffer_api: "Multi-platform scheduling" # $6/channel/month
@@ -118,7 +118,7 @@ Production:
 Essential:
   - aws_s3: "Object storage" # $0.023/GB/month
   - google_drive_api: "Drive integration" # Free 15GB
-  
+
 Production:
   - dropbox_api: "Business storage" # $15/user/month
   - cloudinary: "Media management" # Free tier available
@@ -131,7 +131,7 @@ Essential:
   - langchain_tools: "Tool framework" # Free (OSS)
   - serpapi: "Google search" # Free 100/month → $50/month
   - tavily_api: "AI search" # Free 1k/month → $100/month
-  
+
 Production:
   - wolfram_alpha: "Computational engine" # $5/month
   - web_browser: "Live web scraping" # Free (with LangChain)
@@ -144,7 +144,7 @@ Production:
 Essential:
   - hubspot_api: "Free CRM" # Free → $50/month
   - google_analytics_api: "Web analytics" # Free
-  
+
 Production:
   - salesforce_api: "Enterprise CRM" # $75/user/month
   - segment_api: "Customer data" # Free 1k visitors → $120/month
@@ -157,7 +157,7 @@ Production:
 Essential:
   - docusign_api: "E-signatures" # $10/month
   - pdf_generator: "Document creation" # Free (OSS)
-  
+
 Production:
   - uspto_api: "Trademark search" # Free
   - rocket_lawyer_api: "Legal docs" # $40/month
@@ -231,14 +231,14 @@ from logger import AgentLogger
 
 class LLMService:
     """Manages LLM interactions with multiple providers"""
-    
+
     def __init__(self):
         self.logger = AgentLogger("llm_service")
         self._openai_client = None
         self._anthropic_client = None
-        
+
     def get_openai_llm(
-        self, 
+        self,
         temperature: float = 0.7,
         model: str = None
     ) -> ChatOpenAI:
@@ -250,9 +250,9 @@ class LLMService:
                 temperature=temperature
             )
         return self._openai_client
-    
+
     def get_anthropic_llm(
-        self, 
+        self,
         temperature: float = 0.7,
         model: str = None
     ) -> ChatAnthropic:
@@ -264,7 +264,7 @@ class LLMService:
                 temperature=temperature
             )
         return self._anthropic_client
-    
+
     def chat(
         self,
         messages: List[Dict[str, str]],
@@ -274,12 +274,12 @@ class LLMService:
     ) -> str:
         """
         Send chat messages to LLM
-        
+
         Args:
             messages: List of {"role": "system|user|assistant", "content": str}
             provider: "openai" or "anthropic"
             temperature: 0.0 (deterministic) to 1.0 (creative)
-            
+
         Returns:
             Response content as string
         """
@@ -293,7 +293,7 @@ class LLMService:
                     lc_messages.append(HumanMessage(content=msg["content"]))
                 elif msg["role"] == "assistant":
                     lc_messages.append(AIMessage(content=msg["content"]))
-            
+
             # Get appropriate LLM
             if provider == "openai":
                 llm = self.get_openai_llm(temperature)
@@ -301,11 +301,11 @@ class LLMService:
                 llm = self.get_anthropic_llm(temperature)
             else:
                 raise ValueError(f"Unknown provider: {provider}")
-            
+
             # Invoke LLM
             response = llm.invoke(lc_messages)
             return response.content
-            
+
         except Exception as e:
             self.logger.error(f"LLM chat error: {str(e)}")
             raise
@@ -326,39 +326,39 @@ class BaseAgent(ABC):
     def __init__(self, agent_type, budget_allocation=None, logger=None, guard_rail_validator=None):
         # ... existing code ...
         self.llm = llm_service  # Add LLM access
-        
+
     def ask_llm(
-        self, 
-        prompt: str, 
+        self,
+        prompt: str,
         system_prompt: str = None,
         temperature: float = 0.7
     ) -> str:
         """
         Ask LLM a question with agent context
-        
+
         Args:
             prompt: User/task prompt
             system_prompt: System instructions (defaults to agent expertise)
             temperature: Response creativity
-            
+
         Returns:
             LLM response
         """
         messages = []
-        
+
         # Default system prompt with agent expertise
         if not system_prompt:
             system_prompt = f"""You are a {self.agent_type.value} agent.
-            
+
 Your capabilities: {', '.join(self.get_capabilities())}
 Your domain: {self.get_domain()}
 
 Provide expert-level advice and solutions within your domain.
 Be specific, actionable, and cite best practices."""
-        
+
         messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
-        
+
         return self.llm.chat(messages, temperature=temperature)
 ```
 
@@ -378,12 +378,12 @@ load_dotenv()
 def test_openai():
     """Test OpenAI integration"""
     print("\n🧪 Testing OpenAI GPT-4...")
-    
+
     messages = [
         {"role": "system", "content": "You are a branding expert."},
         {"role": "user", "content": "Suggest 3 modern logo concepts for a countertop company called Surfacecraft Studio"}
     ]
-    
+
     response = llm_service.chat(messages, provider="openai", temperature=0.7)
     print(f"✅ Response:\n{response}")
     assert len(response) > 100, "Response too short"
@@ -391,12 +391,12 @@ def test_openai():
 def test_anthropic():
     """Test Anthropic integration"""
     print("\n🧪 Testing Anthropic Claude...")
-    
+
     messages = [
         {"role": "system", "content": "You are a legal analyst."},
         {"role": "user", "content": "What are the key steps to register a DBA in Ohio?"}
     ]
-    
+
     response = llm_service.chat(messages, provider="anthropic", temperature=0.5)
     print(f"✅ Response:\n{response}")
     assert len(response) > 100, "Response too short"
@@ -453,26 +453,26 @@ class Tool:
     function: Callable
     requires_approval: bool = False
     cost_per_use: float = 0.0
-    
+
 
 class ToolRegistry:
     """Central registry of all available tools"""
-    
+
     def __init__(self):
         self.tools: Dict[str, Tool] = {}
-        
+
     def register(self, tool: Tool):
         """Register a new tool"""
         self.tools[tool.name] = tool
-        
+
     def get_tool(self, name: str) -> Tool:
         """Get tool by name"""
         return self.tools.get(name)
-    
+
     def get_tools_by_category(self, category: ToolCategory) -> List[Tool]:
         """Get all tools in a category"""
         return [t for t in self.tools.values() if t.category == category]
-    
+
     def get_tools_for_agent(self, agent_type: str) -> List[Tool]:
         """Get tools available to specific agent"""
         # Map agents to tool categories
@@ -484,7 +484,7 @@ class ToolRegistry:
             "content": [ToolCategory.DESIGN, ToolCategory.FILE_STORAGE, ToolCategory.SOCIAL_MEDIA],
             "campaigns": [ToolCategory.SOCIAL_MEDIA, ToolCategory.COMMUNICATION, ToolCategory.CALENDAR]
         }
-        
+
         categories = agent_tool_map.get(agent_type, [])
         tools = []
         for category in categories:
@@ -516,12 +516,12 @@ def generate_logo_with_dalle(
 ) -> Dict[str, Any]:
     """
     Generate logo using OpenAI DALL-E
-    
+
     Args:
         prompt: Description of logo concept
         style: Design style (modern, vintage, minimalist, etc.)
         size: Image size (1024x1024, 1024x1792, 1792x1024)
-        
+
     Returns:
         {
             "success": True,
@@ -532,12 +532,12 @@ def generate_logo_with_dalle(
     """
     try:
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
+
         # Enhance prompt for logo design
         enhanced_prompt = f"""{style} logo design: {prompt}
         Professional quality, vector-style, clean lines, suitable for branding.
         High contrast, scalable design, no text unless specified."""
-        
+
         response = client.images.generate(
             model="dall-e-3",
             prompt=enhanced_prompt,
@@ -545,7 +545,7 @@ def generate_logo_with_dalle(
             quality="standard",  # or "hd" for $0.08
             n=1
         )
-        
+
         return {
             "success": True,
             "image_url": response.data[0].url,
@@ -553,7 +553,7 @@ def generate_logo_with_dalle(
             "cost": 0.04,  # DALL-E 3 standard pricing
             "tool": "dall-e-3"
         }
-        
+
     except Exception as e:
         return {
             "success": False,
@@ -565,10 +565,10 @@ def generate_logo_with_dalle(
 def remove_background(image_url: str) -> Dict[str, Any]:
     """
     Remove background from image using Remove.bg
-    
+
     Args:
         image_url: URL of image to process
-        
+
     Returns:
         {
             "success": True,
@@ -578,19 +578,19 @@ def remove_background(image_url: str) -> Dict[str, Any]:
     """
     try:
         api_key = os.getenv("REMOVE_BG_API_KEY")
-        
+
         response = requests.post(
             "https://api.remove.bg/v1.0/removebg",
             data={"image_url": image_url, "size": "auto"},
             headers={"X-Api-Key": api_key}
         )
-        
+
         if response.status_code == 200:
             # Save processed image
             output_path = f"/tmp/no_bg_{os.path.basename(image_url)}"
             with open(output_path, 'wb') as f:
                 f.write(response.content)
-            
+
             return {
                 "success": True,
                 "result_path": output_path,
@@ -603,7 +603,7 @@ def remove_background(image_url: str) -> Dict[str, Any]:
                 "error": response.text,
                 "cost": 0.0
             }
-            
+
     except Exception as e:
         return {
             "success": False,
@@ -651,13 +651,13 @@ def send_email(
 ) -> Dict[str, Any]:
     """
     Send email using SendGrid
-    
+
     Args:
         to_email: Recipient email
         subject: Email subject
         html_content: HTML email body
         from_email: Sender email (defaults to verified sender)
-        
+
     Returns:
         {
             "success": True,
@@ -667,19 +667,19 @@ def send_email(
     """
     try:
         sg = SendGridAPIClient(os.getenv('SENDGRID_API_KEY'))
-        
+
         if not from_email:
             from_email = os.getenv('SENDGRID_FROM_EMAIL', 'noreply@example.com')
-        
+
         message = Mail(
             from_email=from_email,
             to_emails=to_email,
             subject=subject,
             html_content=html_content
         )
-        
+
         response = sg.send(message)
-        
+
         return {
             "success": True,
             "status_code": response.status_code,
@@ -687,7 +687,7 @@ def send_email(
             "cost": 0.0,  # Free tier: 100/day
             "tool": "sendgrid"
         }
-        
+
     except Exception as e:
         return {
             "success": False,
@@ -718,7 +718,7 @@ class BaseAgent(ABC):
     def __init__(self, ...):
         # ... existing code ...
         self.available_tools = tool_registry.get_tools_for_agent(agent_type.value)
-        
+
     def execute_tool(
         self,
         tool_name: str,
@@ -726,41 +726,41 @@ class BaseAgent(ABC):
     ) -> Dict[str, Any]:
         """
         Execute a tool with budget tracking
-        
+
         Args:
             tool_name: Name of tool to execute
             **kwargs: Tool parameters
-            
+
         Returns:
             Tool execution result
         """
         tool = tool_registry.get_tool(tool_name)
-        
+
         if not tool:
             raise ValueError(f"Tool '{tool_name}' not found")
-        
+
         # Check budget
         if self.budget_allocation:
             if tool.cost_per_use > self.budget_allocation.remaining:
                 raise InsufficientBudgetError(
                     f"Tool cost ${tool.cost_per_use} exceeds remaining budget ${self.budget_allocation.remaining}"
                 )
-        
+
         # Check if approval required
         if tool.requires_approval:
             self.logger.warning(f"Tool '{tool_name}' requires human approval")
             # TODO: Implement approval workflow
-        
+
         # Execute tool
         self.logger.info(f"Executing tool: {tool_name}")
         result = tool.function(**kwargs)
-        
+
         # Track cost
         if result.get("cost", 0) > 0:
             if self.budget_allocation:
                 self.budget_allocation.remaining -= result["cost"]
             self.logger.info(f"Tool cost: ${result['cost']}")
-        
+
         return result
 ```
 
@@ -825,10 +825,10 @@ from flask_socketio import emit
 
 class ApprovalService:
     """Manages human approval for agent actions"""
-    
+
     def __init__(self):
         self.pending_approvals = {}
-        
+
     def request_approval(
         self,
         action: str,
@@ -837,25 +837,25 @@ class ApprovalService:
     ) -> str:
         """
         Request human approval for action
-        
+
         Args:
             action: Action description (e.g., "send_email", "post_tweet")
             details: Action parameters
             agent_type: Requesting agent
-            
+
         Returns:
             approval_id: Unique ID for this approval request
         """
         import uuid
         approval_id = str(uuid.uuid4())
-        
+
         self.pending_approvals[approval_id] = {
             "action": action,
             "details": details,
             "agent_type": agent_type,
             "status": "pending"
         }
-        
+
         # Emit to frontend via SocketIO
         emit('approval_required', {
             "approval_id": approval_id,
@@ -863,19 +863,19 @@ class ApprovalService:
             "details": details,
             "agent": agent_type
         }, broadcast=True)
-        
+
         return approval_id
-    
+
     def check_approval(self, approval_id: str) -> str:
         """Check approval status: 'approved', 'rejected', 'pending'"""
         approval = self.pending_approvals.get(approval_id)
         return approval["status"] if approval else "not_found"
-    
+
     def approve(self, approval_id: str):
         """Approve action"""
         if approval_id in self.pending_approvals:
             self.pending_approvals[approval_id]["status"] = "approved"
-    
+
     def reject(self, approval_id: str, reason: str = ""):
         """Reject action"""
         if approval_id in self.pending_approvals:
@@ -926,7 +926,7 @@ function logToolUsage(toolName, cost, result) {
         timestamp: new Date(),
         success: result.success
     });
-    
+
     updateCostDisplay();
 }
 
@@ -948,23 +948,23 @@ function updateCostDisplay() {
 # agents/specialized_agents.py
 
 class BrandingAgent(SpecializedAgent):
-    
+
     def design_logo(self, state: BrandingAgentState) -> Dict:
         """Generate actual logo using AI"""
-        
+
         # Use LLM to create design brief
         design_brief_prompt = f"""Create a detailed logo design brief for:
         Company: {state['company_info']['name']}
         Industry: {state['company_info']['industry']}
         Style: Modern, professional, memorable
-        
+
         Describe the visual concept in detail for DALL-E generation."""
-        
+
         design_brief = self.ask_llm(
             prompt=design_brief_prompt,
             temperature=0.8  # More creative
         )
-        
+
         # Generate logo with DALL-E
         logo_result = self.execute_tool(
             "generate_logo",
@@ -972,7 +972,7 @@ class BrandingAgent(SpecializedAgent):
             style="modern",
             size="1024x1024"
         )
-        
+
         if logo_result["success"]:
             state['deliverables'].append(
                 f"✅ Logo generated: {logo_result['image_url']}"
@@ -982,7 +982,7 @@ class BrandingAgent(SpecializedAgent):
             state['deliverables'].append(
                 f"❌ Logo generation failed: {logo_result['error']}"
             )
-        
+
         return state
 ```
 
@@ -990,24 +990,24 @@ class BrandingAgent(SpecializedAgent):
 
 ```python
 class CampaignAgent(SpecializedAgent):
-    
+
     def execute_social_campaign(self, state: CampaignAgentState) -> Dict:
         """Execute real social media campaign"""
-        
+
         # Generate post content with LLM
         post_prompt = f"""Write a compelling social media post for:
         Campaign: {state['campaign_name']}
         Platform: LinkedIn
         Audience: B2B decision makers
-        
+
         Include: Hook, value proposition, call-to-action
         Format: Professional, concise, under 1200 characters"""
-        
+
         post_content = self.ask_llm(
             prompt=post_prompt,
             temperature=0.7
         )
-        
+
         # Request approval for posting
         approval_id = approval_service.request_approval(
             action="post_to_linkedin",
@@ -1017,15 +1017,15 @@ class CampaignAgent(SpecializedAgent):
             },
             agent_type="campaigns"
         )
-        
+
         # Wait for approval (or implement async workflow)
         # In production, this would be handled by LangGraph checkpoints
-        
+
         state['pending_approvals'].append(approval_id)
         state['deliverables'].append(
             f"⏸️  LinkedIn post ready for approval (ID: {approval_id})"
         )
-        
+
         return state
 ```
 
@@ -1033,32 +1033,32 @@ class CampaignAgent(SpecializedAgent):
 
 ```python
 class LegalAgent(SpecializedAgent):
-    
+
     def prepare_dba_filing(self, state: LegalAgentState) -> Dict:
         """Prepare actual DBA registration documents"""
-        
+
         # Generate DBA application with LLM
         filing_prompt = f"""Generate a complete DBA registration form for Ohio:
-        
+
         Company Name: {state['company_info']['legal_name']}
         DBA Name: {state['company_info']['dba_name']}
         County: {state['company_info']['county']}
         Business Type: {state['company_info']['business_type']}
-        
+
         Format: PDF-ready, all required fields completed"""
-        
+
         document_content = self.ask_llm(
             prompt=filing_prompt,
             temperature=0.3  # More deterministic
         )
-        
+
         # Use PDF generation tool
         pdf_result = self.execute_tool(
             "generate_pdf",
             content=document_content,
             template="ohio_dba_form"
         )
-        
+
         if pdf_result["success"]:
             # Upload to secure storage
             upload_result = self.execute_tool(
@@ -1067,13 +1067,13 @@ class LegalAgent(SpecializedAgent):
                 bucket="legal-documents",
                 key=f"dba/{state['company_info']['legal_name']}/application.pdf"
             )
-            
+
             state['documents_prepared'].append({
                 "type": "DBA Application",
                 "url": upload_result["secure_url"],
                 "status": "ready_for_filing"
             })
-        
+
         return state
 ```
 
@@ -1124,7 +1124,7 @@ def validate_email_content(content: str) -> bool:
         r'nigerian prince',
         # Add more spam patterns
     ]
-    
+
     for pattern in forbidden_patterns:
         if re.search(pattern, content, re.IGNORECASE):
             return False
@@ -1194,7 +1194,7 @@ Monthly Total: ~$500
    ```python
    # Cache common queries
    from functools import lru_cache
-   
+
    @lru_cache(maxsize=1000)
    def get_llm_response(prompt_hash):
        return llm.chat(messages)

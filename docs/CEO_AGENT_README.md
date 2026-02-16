@@ -4,13 +4,13 @@
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Status: Training Mode](https://img.shields.io/badge/status-training%20mode-orange.svg)]()
+[![Status: Training Mode](https://img.shields.io/badge/status-training%20mode-orange.svg)](docs/CEO_AGENT_README.md)
 
 ![CEO Agent System](https://img.shields.io/badge/CEO_Agent-Executive_AI-667eea?style=for-the-badge&logo=openai)
 
 ---
 
-## 🌟 What is CEO Agent?
+## 🌟 What is CEO Agent
 
 **CEO Agent** is an advanced multi-agent AI system featuring executive-level governance, financial oversight, and autonomous task execution. Built with LangGraph state machines, it orchestrates specialized AI agents to execute real-world business tasks while maintaining strict financial guard rails and requiring user approval for spending.
 
@@ -34,10 +34,10 @@
 
 ```bash
 # Python 3.10 or higher
-python --version
+python3 --version
 
 # Virtual environment (recommended)
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate  # On macOS/Linux
 ```
 
@@ -55,12 +55,12 @@ echo "OPENAI_API_KEY=your_key_here" > .env
 echo "ANTHROPIC_API_KEY=your_key_here" >> .env
 
 # 4. Start the system
-python app.py
+python3 app.py
 ```
 
 ### Access Admin Dashboard
 
-```
+```text
 🌐 Open browser: http://localhost:5001/admin
 ```
 
@@ -80,7 +80,7 @@ The CEO Agent admin dashboard is your command center for managing the entire AI 
 ### Dashboard Sections
 
 | Section | Description |
-|---------|-------------|
+| ------- | ----------- |
 | **📊 Dashboard** | Real-time metrics, quick actions, activity feed |
 | **🤖 Agents** | View and interact with all 6 specialized agents |
 | **🎓 Training** | Interactive training modules for agent development |
@@ -109,7 +109,7 @@ Click "Pending Approvals" → Review request → Approve/Reject
 
 ## 🏗️ System Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────┐
 │                    CEO AGENT (Executive)                 │
 │  Strategic Decisions • Task Orchestration • Risk Mgmt   │
@@ -126,20 +126,20 @@ Click "Pending Approvals" → Review request → Approve/Reject
 
 ### Agent Hierarchy
 
-**Tier 1: Executive (CEO)**
+### Tier 1: Executive (CEO)
 
 - Makes strategic decisions
 - Orchestrates specialized agents
 - **CANNOT approve payments without user**
 
-**Tier 2: Financial (CFO)**
+### Tier 2: Financial (CFO)
 
 - Monitors spending vs budget
 - Analyzes payment requests
 - Auto-approves: API <$100, Legal <$500
 - **NO strategic planning authority**
 
-**Tier 3: Specialized Agents**
+### Tier 3: Specialized Agents
 
 - Brand Agent 🎨: Design, branding, visual content ($4,500 budget)
 - Legal Agent ⚖️: Compliance, filings, contracts ($3,000 budget)
@@ -155,7 +155,7 @@ Click "Pending Approvals" → Review request → Approve/Reject
 ### Budget Structure
 
 | Category | Amount | Approval Level |
-|----------|--------|---------------|
+| -------- | ------ | -------------- |
 | **Total Budget** | $50,000 | - |
 | **CFO Managed** | $970 (2%) | Auto-approved |
 | **User Approval Required** | $49,030 (98%) | Manual approval |
@@ -163,7 +163,7 @@ Click "Pending Approvals" → Review request → Approve/Reject
 ### Payment Types & Rules
 
 | Payment Type | Auto-Approve Limit | Approval Required |
-|--------------|-------------------|-------------------|
+| ------------ | ------------------ | ----------------- |
 | API Fees | <$100 | ✅ CFO |
 | Legal Filing Fees | <$500 | ✅ CFO |
 | Software Subscriptions | ANY | ❌ User Required |
@@ -174,7 +174,7 @@ Click "Pending Approvals" → Review request → Approve/Reject
 
 ### Approval Workflow
 
-```
+```text
 1. Agent identifies task requiring payment
    ↓
 2. CEO creates payment approval request
@@ -266,7 +266,7 @@ Generate comprehensive reports for different stakeholders:
 
 ### CEO Strategic Report
 
-```
+```text
 - System status and operational overview
 - Strategic objectives and progress
 - Task completion metrics
@@ -275,7 +275,7 @@ Generate comprehensive reports for different stakeholders:
 
 ### CFO Financial Report
 
-```
+```text
 - Budget summary (total, allocated, spent, remaining)
 - Payment approval statistics
 - Spending by category
@@ -285,7 +285,7 @@ Generate comprehensive reports for different stakeholders:
 
 ### Agent Performance Report
 
-```
+```text
 - Tasks completed per agent
 - Success rates
 - Budget utilization
@@ -294,7 +294,7 @@ Generate comprehensive reports for different stakeholders:
 
 ### Training Progress Report
 
-```
+```text
 - Module completion status
 - Agent readiness scores
 - Next training steps
@@ -375,7 +375,7 @@ CEO Agent can execute actual tasks using integrated tools and APIs.
 ### Supported Capabilities
 
 | Category | Tools | Status |
-|----------|-------|--------|
+| -------- | ----- | ------ |
 | **Design** | DALL-E 3, Canva API | ✅ Ready |
 | **Email** | SendGrid | 📋 Configured |
 | **Calendar** | Google Calendar API | 📋 Configured |
@@ -387,7 +387,7 @@ CEO Agent can execute actual tasks using integrated tools and APIs.
 
 ```bash
 # Example: Generate logo with DALL-E
-python tools/quick_start_dalle.py
+python3 tools/quick_start_dalle.py
 
 # Or use CEO Agent:
 # 1. Analyze objectives → CEO identifies logo needed
@@ -398,7 +398,7 @@ python tools/quick_start_dalle.py
 
 ### Cost Structure
 
-```
+```text
 Minimal Setup:    $43/month  (OpenAI + basic SendGrid)
 Standard Setup:   $150/month (+ Twitter Basic, storage)
 Production Setup: $500/month (+ premium tiers, higher limits)
@@ -414,7 +414,7 @@ If migrating from the previous CFO-led architecture:
 
 ```bash
 # 1. Review upgrade documentation
-cat CEO_CFO_UPGRADE_SUMMARY.md
+cat docs/archive/CEO_CFO_UPGRADE_SUMMARY.md
 cat CEO_CFO_QUICK_REFERENCE.md
 
 # 2. Update imports in your code
@@ -460,7 +460,7 @@ GUNICORN_WORKERS=4
 ### System Settings (Admin Dashboard)
 
 | Setting | Default | Description |
-|---------|---------|-------------|
+| ------- | ------- | ----------- |
 | System Mode | `training` | `training` or `production` |
 | Auto-Approve API | `true` | CFO auto-approves API fees <$100 |
 | Email Notifications | `false` | Email alerts for approvals |
@@ -472,7 +472,7 @@ GUNICORN_WORKERS=4
 
 ## 🚀 Production Deployment
 
-### Prerequisites
+### Production Prerequisites
 
 ```bash
 # Install production dependencies
@@ -485,7 +485,7 @@ export SECRET_KEY=$(openssl rand -hex 32)
 
 ### Deployment Options
 
-**Option 1: Gunicorn + Nginx**
+#### Option 1: Gunicorn + Nginx
 
 ```bash
 # Start with Gunicorn
@@ -495,7 +495,7 @@ gunicorn -w 4 \
   app:app
 ```
 
-**Option 2: Docker**
+#### Option 2: Docker
 
 ```bash
 # Build image
@@ -508,7 +508,7 @@ docker run -d -p 5001:5001 \
   ceo-agent
 ```
 
-**Option 3: Cloud Platform**
+#### Option 3: Cloud Platform
 
 - **Heroku**: `heroku create && git push heroku main`
 - **AWS EC2**: Deploy with Elastic Beanstalk
@@ -533,10 +533,10 @@ docker run -d -p 5001:5001 \
 ## 📚 Documentation
 
 | Document | Description |
-|----------|-------------|
+| -------- | ----------- |
 | **README.md** | This file - comprehensive overview |
 | **REAL_WORLD_EXECUTION_ROADMAP.md** | 10-week plan for real task execution |
-| **CEO_CFO_UPGRADE_SUMMARY.md** | Complete architecture upgrade guide |
+| **docs/archive/CEO_CFO_UPGRADE_SUMMARY.md** | Complete architecture upgrade guide (archived) |
 | **CEO_CFO_QUICK_REFERENCE.md** | Quick commands and decision trees |
 | **SETUP_INSTRUCTIONS.md** | Step-by-step setup for real execution |
 | **ARCHITECTURE.md** | Technical architecture details |
@@ -550,13 +550,13 @@ docker run -d -p 5001:5001 \
 pytest tests/
 
 # Test specific components
-python -m pytest tests/test_frontend.py
-python -m pytest tests/test_socketio.py
+python3 -m pytest tests/test_api_endpoints.py
+python3 -m pytest tests/test_integration.py
 
 # Manual testing
-python tools/test_agents_quick.sh      # Test agent execution
-python tools/verify_all_agents.sh      # Verify all agents work
-python tools/test_all_buttons.sh       # Test frontend buttons
+bash tools/test_agents_quick.sh      # Test agent execution
+bash tools/verify_all_agents.sh      # Verify all agents work
+bash tools/test_all_buttons.sh       # Test frontend buttons
 ```
 
 ---
@@ -597,7 +597,7 @@ MIT License - See LICENSE file for details
 
 ## 🎯 Roadmap
 
-**Current Version: 2.0 (Training Mode)**
+### Current Version: 2.0 (Training Mode)
 
 - ✅ CEO/CFO architecture with financial guard rails
 - ✅ Interactive admin dashboard
@@ -606,7 +606,7 @@ MIT License - See LICENSE file for details
 - ✅ Daily research capability
 - ✅ Executive reporting
 
-**Next Version: 2.1 (Production Ready)**
+### Next Version: 2.1 (Production Ready)
 
 - 🔜 Complete agent training modules
 - 🔜 Enhanced research algorithms
@@ -615,7 +615,7 @@ MIT License - See LICENSE file for details
 - 🔜 Audit logs and compliance tracking
 - 🔜 Mobile-responsive dashboard
 
-**Future: 3.0 (Enterprise)**
+### Future: 3.0 (Enterprise)
 
 - 📅 Multi-tenancy support
 - 📅 Custom agent builders
@@ -625,14 +625,10 @@ MIT License - See LICENSE file for details
 
 ---
 
-<div align="center">
-
-**Built with ❤️ using LangGraph, Flask, and OpenAI**
+## Built with ❤️ using LangGraph, Flask, and OpenAI
 
 [![LangGraph](https://img.shields.io/badge/LangGraph-0.0.20-blue)](https://github.com/langchain-ai/langgraph)
 [![Flask](https://img.shields.io/badge/Flask-3.0.0-green)](https://flask.palletsprojects.com/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4-orange)](https://openai.com/)
 
-*CEO Agent - Executive AI that works for you* 👔
-
-</div>
+CEO Agent - Executive AI that works for you 👔

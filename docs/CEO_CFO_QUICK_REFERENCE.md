@@ -231,7 +231,7 @@ NEW FILES:
 ✅ agents/ceo_agent.py (was cfo_agent.py)
 ✅ agents/new_cfo_agent.py (financial oversight)
 ✅ ceo_agent.py (launcher)
-✅ CEO_CFO_UPGRADE_SUMMARY.md (this guide)
+✅ docs/archive/CEO_CFO_UPGRADE_SUMMARY.md (this guide)
 ✅ CEO_CFO_QUICK_REFERENCE.md (quick ref)
 
 UPDATED FILES:
@@ -245,7 +245,7 @@ DEPRECATED (still works):
 
 ## Next Steps
 
-1. **Read:** CEO_CFO_UPGRADE_SUMMARY.md (complete guide)
+1. **Read:** docs/archive/CEO_CFO_UPGRADE_SUMMARY.md (complete guide)
 2. **Test:** Run `python3 ceo_agent.py`
 3. **Review:** Check pending approvals
 4. **Approve:** Decide which tasks proceed
@@ -255,21 +255,21 @@ DEPRECATED (still works):
 
 ## When to Use What
 
-### Use CEO Agent When:
+### Use CEO Agent When
 - Planning strategy
 - Analyzing objectives
 - Breaking down tasks
 - Orchestrating agents
 - Assessing risks
 
-### Use CFO Agent When:
+### Use CFO Agent When
 - Checking API costs
 - Reviewing budget
 - Tracking spending
 - Analyzing payments
 - Monitoring compliance
 
-### Approve Payments When:
+### Approve Payments When
 - ROI is clear
 - Budget allows
 - Risk is acceptable
@@ -280,10 +280,10 @@ DEPRECATED (still works):
 
 ## Support
 
-📖 Full Guide: CEO_CFO_UPGRADE_SUMMARY.md
+📖 Full Guide: docs/archive/CEO_CFO_UPGRADE_SUMMARY.md
 🚀 Roadmap: REAL_WORLD_EXECUTION_ROADMAP.md
 🧪 Tests: Run agent files directly
-📊 Results: TEST_RESULTS.md
+📊 Results: docs/archive/TEST_RESULTS.md
 
 ---
 

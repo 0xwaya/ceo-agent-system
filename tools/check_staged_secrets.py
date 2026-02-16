@@ -37,6 +37,11 @@ BLOCKED_PATH_SEGMENTS = (
     "/credentials/",
 )
 
+IGNORED_SCAN_SUFFIXES = (
+    ".md",
+    ".markdown",
+)
+
 SECRET_LINE_PATTERNS = [
     re.compile(r"AKIA[0-9A-Z]{16}"),
     re.compile(r"ASIA[0-9A-Z]{16}"),
@@ -99,6 +104,9 @@ def scan_staged_files(paths: list[str]) -> list[str]:
 
     for path in paths:
         if is_allowed(path):
+            continue
+
+        if path.lower().endswith(IGNORED_SCAN_SUFFIXES):
             continue
 
         if has_blocked_path(path):
