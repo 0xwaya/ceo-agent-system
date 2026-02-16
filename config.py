@@ -47,6 +47,17 @@ FLASK_THREADED = True
 
 
 # ============================================================================
+# AI TOOLING CONFIGURATION
+# ============================================================================
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
+OPENAI_CODEX_ENABLED = os.getenv("OPENAI_CODEX_ENABLED", "true").lower() == "true"
+OPENAI_CODEX_MODEL = os.getenv("OPENAI_CODEX_MODEL", "gpt-5-codex")
+OPENAI_CODEX_TIMEOUT_SECONDS = int(os.getenv("OPENAI_CODEX_TIMEOUT_SECONDS", "45"))
+
+
+# ============================================================================
 # BUDGET CONFIGURATION
 # ============================================================================
 

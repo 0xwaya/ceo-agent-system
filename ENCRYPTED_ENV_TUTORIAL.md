@@ -115,6 +115,9 @@ nano .env
 ```bash
 # OpenAI API
 OPENAI_API_KEY=sk-proj-abc123...
+OPENAI_CODEX_ENABLED=true
+OPENAI_CODEX_MODEL=gpt-5-codex
+OPENAI_CODEX_TIMEOUT_SECONDS=45
 
 # Anthropic Claude API
 ANTHROPIC_API_KEY=sk-ant-xyz789...

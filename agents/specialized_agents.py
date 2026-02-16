@@ -31,6 +31,7 @@ from agents.agent_guard_rails import (
     validate_agent_output,
     create_execution_summary,
 )
+from utils.openai_codex_tooling import OpenAICodexTooling
 
 
 # ============================================================================
@@ -126,6 +127,20 @@ class CampaignAgentState(TypedDict):
     timeline_days: int
 
 
+class SocialMediaAgentState(TypedDict):
+    """State for Social Media Growth & Community Specialist"""
+
+    task_description: str
+    platforms: Annotated[list[str], operator.add]
+    content_calendar: Annotated[list[Dict], operator.add]
+    posting_workflows: Annotated[list[str], operator.add]
+    campaign_ideas: Annotated[list[Dict], operator.add]
+    community_playbook: str
+    status: str
+    budget_used: float
+    timeline_days: int
+
+
 # ============================================================================
 # SPECIALIZED AGENT IMPLEMENTATIONS
 # ============================================================================
@@ -140,6 +155,11 @@ class SpecializedAgent:
     capabilities: List[str]
     knowledge_base: Any
     guard_rail: Any = None  # AgentGuardRail instance
+    codex_tooling: Any = None
+
+    def __post_init__(self):
+        """Initialize optional Codex tooling for current and future agents."""
+        self.codex_tooling = OpenAICodexTooling.from_env(self.name)
 
     def validate_execution(self, state: Dict) -> Dict:
         """Enforce guard rails before execution"""
@@ -158,6 +178,18 @@ class SpecializedAgent:
         if self.guard_rail:
             return create_execution_summary(self.guard_rail.domain)
         return f"Agent: {self.name}"
+
+    def run_codex_tooling(self, objective: str, context: Dict[str, Any]) -> Dict[str, Any]:
+        """Optional Codex-assisted guidance for agent execution tasks."""
+        if not self.codex_tooling:
+            return {
+                "enabled": False,
+                "used": False,
+                "output": None,
+                "reason": "Codex tooling not initialized",
+            }
+
+        return self.codex_tooling.generate_assist(objective=objective, context=context)
 
 
 class BrandingAgent(SpecializedAgent):
@@ -382,6 +414,11 @@ class WebDevelopmentAgent(SpecializedAgent):
         task_desc = state.get("task_description", "")
         requirements = state.get("requirements", {})
 
+        codex_tooling = self.run_codex_tooling(
+            objective="Generate implementation guidance for web + AR delivery",
+            context={"task_description": task_desc, "requirements": requirements},
+        )
+
         print(f"Applying MIT 6.170 Software Studio Principles:")
         print(f"  Task: {task_desc}")
 
@@ -403,6 +440,9 @@ class WebDevelopmentAgent(SpecializedAgent):
             print(f"  {tech}")
 
         print(f"\n💰 Budget: Domain ($12) + Hosting ($0-100) + 8th Wall ($99/mo) = ~$500 total")
+
+        if codex_tooling.get("used"):
+            print("\n🤖 OpenAI Codex tooling assistance: enabled")
 
         ar_features = [
             "✅ AI CODES: Countertop Visualizer - Upload kitchen photo, overlay stones in AR",
@@ -539,6 +579,7 @@ class WebDevelopmentAgent(SpecializedAgent):
             "status": "architecture_complete",
             "budget_used": 35000.0,
             "timeline_days": 91,
+            "codex_tooling": codex_tooling,
         }
 
 
@@ -815,6 +856,11 @@ class ContentAgent(SpecializedAgent):
         print("💡 AI agent creates all content - no agencies or freelancers")
         print("=" * 70)
 
+        codex_tooling = self.run_codex_tooling(
+            objective="Generate campaign-ready copy and publishing guidance",
+            context={"task_description": state.get("task_description", "")},
+        )
+
         content_types = [
             "✅ AI WRITES: Website copy (home, services, about, contact pages)",
             "✅ AI CREATES: Video scripts for product demonstrations",
@@ -839,6 +885,9 @@ class ContentAgent(SpecializedAgent):
 
         print(f"\n💰 Budget: $150 (Canva Pro $13/mo + stock images $50)")
 
+        if codex_tooling.get("used"):
+            print("\n🤖 OpenAI Codex tooling assistance: enabled")
+
         return {
             "content_types": content_types,
             "assets_created": assets_created,
@@ -846,6 +895,7 @@ class ContentAgent(SpecializedAgent):
             "budget_used": 150.0,
             "timeline_days": 35,
             "execution_mode": "AI_CREATED",
+            "codex_tooling": codex_tooling,
         }
 
 
@@ -939,6 +989,124 @@ class CampaignAgent(SpecializedAgent):
         }
 
 
+class SocialMediaAgent(SpecializedAgent):
+    """Expert in social media growth, operations, and community management.
+
+    📱 EXECUTES (does not recommend):
+    - Builds social channel operating plans
+    - Produces content calendars and posting workflows
+    - Designs platform-specific campaign concepts
+    - Defines community engagement and moderation playbooks
+    """
+
+    def __init__(self):
+        super().__init__(
+            name="Social Media Growth & Community Specialist",
+            expertise_area="Social Media",
+            capabilities=[
+                "📱 BUILDS cross-platform social operating plans",
+                "🗓️ CREATES 30/60/90-day social content calendars",
+                "💬 DEFINES community management and response playbooks",
+                "📈 DESIGNS platform-specific growth experiments",
+                "🎯 PREPARES paid + organic social campaign concepts",
+                "🔁 SETS governance for approvals and escalation",
+            ],
+            knowledge_base=CAMPAIGN_EXPERTISE,
+            guard_rail=AgentGuardRail(AgentDomain.CAMPAIGNS),
+        )
+
+    def execute_social_strategy(self, state: SocialMediaAgentState) -> Dict:
+        """Execute social media strategy and operations setup."""
+        state = self.validate_execution(state)
+
+        codex_tooling = self.run_codex_tooling(
+            objective="Generate platform-specific social media operating guidance",
+            context={"task_description": state.get("task_description", "")},
+        )
+
+        platforms = [
+            "Instagram",
+            "Facebook",
+            "LinkedIn",
+            "YouTube Shorts",
+            "TikTok",
+            "X",
+        ]
+
+        content_calendar = [
+            {
+                "week": 1,
+                "focus": "Brand story + transformation",
+                "deliverables": [
+                    "Founder's origin clip",
+                    "Before/after countertop reel",
+                    "Customer proof post",
+                ],
+            },
+            {
+                "week": 2,
+                "focus": "Authority + education",
+                "deliverables": [
+                    "Stone selection guide carousel",
+                    "Maintenance quick tips short",
+                    "FAQ live session outline",
+                ],
+            },
+            {
+                "week": 3,
+                "focus": "Demand generation",
+                "deliverables": [
+                    "Lead magnet post",
+                    "Appointment CTA creative set",
+                    "Retargeting ad concept",
+                ],
+            },
+        ]
+
+        posting_workflows = [
+            "Batch-produce 2 weeks of assets every Monday",
+            "Daily community sweep for comments/DMs within 2-hour SLA",
+            "Weekly KPI review: reach, watch time, saves, booked consults",
+            "Escalate legal/safety complaints to compliance workflow",
+        ]
+
+        campaign_ideas = [
+            {
+                "campaign": "Kitchen Refresh Proof Series",
+                "platform": "Instagram + Facebook",
+                "objective": "Lead capture",
+            },
+            {
+                "campaign": "Ask the Fabricator",
+                "platform": "YouTube Shorts + TikTok",
+                "objective": "Top-of-funnel growth",
+            },
+            {
+                "campaign": "Contractor Partner Spotlight",
+                "platform": "LinkedIn",
+                "objective": "B2B referral pipeline",
+            },
+        ]
+
+        community_playbook = (
+            "Response ladder: acknowledge within 2 hours, provide next step within 24 hours, "
+            "and route complaints to owner/CFO for resolution and audit trail."
+        )
+
+        return {
+            "platforms": platforms,
+            "content_calendar": content_calendar,
+            "posting_workflows": posting_workflows,
+            "campaign_ideas": campaign_ideas,
+            "community_playbook": community_playbook,
+            "status": "social_strategy_ready",
+            "budget_used": 250.0,
+            "timeline_days": 30,
+            "execution_mode": "AI_MANAGED",
+            "codex_tooling": codex_tooling,
+        }
+
+
 # ============================================================================
 # AGENT FACTORY - Creates specialized agents on demand
 # ============================================================================
@@ -957,6 +1125,7 @@ class AgentFactory:
             "martech": MartechAgent,
             "content": ContentAgent,
             "campaigns": CampaignAgent,
+            "social_media": SocialMediaAgent,
             "security": SecurityBlockchainAgent,
         }
 
@@ -976,5 +1145,6 @@ class AgentFactory:
             "martech",
             "content",
             "campaigns",
+            "social_media",
             "security",
         ]

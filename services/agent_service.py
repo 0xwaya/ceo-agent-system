@@ -180,6 +180,8 @@ class AgentExecutionService:
             web_result = agent.analyze_requirements(state)
             result["tech_stack"] = web_result.get("tech_stack", [])
             result["budget_used"] = web_result.get("budget_used", 0)
+            if "codex_tooling" in web_result:
+                result["codex_tooling"] = web_result.get("codex_tooling")
 
         elif agent_type == "martech" and hasattr(agent, "configure_stack"):
             state = {
@@ -212,6 +214,8 @@ class AgentExecutionService:
             content_result = agent.produce_content(state)
             result["assets"] = content_result.get("assets_created", [])
             result["budget_used"] = content_result.get("budget_used", 0)
+            if "codex_tooling" in content_result:
+                result["codex_tooling"] = content_result.get("codex_tooling")
 
         elif agent_type == "campaigns" and hasattr(agent, "launch_campaigns"):
             state = {
@@ -228,6 +232,25 @@ class AgentExecutionService:
             campaign_result = agent.launch_campaigns(state)
             result["campaigns"] = campaign_result.get("channels", [])
             result["budget_used"] = campaign_result.get("budget_used", 0)
+
+        elif agent_type == "social_media" and hasattr(agent, "execute_social_strategy"):
+            state = {
+                "task_description": task_description,
+                "platforms": [],
+                "content_calendar": [],
+                "posting_workflows": [],
+                "campaign_ideas": [],
+                "community_playbook": "",
+                "status": "initializing",
+                "budget_used": 0,
+                "timeline_days": 30,
+            }
+            social_result = agent.execute_social_strategy(state)
+            result["platforms"] = social_result.get("platforms", [])
+            result["campaign_ideas"] = social_result.get("campaign_ideas", [])
+            result["budget_used"] = social_result.get("budget_used", 0)
+            if "codex_tooling" in social_result:
+                result["codex_tooling"] = social_result.get("codex_tooling")
 
         elif agent_type == "legal" and hasattr(agent, "file_documents"):
             state = {

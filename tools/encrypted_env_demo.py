@@ -159,6 +159,9 @@ FLASK_PORT=5001
 OPENAI_API_KEY=sk-proj-your-openai-api-key-here
 OPENAI_ORG_ID=org-your-organization-id-here
 OPENAI_MODEL=gpt-4-turbo-preview
+OPENAI_CODEX_ENABLED=true
+OPENAI_CODEX_MODEL=gpt-5-codex
+OPENAI_CODEX_TIMEOUT_SECONDS=45
 
 # Anthropic Claude (Alternative LLM - excellent for analysis)
 # Get your API key: https://console.anthropic.com/

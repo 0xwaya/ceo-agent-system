@@ -73,6 +73,7 @@ class AppConstants:
         "martech",
         "content",
         "campaigns",
+        "social_media",
         "security",
     ]
 
@@ -84,6 +85,7 @@ class AppConstants:
         "martech": "MARTECH",
         "content": "CONTENT",
         "campaigns": "CAMPAIGNS",
+        "social_media": "CAMPAIGNS",
         "security": "SECURITY",
     }
 
@@ -95,6 +97,7 @@ class AppConstants:
         "martech": "📊",
         "content": "✍️",
         "campaigns": "📱",
+        "social_media": "📣",
         "security": "🛡️",
     }
 
