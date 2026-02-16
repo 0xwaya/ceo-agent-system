@@ -19,6 +19,7 @@ class AgentDomain(Enum):
     MARTECH = "martech"
     CONTENT = "content"
     CAMPAIGNS = "campaigns"
+    SOCIAL_MEDIA = "social_media"
     SECURITY = "security"
     CEO = "ceo"  # Executive orchestrator
     CFO = "cfo"  # Financial oversight only
@@ -218,6 +219,22 @@ BUDGET_CONSTRAINTS = {
             "Campaign strategists",
         ],
     ),
+    AgentDomain.SOCIAL_MEDIA: BudgetConstraint(
+        domain=AgentDomain.SOCIAL_MEDIA,
+        max_budget=800.0,
+        allowed_categories=[
+            "Social scheduling platform subscriptions",
+            "Creator/UGC editing tooling",
+            "Community moderation and social listening tools",
+            "Platform-native boosted post spend",
+        ],
+        forbidden_categories=[
+            "External social media agencies",
+            "Influencer management retainers",
+            "Freelance community managers",
+            "Outsourced content farms",
+        ],
+    ),
     AgentDomain.SECURITY: BudgetConstraint(
         domain=AgentDomain.SECURITY,
         max_budget=400.0,
@@ -366,6 +383,25 @@ SCOPE_CONSTRAINTS = {
             AgentDomain.CFO,
         ],
     ),
+    AgentDomain.SOCIAL_MEDIA: ScopeConstraint(
+        domain=AgentDomain.SOCIAL_MEDIA,
+        permitted_tasks=[
+            "Build social media channel strategy and platform positioning",
+            "Create short-form social content calendars and posting cadences",
+            "Design community management playbooks and response workflows",
+            "Set up social listening and moderation processes",
+            "Run platform-specific social growth experiments",
+            "Coordinate paid + organic social launch tactics",
+        ],
+        forbidden_tasks=[
+            "Build full marketing automation stack (that's MarTech)",
+            "Provide legal counsel",
+            "Write full website frontend code",
+            "Approve recurring spend without CFO and user approval",
+            "Create long-form whitepapers and blogs (that's Content)",
+        ],
+        dependencies=[AgentDomain.BRANDING, AgentDomain.CONTENT, AgentDomain.MARTECH, AgentDomain.CFO],
+    ),
     AgentDomain.SECURITY: ScopeConstraint(
         domain=AgentDomain.SECURITY,
         permitted_tasks=[
@@ -481,6 +517,21 @@ QUALITY_STANDARDS = {
             "conversion_tracking": "100% of conversion events tracked",
             "budget_efficiency": "CPC within industry benchmarks",
             "testing_rigor": "Statistical significance (p < 0.05) for A/B tests",
+        },
+        validation_required=True,
+    ),
+    AgentDomain.SOCIAL_MEDIA: QualityStandard(
+        domain=AgentDomain.SOCIAL_MEDIA,
+        frameworks=[
+            "Platform-native social growth frameworks",
+            "Community-led growth and moderation standards",
+            "Short-form creative testing best practices",
+        ],
+        metrics={
+            "publishing_consistency": "Minimum 4 posts/week per primary platform",
+            "response_sla": "Community response within 2 business hours",
+            "engagement_quality": "Save/share rate trend is non-declining",
+            "experiment_velocity": "At least 2 controlled creative tests per month",
         },
         validation_required=True,
     ),

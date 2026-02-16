@@ -115,12 +115,17 @@ nano .env
 ```bash
 # OpenAI API
 OPENAI_API_KEY=sk-proj-abc123...
-OPENAI_CODEX_ENABLED=true
+OPENAI_CODEX_ENABLED=false
 OPENAI_CODEX_MODEL=gpt-5-codex
 OPENAI_CODEX_TIMEOUT_SECONDS=45
 
 # Anthropic Claude API
 ANTHROPIC_API_KEY=sk-ant-xyz789...
+
+# Social Media APIs
+META_ACCESS_TOKEN=your-meta-token...
+TIKTOK_ACCESS_TOKEN=your-tiktok-token...
+YOUTUBE_API_KEY=your-youtube-key...
 
 # Flask Configuration
 SECRET_KEY=your-super-secret-key-2026

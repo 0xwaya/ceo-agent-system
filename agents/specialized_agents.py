@@ -273,62 +273,84 @@ class BrandingAgent(SpecializedAgent):
         company_info = state.get("company_info", {})
         brand_name = company_info.get("dba_name", company_info.get("name", "Brand"))
 
+        codex_tooling = self.run_codex_tooling(
+            objective="Create four polished luxury logo proposal directions from provided brand kit",
+            context={
+                "brand_name": brand_name,
+                "palette": ["Marble White", "Brushed Gold", "Charcoal Black"],
+                "style": "luxury, elegant, modern stone surfaces",
+            },
+        )
+
+        brand_kit_reference = {
+            "brand_name": brand_name,
+            "legacy_name": "Amazon Granite LLC",
+            "reference_handles": ["amzgranite.com", "instagram.com/amazongranite"],
+            "direction": "SurfaceCraft Studio luxury repositioning",
+            "logo_reference": "Elegant monogram + refined wordmark balance",
+            "color_palette": {
+                "primary": ["Marble White", "Brushed Gold", "Charcoal Black"],
+                "supporting": ["Slate Gray", "Midnight Navy"],
+            },
+            "typography_note": "Primary font undecided; evaluate elegant serif + modern sans pairings",
+        }
+
         concepts = [
             {
-                "concept_name": "Artisan Craft - Modern Minimalist",
-                "description": f"{brand_name} rendered in custom geometric sans-serif",
+                "concept_name": "Polished Proposal 01 - Signature Monogram Luxe",
+                "description": f"{brand_name} with sculpted S/C monogram and couture-style spacing",
                 "design_principles": [
-                    "Golden ratio (1.618) proportions in letterforms",
-                    "Gestalt principle: Negative space forming countertop edge profile",
-                    "Color: Navy (#1A365D) + Warm Gray (#D4C5B9) - Trust + Craftsmanship",
-                    "Swiss design influence: Grid-based, high contrast, asymmetric balance",
+                    "Golden-ratio monogram geometry inspired by premium stone inlays",
+                    "Brushed Gold accent strokes over Charcoal Black structure",
+                    "Marble White negative space to preserve luxury breathing room",
+                    "Balanced lockup for signage, social avatar, and favicon use",
                 ],
-                "applications": "Primary logo, website header, business cards, vehicle wraps",
-                "scalability": "Works from 16px (favicon) to building signage",
-                "ai_execution": "AI designs all concepts - no agency fees",
-                "tools_budget": "$50 (fonts/stock images if needed)",
+                "applications": "Hero website mark, storefront signage, proposal cover",
+                "scalability": "Optimized from 24px icon to 12ft exterior sign",
+                "ai_execution": "AI-developed vector system with production-ready lockups",
+                "tools_budget": "$60 (font licensing + export templates)",
             },
             {
-                "concept_name": "Heritage Stone - Sophisticated Classic",
-                "description": "Serif wordmark with abstract stone texture element",
+                "concept_name": "Polished Proposal 02 - Heritage Serif Signature",
+                "description": "High-contrast serif wordmark with understated stone-cut ligatures",
                 "design_principles": [
-                    "Typography: Custom modified Garamond for timeless elegance",
-                    "Brand archetype: The Creator + The Sage (Jung)",
-                    "Color: Deep Charcoal (#2D3748) + Gold Accent (#C6A052)",
-                    "Semiotics: Stone grain pattern suggests material authenticity",
+                    "Elegant serif axis for luxury positioning and premium trust",
+                    "Charcoal Black wordmark with Brushed Gold micro-accents",
+                    "Marble White base panels for print and digital consistency",
+                    "Subtle material-finishing cues to reflect crafted surfaces",
                 ],
-                "applications": "Luxury positioning, premium project materials",
-                "scalability": "Best for print and large format applications",
-                "ai_execution": "AI designs - Garamond license $40",
-                "tools_budget": "$40 (premium font license)",
+                "applications": "Brand book, business cards, showroom collateral",
+                "scalability": "Exceptional in editorial and premium print contexts",
+                "ai_execution": "AI-generated typographic refinements with kerning variants",
+                "tools_budget": "$45 (serif family trial/license)",
             },
             {
-                "concept_name": "Dynamic Surfaces - Tech-Forward",
-                "description": "Fluid logomark representing transformation + modern wordmark",
+                "concept_name": "Polished Proposal 03 - Modern Sans Prestige",
+                "description": "Refined sans-serif wordmark with architectural geometry and icon pair",
                 "design_principles": [
-                    "Kinetic design: Logo subtly animates for digital applications",
-                    "Flat design 3.0: Subtle depth without heavy shadows",
-                    "Color gradient: Teal (#0EA5E9) to Slate (#475569) - Innovation",
-                    "Designed for AR integration and digital-first brand experience",
+                    "Contemporary sans system for web-first legibility",
+                    "Charcoal Black foundation + selective Brushed Gold detail lines",
+                    "Marble White negative canvas for elegant high-contrast delivery",
+                    "Responsive lockups for desktop header, mobile nav, and socials",
                 ],
-                "applications": "Website, app, digital marketing, social media",
-                "scalability": "Optimized for screen display and animation",
-                "ai_execution": "AI creates animated logo - no motion designer needed",
-                "tools_budget": "$0 (using open-source animation tools)",
+                "applications": "Website navigation, social profile suite, ad creatives",
+                "scalability": "Built for digital responsiveness and motion-ready variants",
+                "ai_execution": "AI-produced responsive logo system + social asset pack",
+                "tools_budget": "$35 (motion export presets)",
             },
             {
-                "concept_name": "Local Pride - Cincinnati Community",
-                "description": "Incorporates Cincinnati architectural elements and Ohio river",
+                "concept_name": "Polished Proposal 04 - Monoline Emblem Elegance",
+                "description": "Minimal emblem seal with monoline mark and premium typography lockup",
                 "design_principles": [
-                    "Place-based branding: Carew Tower skyline silhouette integration",
-                    "Regional color palette: Reds/Browns (Terracotta) + River Blue",
-                    "Community connection: Local pride + craft tradition",
-                    "Storytelling: Each element tells Cincinnati heritage story",
+                    "Monoline icon architecture referencing precision fabrication",
+                    "Brushed Gold ring + Charcoal Black central mark for premium contrast",
+                    "Marble White applications for luxury packaging and proposal decks",
+                    "Designed to feel timeless, restrained, and collectible",
                 ],
-                "applications": "Local marketing, community partnerships, events",
-                "scalability": "Strong regional identity, may limit national expansion",
-                "ai_execution": "AI integrates Cincinnati elements - local research included",
-                "tools_budget": "$30 (Cincinnati architectural stock images)",
+                "applications": "Luxury labels, stamp marks, uniforms, premium merchandise",
+                "scalability": "Excellent for physical materials and embossed applications",
+                "ai_execution": "AI-generated monoline kit with monochrome fallback suite",
+                "tools_budget": "$30 (mockup + print proof templates)",
             },
         ]
 
@@ -339,28 +361,30 @@ class BrandingAgent(SpecializedAgent):
         print(f"\n💡 All designs created by AI - no agency or freelancer fees")
 
         recommendations = [
-            "✅ AI RECOMMENDATION: Concept 1 (Artisan Craft) offers best balance of professionalism and scalability",
-            "💰 Tools budget: $50-120 total (fonts, stock images, Adobe CC subscription)",
-            "⏱️ Timeline: 3-4 weeks (AI research, design, revisions, guidelines, asset production)",
-            "🧪 Testing plan: AI can generate A/B test variations instantly for target audience validation",
-            "📦 AI DELIVERS: Logo files (SVG, PNG, AI, EPS), 40+ page brand guidelines, all templates",
-            "🔍 Trademark: AI conducts USPTO search, prepares filing documents ($350 filing fee only)",
+            "✅ AI RECOMMENDATION: Proposal 01 as primary brand mark, Proposal 03 for digital-first alternates",
+            "🎨 Palette locked: Marble White + Brushed Gold + Charcoal Black as premium core",
+            "🔤 Typography path: test one elegant serif and one modern sans before final lock",
+            "⏱️ Timeline: 2-3 weeks for finalization, production exports, and rollout kit",
+            "📦 AI DELIVERS: 4 polished logo proposals, social avatars, favicon set, and brand sheet",
+            "🔁 Migration: replace legacy amzgranite identity traces with SurfaceCraft Studio naming",
         ]
 
         return {
+            "brand_kit_reference": brand_kit_reference,
             "design_concepts": concepts,
             "recommendations": recommendations,
             "deliverables": [
-                "✅ AI-DESIGNED: Logo (primary, secondary, icon variations in all formats)",
-                "✅ AI-CREATED: Brand style guide (40-50 pages: typography, colors, imagery, tone)",
-                "✅ AI-PRODUCED: Asset templates (business cards, letterhead, email signatures)",
-                "✅ AI-GENERATED: Digital assets (social media profiles, website graphics)",
-                "✅ AI-RENDERED: Brand application mockups (signage, vehicles, packaging)",
+                "✅ AI-DESIGNED: Four polished SurfaceCraft logo proposal systems",
+                "✅ AI-CREATED: Brand color standard built around Marble White / Brushed Gold / Charcoal Black",
+                "✅ AI-PRODUCED: Typography pairing draft with serif + sans decision framework",
+                "✅ AI-GENERATED: Social profile kit and web-ready logo exports",
+                "✅ AI-RENDERED: Elegant brand mockups for signage, print, and digital hero",
             ],
             "status": "concepts_ready_ai_executed",
             "budget_used": 120.0,  # Tools only - AI does the work
             "timeline_days": 28,
             "execution_mode": "AI_PERFORMED",
+            "codex_tooling": codex_tooling,
         }
 
 
@@ -382,12 +406,12 @@ class WebDevelopmentAgent(SpecializedAgent):
             name="Web Development & AR Integration Specialist",
             expertise_area="Technology",
             capabilities=[
-                "💻 CODES full-stack Next.js applications",
-                "🥽 IMPLEMENTS WebAR with 8th Wall + Three.js",
-                "⚡ OPTIMIZES performance (Lighthouse score ≥ 90)",
-                "🔍 ENSURES SEO and WCAG accessibility",
-                "📦 INTEGRATES headless CMS (Sanity.io)",
-                "🛍️ BUILDS e-commerce and booking systems",
+                "💻 CODES full-stack Next.js App Router experiences",
+                "🎨 BUILDS design systems with Tailwind v4 + component primitives",
+                "🥽 IMPLEMENTS WebAR with 8th Wall + React Three Fiber",
+                "⚡ OPTIMIZES Core Web Vitals and Lighthouse performance",
+                "🔍 ENSURES technical SEO, schema, and WCAG accessibility",
+                "📦 INTEGRATES headless CMS and analytics-ready architecture",
             ],
             knowledge_base=WEB_DEV_EXPERTISE,
             guard_rail=AgentGuardRail(AgentDomain.WEB_DEVELOPMENT),
@@ -423,16 +447,16 @@ class WebDevelopmentAgent(SpecializedAgent):
         print(f"  Task: {task_desc}")
 
         tech_stack = [
-            "✅ AI CODES: Next.js 14 (React, TypeScript) - SSR for SEO + performance",
-            "✅ AI IMPLEMENTS: Tailwind CSS + Framer Motion - Utility-first + animations",
-            "✅ AI INTEGRATES: 8th Wall Web + Three.js - WebAR without app download",
-            "✅ AI CREATES: 3D Models in Blender, glTF 2.0 format for web",
-            "✅ AI CONFIGURES: Sanity.io headless CMS (free tier)",
-            "✅ AI BUILDS: React Hook Form + Zod validation - Type-safe forms",
-            "✅ AI DEVELOPS: Next.js API Routes + Supabase (free tier)",
-            "✅ AI DEPLOYS: Vercel hosting ($0 for Hobby tier)",
-            "✅ AI SETS UP: Google Analytics 4 (free) + Vercel Analytics",
-            "✅ AI IMPLEMENTS: Algolia search (free tier for small catalogs)",
+            "✅ AI CODES: Next.js App Router + React 19 + TypeScript strict mode",
+            "✅ AI IMPLEMENTS: Tailwind CSS v4 + shadcn/ui primitives + design tokens",
+            "✅ AI INTEGRATES: Framer Motion + GSAP for premium micro-interactions",
+            "✅ AI BUILDS: React Three Fiber + 8th Wall for high-end WebAR experiences",
+            "✅ AI CONFIGURES: CMS-ready architecture (Sanity/Contentful compatible)",
+            "✅ AI BUILDS: Server actions + Zod validation + secure API boundaries",
+            "✅ AI DEVELOPS: Edge-friendly API routes + caching strategy",
+            "✅ AI DEPLOYS: Vercel preview pipelines + production release checks",
+            "✅ AI SETS UP: GA4 + Search Console + event instrumentation",
+            "✅ AI IMPLEMENTS: Accessibility QA + visual regression testing",
         ]
 
         print("\n🤖 AI-Coded Technology Stack (Stanford CS 142):")
@@ -489,8 +513,8 @@ class WebDevelopmentAgent(SpecializedAgent):
             {
                 "phase": "Phase 1: Foundation (Weeks 1-3)",
                 "deliverables": [
-                    "Next.js project setup with TypeScript, ESLint, Prettier",
-                    "Design system implementation (Tailwind + component library)",
+                    "Next.js App Router setup with TypeScript, ESLint, Prettier",
+                    "SurfaceCraft design system (Tailwind v4 + component primitives)",
                     "Home, About, Services, Gallery core pages",
                     "Mobile-first responsive layouts",
                     "SEO optimization (meta tags, structured data, sitemap)",
@@ -555,6 +579,29 @@ class WebDevelopmentAgent(SpecializedAgent):
             },
         ]
 
+        homepage_draft_proposal = {
+            "project": "SurfaceCraft Studio homepage replacement for amzgranite.com",
+            "brand_direction": "Luxury stone surfaces with modern editorial elegance",
+            "legacy_trace_cleanup": [
+                "Replace remaining amzgranite.com references across metadata and links",
+                "Replace instagram.com/amazongranite references with SurfaceCraft handles",
+                "Set canonical branding to SurfaceCraft Studio in SEO schema",
+            ],
+            "homepage_sections": [
+                "Hero: Signature monogram + premium value proposition + primary CTA",
+                "Curated Materials: Marble/Quartz collections with rich visual cards",
+                "Project Gallery: Before/after transformations with filterable layouts",
+                "Craftsmanship Process: Discovery → Design → Fabrication → Installation",
+                "Trust Layer: Certifications, warranties, testimonials, partner logos",
+                "Conversion Footer: Book consultation + phone + showroom location",
+            ],
+            "ux_principles": [
+                "Editorial whitespace and restrained luxury typography",
+                "High-contrast conversion pathways with concise CTAs",
+                "Performance-first media strategy for mobile and desktop",
+            ],
+        }
+
         return {
             "tech_stack": tech_stack,
             "architecture_design": architecture,
@@ -579,6 +626,7 @@ class WebDevelopmentAgent(SpecializedAgent):
             "status": "architecture_complete",
             "budget_used": 35000.0,
             "timeline_days": 91,
+            "homepage_draft_proposal": homepage_draft_proposal,
             "codex_tooling": codex_tooling,
         }
 
@@ -1012,7 +1060,7 @@ class SocialMediaAgent(SpecializedAgent):
                 "🔁 SETS governance for approvals and escalation",
             ],
             knowledge_base=CAMPAIGN_EXPERTISE,
-            guard_rail=AgentGuardRail(AgentDomain.CAMPAIGNS),
+            guard_rail=AgentGuardRail(AgentDomain.SOCIAL_MEDIA),
         )
 
     def execute_social_strategy(self, state: SocialMediaAgentState) -> Dict:

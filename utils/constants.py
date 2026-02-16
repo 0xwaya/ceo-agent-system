@@ -85,7 +85,7 @@ class AppConstants:
         "martech": "MARTECH",
         "content": "CONTENT",
         "campaigns": "CAMPAIGNS",
-        "social_media": "CAMPAIGNS",
+        "social_media": "SOCIAL_MEDIA",
         "security": "SECURITY",
     }
 

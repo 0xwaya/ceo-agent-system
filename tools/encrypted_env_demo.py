@@ -159,7 +159,7 @@ FLASK_PORT=5001
 OPENAI_API_KEY=sk-proj-your-openai-api-key-here
 OPENAI_ORG_ID=org-your-organization-id-here
 OPENAI_MODEL=gpt-4-turbo-preview
-OPENAI_CODEX_ENABLED=true
+OPENAI_CODEX_ENABLED=false
 OPENAI_CODEX_MODEL=gpt-5-codex
 OPENAI_CODEX_TIMEOUT_SECONDS=45
 
@@ -176,6 +176,15 @@ GOOGLE_MODEL=gemini-pro
 # Cohere (Embeddings and generation)
 # Get your API key: https://dashboard.cohere.com/api-keys
 COHERE_API_KEY=your-cohere-api-key-here
+
+# Social platform APIs (for Social Media Agent execution)
+META_APP_ID=your-meta-app-id
+META_APP_SECRET=your-meta-app-secret
+META_ACCESS_TOKEN=your-meta-access-token
+TIKTOK_ACCESS_TOKEN=your-tiktok-access-token
+LINKEDIN_CLIENT_ID=your-linkedin-client-id
+LINKEDIN_CLIENT_SECRET=your-linkedin-client-secret
+YOUTUBE_API_KEY=your-youtube-api-key
 
 # ============================================================================
 # BRANDING AGENT APIs - Logo Design & Visual Identity

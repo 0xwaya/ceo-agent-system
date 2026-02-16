@@ -179,6 +179,11 @@ class AgentExecutionService:
             }
             web_result = agent.analyze_requirements(state)
             result["tech_stack"] = web_result.get("tech_stack", [])
+            result["architecture_design"] = web_result.get("architecture_design", "")
+            result["ar_features"] = web_result.get("ar_features", [])
+            result["development_phases"] = web_result.get("development_phases", [])
+            result["deliverables"] = web_result.get("deliverables", [])
+            result["homepage_draft_proposal"] = web_result.get("homepage_draft_proposal", {})
             result["budget_used"] = web_result.get("budget_used", 0)
             if "codex_tooling" in web_result:
                 result["codex_tooling"] = web_result.get("codex_tooling")
@@ -248,6 +253,9 @@ class AgentExecutionService:
             social_result = agent.execute_social_strategy(state)
             result["platforms"] = social_result.get("platforms", [])
             result["campaign_ideas"] = social_result.get("campaign_ideas", [])
+            result["content_calendar"] = social_result.get("content_calendar", [])
+            result["posting_workflows"] = social_result.get("posting_workflows", [])
+            result["community_playbook"] = social_result.get("community_playbook", "")
             result["budget_used"] = social_result.get("budget_used", 0)
             if "codex_tooling" in social_result:
                 result["codex_tooling"] = social_result.get("codex_tooling")

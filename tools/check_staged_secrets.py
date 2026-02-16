@@ -53,6 +53,13 @@ SECRET_LINE_PATTERNS = [
     re.compile(r"(?i)(api[_-]?key|secret|token|password)\s*[:=]\s*['\"]?[A-Za-z0-9_\-./+=]{16,}"),
 ]
 
+PLACEHOLDER_VALUE_PATTERNS = [
+    re.compile(r"(?i)^your[-_a-z0-9.]*$"),
+    re.compile(r"(?i)^replace[-_a-z0-9.]*$"),
+    re.compile(r"(?i)^example[-_a-z0-9.]*$"),
+    re.compile(r"\.\.\."),
+]
+
 
 def run_git(args: list[str]) -> str:
     result = subprocess.run(
@@ -99,6 +106,18 @@ def get_added_lines(path: str) -> list[str]:
     return added
 
 
+def is_placeholder_assignment(line: str) -> bool:
+    if "=" not in line:
+        return False
+
+    _, raw_value = line.split("=", 1)
+    value = raw_value.strip().strip("\"'")
+    if not value:
+        return False
+
+    return any(pattern.search(value) for pattern in PLACEHOLDER_VALUE_PATTERNS)
+
+
 def scan_staged_files(paths: list[str]) -> list[str]:
     failures: list[str] = []
 
@@ -123,6 +142,9 @@ def scan_staged_files(paths: list[str]) -> list[str]:
             continue
 
         for idx, line in enumerate(added_lines, start=1):
+            if is_placeholder_assignment(line):
+                continue
+
             for pattern in SECRET_LINE_PATTERNS:
                 if pattern.search(line):
                     failures.append(f"Possible secret in {path} (added line {idx}): {line[:120]}")

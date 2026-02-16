@@ -61,7 +61,7 @@ class OpenAICodexTooling:
         return cls(
             api_key=os.getenv("OPENAI_API_KEY"),
             model=os.getenv("OPENAI_CODEX_MODEL", "gpt-5-codex"),
-            enabled=os.getenv("OPENAI_CODEX_ENABLED", "true").lower() == "true",
+            enabled=os.getenv("OPENAI_CODEX_ENABLED", "false").lower() == "true",
             timeout_seconds=int(os.getenv("OPENAI_CODEX_TIMEOUT_SECONDS", "45")),
             agent_name=agent_name,
         )
