@@ -12,8 +12,10 @@
 # One-command startup
 ./start_ceo_agent.sh
 
-# Access the new admin dashboard
-Open: http://localhost:5001/admin
+# Primary entry points
+Open: http://localhost:5001/        # Landing dashboard
+Open: http://localhost:5001/admin   # Admin dashboard
+Open: http://localhost:5001/reports # Reports section (direct)
 ```
 
 **✨ What's New:**
@@ -24,9 +26,45 @@ Open: http://localhost:5001/admin
 - ✅ **Payment Approvals** - Visual workflow for spending authorization
 - 📊 **Executive Reports** - CEO/CFO reports in easy-to-read format
 - 🛡️ **Financial Guard Rails** - 98% of budget requires user approval
+- 🔄 **Scenario Sync to Admin** - Main dashboard scenario (company/industry/location/objectives/budget/timeline) is reused in `/admin` reports and analysis
 
-👉 **[Complete CEO Agent Documentation →](CEO_AGENT_README.md)**  
-👉 **[Rebrand Summary & Features →](CEO_AGENT_REBRAND_SUMMARY.md)**
+> **First Push to Empty Repo:** If your GitHub repository exists but has no commits yet, use the quick upload commands in [GITHUB_SETUP.md → Fast Path (Your Current Status)](GITHUB_SETUP.md#fast-path-your-current-status).
+
+👉 **[Complete CEO Agent Documentation →](docs/CEO_AGENT_README.md)**
+👉 **[Rebrand Summary & Features →](docs/archive/CEO_AGENT_REBRAND_SUMMARY.md)**
+
+---
+
+## 🎨 **NEW: Graph Architecture Dashboard**
+
+### Modern dark-themed interface for LangGraph multi-agent orchestration
+
+```bash
+# Access the graph dashboard
+Open: http://localhost:5001/graph
+```
+
+**✨ Features:**
+
+- 🌙 **Dark/Night Mode Theme** - Consistent gray scale design for professional look
+- 📊 **Real-time Agent Monitoring** - Watch CEO, CFO, Engineer, Researcher agents execute
+- 📈 **Live Progress Tracking** - Visual progress bars and phase indicators
+- 💻 **Terminal-style Output** - Color-coded execution logs
+- 📤 **Results Dashboard** - Metrics, summaries, key findings, recommendations
+- 🔄 **Checkpoint Resumption** - Continue previous executions with thread IDs
+
+**6 Specialized Agents:**
+
+- 👔 **CEO** - Master orchestrator, strategic decision-making
+- 💰 **CFO** - Financial analysis, budget planning, compliance
+- 🛠️ **Engineer** - Architecture design, code generation, testing
+- 🔍 **Researcher** - Market research, competitive analysis, opportunities
+- ⚖️ **Legal** - Compliance and regulations (Coming Soon)
+- 📱 **MarTech** - Marketing technology stack (Coming Soon)
+
+👉 **[Graph Dashboard Quick Start →](docs/GRAPH_DASHBOARD_QUICK_START.md)**
+👉 **[Full Implementation Details →](docs/GRAPH_UI_IMPLEMENTATION.md)**
+👉 **[Graph Architecture Docs →](graph_architecture/README.md)**
 
 ---
 
@@ -43,14 +81,14 @@ python3 interactive_chat.py
 Chat naturally with specialized agents:
 
 - 💼 **CFO Agent** - Strategy, budgets, planning
-- 🎨 **Branding Agent** - Logo design, visual identity  
+- 🎨 **Branding Agent** - Logo design, visual identity
 - 💻 **Web Dev Agent** - Websites, AR integration
 - ⚖️ **Legal Agent** - DBA, trademark, compliance
 - 📊 **MarTech Agent** - CRM, analytics, automation
 - 📸 **Content Agent** - Video, photography, SEO
 - 🚀 **Campaign Agent** - Ads, media, launch strategy
 
-**[📖 Read the Interactive Chat Guide →](CHAT_GUIDE.md)**
+**[📖 Quick usage & commands →](QUICK_START.md)**
 
 ### 2. 🎯 CFO Multi-Agent Orchestrator
 
@@ -62,7 +100,7 @@ python3 cfo_agent.py
 
 The CFO agent analyzes objectives, creates specialized agents, manages budgets, and delivers executive summaries.
 
-**[📖 Read the CFO Agent Guide →](README_CFO.md)**
+**[📖 CEO/CFO quick reference →](docs/CEO_CFO_QUICK_REFERENCE.md)**
 
 ### 3. 📊 Marketing Agent (Original)
 
@@ -135,8 +173,8 @@ langraph/
 ├── agent_knowledge_base.py      # 🎓 Master-level expertise database (NEW!)
 ├── agent.py                     # 📊 Marketing agent (upgraded)
 ├── chat_agent.py                # Original interactive agent
-├── CHAT_GUIDE.md               # 📖 Interactive chat guide (NEW!)
-├── README_CFO.md               # 📖 CFO agent documentation (NEW!)
+├── QUICK_START.md               # 🚀 Main runbook and command guide
+├── CEO_CFO_QUICK_REFERENCE.md   # 🎯 CEO/CFO architecture quick reference
 └── README.md                    # This file
 ```
 
@@ -153,7 +191,7 @@ langraph/
 
 ```bash
 # Navigate to project
-cd /Users/pc/Desktop/code/langraph
+cd /Users/pc/code/langraph
 
 # Create virtual environment (recommended)
 python3 -m venv .venv
@@ -165,6 +203,28 @@ pip install langgraph langchain-core typing-extensions
 # Run interactive chat
 python3 interactive_chat.py
 ```
+
+---
+
+## 🧪 Smoke Checks
+
+Use the lightweight dashboard smoke check to verify rendering/config wiring across routes and environments.
+
+```bash
+make smoke
+```
+
+What it covers:
+
+- `/graph` renders with graph dashboard bootstrap config
+- `/admin` renders with admin dashboard bootstrap config
+- Legacy `index.html` template renders with legacy bootstrap config
+- Both `ENVIRONMENT=development` and `ENVIRONMENT=production` paths are validated
+
+This smoke check also runs automatically:
+
+- In CI via `.github/workflows/code-quality.yml`
+- In pytest via `tests/test_smoke_dashboard_render.py`
 
 ---
 
@@ -217,11 +277,11 @@ Complete rebrand execution for granite/quartz countertop business:
 
 ### Strategic Objectives
 
-✅ File DBA registration for SURFACECRAFT STUDIO  
-✅ Create professional logo and visual identity (AI-designed)  
-✅ Build website with AR integration (AI-coded)  
-✅ Set up marketing technology stack (AI-configured)  
-✅ Produce foundational content (AI-created)  
+✅ File DBA registration for SURFACECRAFT STUDIO
+✅ Create professional logo and visual identity (AI-designed)
+✅ Build website with AR integration (AI-coded)
+✅ Set up marketing technology stack (AI-configured)
+✅ Produce foundational content (AI-created)
 ✅ Launch Phase 1 campaigns within 90 days (AI-managed)
 
 ### Budget Allocation ($4,500 total - AI agents do the work)
@@ -251,7 +311,6 @@ All creative, technical, and strategic work executed by AI agents - not outsourc
 - 💰 **Revenue Pipeline**: $200K+ in new opportunities
 - 📈 **Brand Awareness**: 25% increase in Cincinnati metro
 
-
 ---
 
 ## 🤖 Available Agents
@@ -269,7 +328,6 @@ Strategic planning, budget management, multi-agent orchestration.
 - Risk assessment & mitigation
 - Timeline & dependency management
 - Executive reporting
-
 
 ---
 
@@ -389,9 +447,11 @@ Media planning, ad campaigns, optimization.
 
 ## 📖 Documentation
 
-- **[CHAT_GUIDE.md](CHAT_GUIDE.md)** - Complete interactive chat guide
-- **[README_CFO.md](README_CFO.md)** - CFO agent architecture & capabilities
-- **README.md** - This overview document
+- **[README.md](README.md)** - Project overview and navigation
+- **[QUICK_START.md](QUICK_START.md)** - Day-to-day runbook and commands
+- **[CEO_AGENT_README.md](docs/CEO_AGENT_README.md)** - CEO-mode deep guide
+- **[CEO_CFO_QUICK_REFERENCE.md](docs/CEO_CFO_QUICK_REFERENCE.md)** - CEO/CFO operating model
+- **[DOCS_KEEP_ARCHIVE_MANIFEST.md](docs/DOCS_KEEP_ARCHIVE_MANIFEST.md)** - Doc lifecycle and archive candidates
 
 ---
 
@@ -487,8 +547,8 @@ START → Strategic Analysis → Agent Deployment → Execution → Summary → 
 This is a demonstration of advanced LangGraph capabilities. To adapt:
 
 1. Modify strategic objectives in [cfo_agent.py](cfo_agent.py)
-2. Add new agents in [specialized_agents.py](specialized_agents.py)
-3. Extend knowledge base in [agent_knowledge_base.py](agent_knowledge_base.py)
+2. Add new agents in [specialized_agents.py](agents/specialized_agents.py)
+3. Extend knowledge base in [agent_knowledge_base.py](agents/agent_knowledge_base.py)
 4. Customize chat responses in [interactive_chat.py](interactive_chat.py)
 
 ---
@@ -509,7 +569,7 @@ Educational demonstration project showcasing LangGraph multi-agent systems.
 
 ```bash
 # Clone or navigate to project directory
-cd /Users/pc/Desktop/code/langraph
+cd /Users/pc/code/langraph
 ```
 
 ```bash
@@ -554,7 +614,6 @@ Answer prompts to customize:
 - Location and target market
 - Brand preferences (e.g., name style, visual direction)
 - Budget constraints
-
 
 ## Project Structure
 

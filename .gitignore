@@ -44,10 +44,8 @@ logs/
 *.sqlite3
 
 # Environment Variables (CRITICAL - DO NOT COMMIT)
-.env
-.env.local
-.env.*.local
-.env.key
+.env*
+!.env.encrypted
 *.key
 secrets/
 credentials/
@@ -76,8 +74,7 @@ dmypy.json
 .ipynb_checkpoints
 *.ipynb
 
-# Backup files (old versions we moved)
-backup_old_files/
+# Backup files
 backups/
 
 # OS
@@ -161,3 +158,8 @@ dump.rdb
 *.prof
 *.lprof
 
+# Encrypted environment configuration
+.env
+.env.key
+.env.local
+.env.*.local

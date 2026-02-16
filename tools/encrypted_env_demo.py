@@ -47,70 +47,66 @@ class EncryptedEnvManager:
     Secure environment configuration manager
     Uses Fernet symmetric encryption (AES 128-bit)
     """
-    
+
     def __init__(self, project_root: Optional[Path] = None):
         """
         Initialize the encrypted environment manager
-        
+
         Args:
             project_root: Project root directory (defaults to current directory)
         """
         self.project_root = project_root or Path.cwd()
-        self.key_file = self.project_root / '.env.key'
-        self.env_file = self.project_root / '.env'
-        self.encrypted_file = self.project_root / '.env.encrypted'
-        
+        self.key_file = self.project_root / ".env.key"
+        self.env_file = self.project_root / ".env"
+        self.encrypted_file = self.project_root / ".env.encrypted"
+
         # Ensure .gitignore protects sensitive files
         self._update_gitignore()
-    
+
     def _update_gitignore(self):
         """Ensure .gitignore includes sensitive files"""
-        gitignore_path = self.project_root / '.gitignore'
-        patterns_to_add = [
-            '.env',
-            '.env.key',
-            '*.key',
-            '.env.local',
-            '.env.*.local'
-        ]
-        
+        gitignore_path = self.project_root / ".gitignore"
+        patterns_to_add = [".env", ".env.key", "*.key", ".env.local", ".env.*.local"]
+
         existing_patterns = set()
         if gitignore_path.exists():
             existing_patterns = set(gitignore_path.read_text().splitlines())
-        
+
         new_patterns = [p for p in patterns_to_add if p not in existing_patterns]
-        
+
         if new_patterns:
-            with gitignore_path.open('a') as f:
-                f.write('\n# Encrypted environment configuration\n')
+            with gitignore_path.open("a") as f:
+                f.write("\n# Encrypted environment configuration\n")
                 for pattern in new_patterns:
-                    f.write(f'{pattern}\n')
+                    f.write(f"{pattern}\n")
             print(f"✓ Updated .gitignore with {len(new_patterns)} patterns")
-    
+
     def generate_key(self) -> bytes:
         """
         Generate a new encryption key
-        
+
         Returns:
             Encryption key bytes
         """
         return Fernet.generate_key()
-    
+
     def setup(self, overwrite: bool = False) -> bool:
         """
         Initial setup: generate encryption key and create sample .env
-        
+
         Args:
             overwrite: Whether to overwrite existing key
-            
+
         Returns:
             Success status
         """
         if self.key_file.exists() and not overwrite:
             print(f"❌ Encryption key already exists at {self.key_file}")
-            print("   Use --overwrite to regenerate (WARNING: existing encrypted data will be unrecoverable)")
+            print(
+                "   Use --overwrite to regenerate (WARNING: existing encrypted data will be unrecoverable)"
+            )
             return False
-        
+
         # Generate and save encryption key
         key = self.generate_key()
         self.key_file.write_bytes(key)
@@ -118,22 +114,22 @@ class EncryptedEnvManager:
         print(f"✓ Generated encryption key: {self.key_file}")
         print(f"  ⚠️  IMPORTANT: Store this key securely (e.g., password manager, secure vault)")
         print(f"  ⚠️  NEVER commit .env.key to version control!")
-        
+
         # Create sample .env if it doesn't exist
         if not self.env_file.exists():
             sample_env = self._generate_sample_env()
             self.env_file.write_text(sample_env)
             print(f"✓ Created sample .env file: {self.env_file}")
             print(f"  → Edit this file with your actual API keys and credentials")
-        
+
         print(f"\n📋 Next steps:")
         print(f"   1. Edit {self.env_file} with your real credentials")
         print(f"   2. Run: python3 tools/encrypted_env_demo.py encrypt")
         print(f"   3. Commit .env.encrypted to version control")
         print(f"   4. Store .env.key in secure secrets manager")
-        
+
         return True
-    
+
     def _generate_sample_env(self) -> str:
         """Generate sample .env file content with all agent-specific APIs"""
         return """# ============================================================================
@@ -141,7 +137,7 @@ class EncryptedEnvManager:
 # ============================================================================
 # Complete API configuration for all specialized agents
 # Edit this file with your actual credentials, then encrypt it
-# 
+#
 # Usage: python3 tools/encrypted_env_demo.py encrypt
 # ============================================================================
 
@@ -597,11 +593,11 @@ RATE_LIMIT=100 per minute
 # - Free tiers are available for most services during development
 # ============================================================================
 """
-    
+
     def encrypt(self) -> bool:
         """
         Encrypt the .env file
-        
+
         Returns:
             Success status
         """
@@ -609,34 +605,34 @@ RATE_LIMIT=100 per minute
             print(f"❌ Encryption key not found. Run setup first:")
             print(f"   python3 tools/encrypted_env_demo.py setup")
             return False
-        
+
         if not self.env_file.exists():
             print(f"❌ .env file not found at {self.env_file}")
             return False
-        
+
         # Load encryption key
         key = self.key_file.read_bytes()
         fernet = Fernet(key)
-        
+
         # Read and encrypt .env content
         env_content = self.env_file.read_bytes()
         encrypted_content = fernet.encrypt(env_content)
-        
+
         # Save encrypted file
         self.encrypted_file.write_bytes(encrypted_content)
         print(f"✓ Encrypted {self.env_file} → {self.encrypted_file}")
         print(f"  Size: {len(env_content)} bytes → {len(encrypted_content)} bytes")
         print(f"\n📋 Safe to commit: {self.encrypted_file}")
-        
+
         return True
-    
+
     def decrypt(self, output_path: Optional[Path] = None) -> bool:
         """
         Decrypt the .env.encrypted file
-        
+
         Args:
             output_path: Output path (defaults to .env)
-            
+
         Returns:
             Success status
         """
@@ -644,75 +640,81 @@ RATE_LIMIT=100 per minute
             print(f"❌ Encryption key not found at {self.key_file}")
             print(f"   Retrieve the key from your secure storage and place it here")
             return False
-        
+
         if not self.encrypted_file.exists():
             print(f"❌ Encrypted file not found at {self.encrypted_file}")
             return False
-        
+
         output_path = output_path or self.env_file
-        
+
         # Load encryption key
         key = self.key_file.read_bytes()
         fernet = Fernet(key)
-        
+
         try:
             # Read and decrypt
             encrypted_content = self.encrypted_file.read_bytes()
             decrypted_content = fernet.decrypt(encrypted_content)
-            
+
             # Save decrypted file
             output_path.write_bytes(decrypted_content)
             print(f"✓ Decrypted {self.encrypted_file} → {output_path}")
             print(f"  Environment variables are now available")
-            
+
             return True
         except Exception as e:
             print(f"❌ Decryption failed: {e}")
             print(f"   Ensure you're using the correct encryption key")
             return False
-    
+
     def load_env(self, decrypt_first: bool = True) -> Dict[str, str]:
         """
         Load environment variables from encrypted file
-        
+
         Args:
             decrypt_first: Whether to decrypt before loading
-            
+
         Returns:
             Dictionary of environment variables
         """
         if decrypt_first and self.encrypted_file.exists():
             self.decrypt()
-        
+
         env_vars = {}
-        
+
         if self.env_file.exists():
             content = self.env_file.read_text()
             for line in content.splitlines():
                 line = line.strip()
-                if line and not line.startswith('#') and '=' in line:
-                    key, value = line.split('=', 1)
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
                     env_vars[key.strip()] = value.strip()
                     # Also set in os.environ for immediate use
                     os.environ[key.strip()] = value.strip()
-        
+
         return env_vars
-    
+
     def show_status(self):
         """Display current configuration status"""
         print("📊 Encrypted Environment Configuration Status")
         print("=" * 60)
         print(f"Project root: {self.project_root}")
         print(f"\nFiles:")
-        print(f"  .env.key:       {'✓ EXISTS' if self.key_file.exists() else '✗ MISSING'} (DO NOT COMMIT)")
-        print(f"  .env:           {'✓ EXISTS' if self.env_file.exists() else '✗ MISSING'} (DO NOT COMMIT)")
-        print(f"  .env.encrypted: {'✓ EXISTS' if self.encrypted_file.exists() else '✗ MISSING'} (SAFE TO COMMIT)")
-        
+        print(
+            f"  .env.key:       {'✓ EXISTS' if self.key_file.exists() else '✗ MISSING'} (DO NOT COMMIT)"
+        )
+        print(
+            f"  .env:           {'✓ EXISTS' if self.env_file.exists() else '✗ MISSING'} (DO NOT COMMIT)"
+        )
+        print(
+            f"  .env.encrypted: {'✓ EXISTS' if self.encrypted_file.exists() else '✗ MISSING'} (SAFE TO COMMIT)"
+        )
+
         if self.env_file.exists():
             content = self.env_file.read_text()
-            lines = [l for l in content.splitlines() if l.strip() and not l.startswith('#')]
+            lines = [l for l in content.splitlines() if l.strip() and not l.startswith("#")]
             print(f"\nEnvironment variables: {len(lines)} configured")
-        
+
         print(f"\n📋 Recommendations:")
         if not self.key_file.exists():
             print(f"   → Run 'setup' to generate encryption key")
@@ -732,23 +734,23 @@ def main():
         print("  decrypt - Decrypt .env.encrypted file")
         print("  show    - Show configuration status")
         sys.exit(1)
-    
+
     command = sys.argv[1].lower()
     manager = EncryptedEnvManager()
-    
-    if command == 'setup':
-        overwrite = '--overwrite' in sys.argv
+
+    if command == "setup":
+        overwrite = "--overwrite" in sys.argv
         manager.setup(overwrite=overwrite)
-    elif command == 'encrypt':
+    elif command == "encrypt":
         manager.encrypt()
-    elif command == 'decrypt':
+    elif command == "decrypt":
         manager.decrypt()
-    elif command == 'show':
+    elif command == "show":
         manager.show_status()
     else:
         print(f"Unknown command: {command}")
         sys.exit(1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

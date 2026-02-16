@@ -22,7 +22,7 @@
 
 ```bash
 # Generate strong secret key
-python -c 'import secrets; print(secrets.token_hex(32))'
+python3 -c 'import secrets; print(secrets.token_hex(32))'
 
 # Set in .env file
 SECRET_KEY=<generated-key>

@@ -1,13 +1,16 @@
+#!/usr/bin/env python3
 """
 CEO Agent - Executive AI System
 Flask backend serving admin dashboard and multi-agent orchestration
 """
 
-from flask import Flask, render_template, jsonify, request, session
+from flask import Flask, render_template, jsonify, request, session, g
 from flask_socketio import SocketIO, emit
 import json
 import os
 import uuid
+import copy
+from pathlib import Path
 from datetime import datetime
 from typing import Dict, Any
 import threading
@@ -15,1010 +18,2215 @@ import time
 import traceback
 from functools import wraps
 
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+
+def bootstrap_environment() -> None:
+    """Load environment variables from .env or encrypted env files."""
+    project_root = Path(__file__).resolve().parent
+    env_path = project_root / ".env"
+    encrypted_path = project_root / ".env.encrypted"
+    key_path = project_root / ".env.key"
+
+    if load_dotenv:
+        load_dotenv(dotenv_path=env_path, override=False)
+
+    if env_path.exists() or not (encrypted_path.exists() and key_path.exists()):
+        return
+
+    try:
+        from tools.encrypted_env_demo import EncryptedEnvManager
+
+        manager = EncryptedEnvManager(project_root=project_root)
+        manager.load_env(decrypt_first=True)
+
+        if load_dotenv and env_path.exists():
+            load_dotenv(dotenv_path=env_path, override=False)
+
+        print("✅ Loaded environment from encrypted configuration")
+    except Exception as e:
+        print(f"⚠️ Could not load encrypted environment: {e}")
+
+
+bootstrap_environment()
+
 # Import agent systems - CEO Agent (new architecture)
 try:
     from agents.ceo_agent import CEOAgentState, analyze_strategic_objectives as ceo_analyze
     from agents.new_cfo_agent import CFOAgentState as NewCFOState, generate_financial_report
+
     CEO_AGENT_AVAILABLE = True
 except ImportError:
     CEO_AGENT_AVAILABLE = False
     print("⚠️ CEO/CFO agents not available, using fallback")
 
-# Backward compatibility with old CFO agent
-from agents.cfo_agent import CFOAgentState, analyze_strategic_objectives, deploy_specialized_agents
+# Import LangGraph multi-agent system
+try:
+    from graph_architecture.main_graph import execute_multi_agent_system
+    from graph_architecture.schemas import SharedState
+
+    GRAPH_ARCHITECTURE_AVAILABLE = True
+    print("✅ Graph architecture loaded successfully")
+except ImportError as e:
+    GRAPH_ARCHITECTURE_AVAILABLE = False
+    print(f"⚠️ Graph architecture not available: {e}")
+
 from agents.specialized_agents import AgentFactory
 from agents.agent_guard_rails import AgentGuardRail, AgentDomain, create_execution_summary
 
 # Import utilities
 try:
     from utils.logger import get_logger, app_logger, api_logger
-    from utils.validators import validate_company_info, validate_agent_request, sanitize_input
+    from utils.validators import (
+        validate_company_info,
+        validate_agent_request,
+        sanitize_input,
+        sanitize_dict,
+        validate_chat_message,
+        scan_payload_for_threats,
+        validate_payload_allowlist,
+        validate_company_info_allowlist,
+    )
+
     UTILS_AVAILABLE = True
 except ImportError:
     UTILS_AVAILABLE = False
     print("⚠️ Warning: Utils modules not available, using basic logging")
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'ceo-agent-executive-ai-2026')
-app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB max request size
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "ceo-agent-executive-ai-2026")
+app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB max request size
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
 # Global state for admin dashboard
 pending_approvals = []
 system_settings = {
-    'system_mode': 'training',
-    'auto_approve_api': True,
-    'email_notifications': False,
-    'total_budget': 50000,
-    'cfo_api_limit': 100,
-    'cfo_legal_limit': 500
+    "system_mode": "training",
+    "auto_approve_api": True,
+    "email_notifications": False,
+    "total_budget": 50000,
+    "cfo_api_limit": 100,
+    "cfo_legal_limit": 500,
 }
 
 # Initialize logger
 if UTILS_AVAILABLE:
-    logger = get_logger('app', 'logs/app.log')
+    logger = get_logger("app", "logs/app.log")
 else:
     import logging
+
     logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger('app')
+    logger = logging.getLogger("app")
 
 # Store active sessions and agent states
 active_sessions = {}
 
 
+shared_state_lock = threading.Lock()
+SCENARIO_SCHEMA_VERSION = 1
+DEV_SCENARIO_DEFAULTS_VERSION = "2026-02-15-dev-v1"
+PROD_SCENARIO_DEFAULTS_VERSION = "2026-02-15-prod-v1"
+
+DEFAULT_DEV_OBJECTIVES = [
+    "Launch AR platform showroom",
+    "Relaunch the company brand as SurfaceCraft Studio",
+    "Create a brand kit to be use across platforms",
+    "Create and maintain social media accounts and content creation",
+    "Possition the company in the highend exclusive market",
+    "Create all necessary agent to execute and manage customer caption and retention",
+    "Create sales agent to target residential and commercial contracts",
+    "Register as a minority business with the city of Cincinnati",
+    "Automate most processes that deals with outside sales",
+]
+
+DEFAULT_DEV_SCENARIO = {
+    "company_name": "Amazon Granite LLC",
+    "dba_name": "SurfaceCraft Studio",
+    "industry": "Construction, Custom Countertops",
+    "location": "Cincinnati, OH",
+    "budget": 1000.0,
+    "timeline": 30,
+    "objectives": DEFAULT_DEV_OBJECTIVES,
+}
+
+LEGACY_OBJECTIVE_MARKERS = {
+    "Launch SaaS platform",
+    "Build enterprise sales team",
+    "Establish market presence",
+    "Scale to $1M ARR",
+}
+
+
+def _is_production_environment() -> bool:
+    return os.getenv("ENVIRONMENT", "development").lower() == "production"
+
+
+def _scenario_defaults_version() -> str:
+    return (
+        PROD_SCENARIO_DEFAULTS_VERSION
+        if _is_production_environment()
+        else DEV_SCENARIO_DEFAULTS_VERSION
+    )
+
+
+def _get_default_scenario_for_environment() -> Dict[str, Any]:
+    if _is_production_environment():
+        return {
+            "company_name": "",
+            "dba_name": "",
+            "industry": "",
+            "location": "",
+            "budget": 0.0,
+            "timeline": 0,
+            "objectives": [],
+        }
+
+    return {
+        "company_name": DEFAULT_DEV_SCENARIO["company_name"],
+        "dba_name": DEFAULT_DEV_SCENARIO["dba_name"],
+        "industry": DEFAULT_DEV_SCENARIO["industry"],
+        "location": DEFAULT_DEV_SCENARIO["location"],
+        "budget": DEFAULT_DEV_SCENARIO["budget"],
+        "timeline": DEFAULT_DEV_SCENARIO["timeline"],
+        "objectives": list(DEFAULT_DEV_OBJECTIVES),
+    }
+
+
+def _attach_scenario_metadata(
+    scenario: Dict[str, Any],
+    source: str,
+    user_modified: bool = False,
+    migrated: bool = False,
+    existing_meta: Dict[str, Any] | None = None,
+) -> Dict[str, Any]:
+    scenario_with_meta = copy.deepcopy(scenario)
+    previous_meta = existing_meta if isinstance(existing_meta, dict) else {}
+
+    scenario_with_meta["meta"] = {
+        "schema_version": SCENARIO_SCHEMA_VERSION,
+        "defaults_version": _scenario_defaults_version(),
+        "environment": "production" if _is_production_environment() else "development",
+        "source": source,
+        "user_modified": bool(previous_meta.get("user_modified", False) or user_modified),
+        "migrated": bool(migrated),
+        "meta_updated_at": datetime.now().isoformat(),
+    }
+    return scenario_with_meta
+
+
+def _has_stale_or_missing_metadata(meta: Dict[str, Any] | None) -> bool:
+    if not isinstance(meta, dict):
+        return True
+
+    return (
+        meta.get("schema_version") != SCENARIO_SCHEMA_VERSION
+        or meta.get("defaults_version") != _scenario_defaults_version()
+    )
+
+
+def _looks_like_legacy_default_scenario(scenario: Dict[str, Any]) -> bool:
+    marker_score = 0
+
+    industry = str(scenario.get("industry") or "").strip()
+    location = str(scenario.get("location") or "").strip()
+
+    try:
+        budget = float(scenario.get("budget"))
+    except (TypeError, ValueError):
+        budget = None
+
+    try:
+        timeline = int(scenario.get("timeline"))
+    except (TypeError, ValueError):
+        timeline = None
+
+    objectives = scenario.get("objectives")
+    objective_set = (
+        {str(item).strip() for item in objectives if isinstance(item, str)}
+        if isinstance(objectives, list)
+        else set()
+    )
+
+    if industry in {
+        "Software & Technology",
+        "AI Technology",
+        "Granite & Countertops",
+        "General Business",
+    }:
+        marker_score += 1
+
+    if location in {"San Francisco, CA", "United States", "Cincinnati, Ohio"}:
+        marker_score += 1
+
+    if budget in {5000.0, 100000.0}:
+        marker_score += 1
+
+    if timeline in {90}:
+        marker_score += 1
+
+    if objective_set.intersection(LEGACY_OBJECTIVE_MARKERS):
+        marker_score += 1
+
+    return marker_score >= 2
+
+
+def _migrate_scenario_context_if_needed(
+    scenario: Dict[str, Any] | None,
+) -> tuple[Dict[str, Any], bool]:
+    default_scenario = _get_default_scenario_for_environment()
+
+    if not isinstance(scenario, dict):
+        normalized_defaults = _normalize_scenario_context(
+            default_scenario,
+            default_scenario.get("objectives"),
+        )
+        migrated = _attach_scenario_metadata(
+            normalized_defaults,
+            source="migration_bootstrap",
+            user_modified=False,
+            migrated=True,
+        )
+        return migrated, True
+
+    existing_meta = scenario.get("meta") if isinstance(scenario.get("meta"), dict) else {}
+    is_stale = _has_stale_or_missing_metadata(existing_meta)
+    user_modified = bool(existing_meta.get("user_modified", False))
+
+    should_reset_to_defaults = False
+    if is_stale:
+        if _is_production_environment():
+            should_reset_to_defaults = not user_modified
+        else:
+            should_reset_to_defaults = (not user_modified) and _looks_like_legacy_default_scenario(
+                scenario
+            )
+
+    if should_reset_to_defaults:
+        normalized = _normalize_scenario_context(
+            default_scenario,
+            default_scenario.get("objectives"),
+        )
+    else:
+        normalized = _normalize_scenario_context(scenario, scenario.get("objectives"))
+
+    migrated_scenario = _attach_scenario_metadata(
+        normalized,
+        source="migration" if is_stale else existing_meta.get("source", "system"),
+        user_modified=(user_modified and not should_reset_to_defaults),
+        migrated=is_stale,
+        existing_meta=existing_meta,
+    )
+
+    return migrated_scenario, migrated_scenario != scenario
+
+
+shared_runtime_state = {
+    "scenario": {
+        **_attach_scenario_metadata(
+            {
+                **_get_default_scenario_for_environment(),
+                "updated_at": datetime.now().isoformat(),
+            },
+            source="startup_defaults",
+            user_modified=False,
+            migrated=False,
+        ),
+    },
+    "last_orchestration_report": None,
+}
+
+
+def _normalize_scenario_context(
+    company_info: Dict[str, Any] | None = None,
+    objectives: list[str] | None = None,
+) -> Dict[str, Any]:
+    company_info = company_info or {}
+    default_scenario = _get_default_scenario_for_environment()
+
+    company_name = (
+        company_info.get("company_name")
+        or company_info.get("name")
+        or default_scenario["company_name"]
+    )
+    dba_name = company_info.get("dba_name") or company_name
+    industry = company_info.get("industry") or default_scenario["industry"]
+    location = company_info.get("location") or default_scenario["location"]
+
+    try:
+        budget = float(company_info.get("budget", default_scenario["budget"]))
+    except (TypeError, ValueError):
+        budget = float(default_scenario["budget"])
+
+    try:
+        timeline = int(company_info.get("timeline", default_scenario["timeline"]))
+    except (TypeError, ValueError):
+        timeline = int(default_scenario["timeline"])
+
+    safe_objectives = (
+        objectives
+        if isinstance(objectives, list) and objectives
+        else list(default_scenario["objectives"])
+    )
+
+    return {
+        "company_name": company_name,
+        "dba_name": dba_name,
+        "industry": industry,
+        "location": location,
+        "budget": budget,
+        "timeline": timeline,
+        "objectives": safe_objectives,
+        "updated_at": datetime.now().isoformat(),
+    }
+
+
+def _update_shared_scenario_context(
+    scenario: Dict[str, Any],
+    source: str = "unknown",
+    broadcast: bool = True,
+    user_modified: bool = False,
+) -> None:
+    prepared_scenario = _attach_scenario_metadata(
+        scenario,
+        source=source,
+        user_modified=user_modified,
+        migrated=False,
+        existing_meta=scenario.get("meta") if isinstance(scenario.get("meta"), dict) else None,
+    )
+
+    with shared_state_lock:
+        shared_runtime_state["scenario"] = copy.deepcopy(prepared_scenario)
+
+    if broadcast:
+        socketio.emit(
+            "scenario_updated",
+            {
+                "scenario": prepared_scenario,
+                "source": source,
+                "timestamp": datetime.now().isoformat(),
+            },
+            to=None,
+        )
+
+
+def _get_shared_scenario_context() -> Dict[str, Any]:
+    with shared_state_lock:
+        current_scenario = copy.deepcopy(shared_runtime_state["scenario"])
+
+    migrated_scenario, changed = _migrate_scenario_context_if_needed(current_scenario)
+    if changed:
+        with shared_state_lock:
+            shared_runtime_state["scenario"] = copy.deepcopy(migrated_scenario)
+
+    return migrated_scenario
+
+
+def _security_violation_response(findings: list[str], source: str):
+    """Standard response for blocked malicious input."""
+    if UTILS_AVAILABLE:
+        logger.warning(f"Blocked malicious {source} payload", extra={"findings": findings})
+
+    return (
+        jsonify(
+            {
+                "success": False,
+                "error": "Potentially malicious content detected",
+                "details": findings,
+            }
+        ),
+        400,
+    )
+
+
+def _allowlist_violation_response(errors: list[str], source: str):
+    """Standard response for strict field allowlist violations."""
+    if UTILS_AVAILABLE:
+        logger.warning(f"Blocked invalid {source} payload", extra={"errors": errors})
+
+    return (
+        jsonify(
+            {
+                "success": False,
+                "error": "Invalid request payload",
+                "details": errors,
+            }
+        ),
+        400,
+    )
+
+
+@app.before_request
+def enforce_request_security():
+    """Reject malicious web content/prompt injection and sanitize safe JSON."""
+    if not UTILS_AVAILABLE:
+        return None
+
+    args_payload = request.args.to_dict(flat=False)
+    args_scan = scan_payload_for_threats(args_payload, path="query")
+    if not args_scan.valid:
+        return _security_violation_response(args_scan.errors, "query")
+
+    form_payload = request.form.to_dict(flat=False)
+    form_scan = scan_payload_for_threats(form_payload, path="form")
+    if not form_scan.valid:
+        return _security_violation_response(form_scan.errors, "form")
+
+    if request.method in {"POST", "PUT", "PATCH"}:
+        content_type = request.content_type or ""
+        if "application/json" in content_type:
+            payload = request.get_json(silent=True)
+            if payload is not None:
+                payload_scan = scan_payload_for_threats(payload, path="json")
+                if not payload_scan.valid:
+                    return _security_violation_response(payload_scan.errors, "json")
+
+                g.sanitized_json = sanitize_dict(payload)
+
+    return None
+
+
+# Security Headers Middleware
+@app.after_request
+def set_security_headers(response):
+    """Add security headers to all responses"""
+    is_production = os.getenv("ENVIRONMENT") == "production"
+
+    # Content Security Policy
+    frame_ancestors = "'none'" if is_production else "'self' vscode-webview:"
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' https://cdn.socket.io 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data: https:; "
+        "font-src 'self' data:; "
+        "connect-src 'self' ws: wss:; "
+        f"frame-ancestors {frame_ancestors}; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+    response.headers["Content-Security-Policy"] = csp
+
+    # Additional security headers
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    if is_production:
+        response.headers["X-Frame-Options"] = "DENY"
+    else:
+        response.headers.pop("X-Frame-Options", None)
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # HTTPS enforcement (in production)
+    if is_production:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    return response
+
+
+# Request size error handler
+@app.errorhandler(413)
+def request_entity_too_large(error):
+    """Handle requests that are too large"""
+    return jsonify({"error": "Request too large", "max_size": "10MB"}), 413
+
+
 # Error handler decorator
 def handle_errors(f):
     """Decorator for consistent error handling"""
+
     @wraps(f)
     def decorated_function(*args, **kwargs):
         start_time = time.time()
         try:
             result = f(*args, **kwargs)
             duration = (time.time() - start_time) * 1000
-            
+
             if UTILS_AVAILABLE:
-                api_logger.api_request(
-                    request.method,
-                    request.path,
-                    200,
-                    duration
-                )
-            
+                api_logger.api_request(request.method, request.path, 200, duration)
+
             return result
         except Exception as e:
             duration = (time.time() - start_time) * 1000
             error_msg = str(e)
             trace = traceback.format_exc()
-            
+
             if UTILS_AVAILABLE:
                 logger.error(f"Error in {f.__name__}: {error_msg}", exc_info=True)
-                api_logger.api_request(
-                    request.method,
-                    request.path,
-                    500,
-                    duration
-                )
+                api_logger.api_request(request.method, request.path, 500, duration)
             else:
                 print(f"❌ Error in {f.__name__}: {error_msg}")
                 print(trace)
-            
-            return jsonify({
-                'success': False,
-                'error': error_msg,
-                'message': 'An error occurred processing your request'
-            }), 500
+
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": error_msg,
+                        "message": "An error occurred processing your request",
+                    }
+                ),
+                500,
+            )
+
     return decorated_function
 
 
-@app.route('/')
+def _get_graph_template_defaults() -> Dict[str, Any]:
+    default_scenario = _get_default_scenario_for_environment()
+    if _is_production_environment():
+        return {
+            "company_name": "",
+            "dba_name": "",
+            "industry": "",
+            "industry_other": "",
+            "location": "",
+            "budget": "",
+            "timeline": "",
+            "objectives_text": "",
+            "scenario_schema_version": SCENARIO_SCHEMA_VERSION,
+            "scenario_defaults_version": _scenario_defaults_version(),
+        }
+
+    return {
+        "company_name": default_scenario["company_name"],
+        "dba_name": default_scenario["dba_name"],
+        "industry": default_scenario["industry"],
+        "industry_other": "",
+        "location": default_scenario["location"],
+        "budget": default_scenario["budget"],
+        "timeline": default_scenario["timeline"],
+        "objectives": list(default_scenario["objectives"]),
+        "objectives_text": "\n".join(default_scenario["objectives"]),
+        "scenario_schema_version": SCENARIO_SCHEMA_VERSION,
+        "scenario_defaults_version": _scenario_defaults_version(),
+    }
+
+
+@app.route("/")
 def index():
-    """Main dashboard page (legacy)"""
+    """Default landing page now points to graph dashboard."""
     if UTILS_AVAILABLE:
-        logger.info('Legacy dashboard page accessed')
-    return render_template('index.html')
+        logger.info("Graph dashboard accessed via root route")
+    return render_template(
+        "graph_dashboard.html",
+        is_production=_is_production_environment(),
+        scenario_defaults=_get_graph_template_defaults(),
+    )
 
 
-@app.route('/admin')
+@app.route("/admin")
 def admin_dashboard():
     """CEO Agent Admin Dashboard - Primary interface"""
     if UTILS_AVAILABLE:
-        logger.info('Admin dashboard accessed')
-    return render_template('admin_dashboard.html')
+        logger.info("Admin dashboard accessed")
+    return render_template(
+        "admin_dashboard.html",
+        is_production=_is_production_environment(),
+        scenario_defaults=_get_graph_template_defaults(),
+    )
 
 
-@app.route('/debug')
+@app.route("/reports")
+def reports_page():
+    """Dedicated reports page route (opens admin reports section)."""
+    if UTILS_AVAILABLE:
+        logger.info("Reports page accessed")
+    return render_template(
+        "admin_dashboard.html",
+        initial_section="reports",
+        is_production=_is_production_environment(),
+        scenario_defaults=_get_graph_template_defaults(),
+    )
+
+
+@app.route("/admin/reports")
+def admin_reports_page():
+    """Alias route to open reports directly from navigation/landing pages."""
+    if UTILS_AVAILABLE:
+        logger.info("Admin reports alias route accessed")
+    return render_template(
+        "admin_dashboard.html",
+        initial_section="reports",
+        is_production=_is_production_environment(),
+        scenario_defaults=_get_graph_template_defaults(),
+    )
+
+
+@app.route("/debug")
 def debug():
     """Debug console page"""
-    return render_template('debug.html')
+    return render_template("debug.html")
 
 
-@app.route('/test')
-def test_frontend():
-    """Test page for button functionality"""
-    with open('test_frontend.html', 'r') as f:
-        return f.read()
+@app.route("/graph")
+def graph_dashboard():
+    """LangGraph Multi-Agent System Dashboard"""
+    if UTILS_AVAILABLE:
+        logger.info("Graph dashboard accessed")
+    return render_template(
+        "graph_dashboard.html",
+        is_production=_is_production_environment(),
+        scenario_defaults=_get_graph_template_defaults(),
+    )
 
 
-@app.route('/api/agents/available')
+@app.route("/docs")
+def documentation():
+    """Documentation page"""
+    if UTILS_AVAILABLE:
+        logger.info("Documentation page accessed")
+    return render_template("docs.html")
+
+
+@app.route("/logs")
+def logs_viewer():
+    """Logs viewer page"""
+    if UTILS_AVAILABLE:
+        logger.info("Logs viewer page accessed")
+    return render_template("logs.html")
+
+
+@app.route("/api/agents/available")
 def get_available_agents():
-    """Get list of available specialized agents"""
+    """Get list of all available agents (executive + specialized)."""
     factory = AgentFactory()
-    agents = []
-    
+    agents = [
+        {
+            "type": "ceo",
+            "name": "CEO Agent",
+            "capabilities": [
+                "Executive strategic planning",
+                "Multi-agent orchestration",
+                "Risk-aware decision governance",
+            ],
+            "budget": system_settings["total_budget"],
+            "status": "available",
+        },
+        {
+            "type": "cfo",
+            "name": "CFO Agent",
+            "capabilities": [
+                "Financial monitoring",
+                "Budget oversight",
+                "Payment recommendation analysis",
+            ],
+            "budget": system_settings["cfo_api_limit"] + system_settings["cfo_legal_limit"],
+            "status": "available",
+        },
+    ]
+
     for agent_type in factory.get_available_agents():
         try:
             agent = factory.create_agent(agent_type)
             guard_rail = AgentGuardRail(AgentDomain[agent_type.upper()])
-            
-            agents.append({
-                'type': agent_type,
-                'name': agent.name,
-                'capabilities': agent.capabilities,
-                'budget': guard_rail.budget_constraint.max_budget if guard_rail.budget_constraint else 0,
-                'status': 'available'
-            })
+
+            agents.append(
+                {
+                    "type": agent_type,
+                    "name": agent.name,
+                    "capabilities": agent.capabilities,
+                    "budget": guard_rail.budget_constraint.max_budget
+                    if guard_rail.budget_constraint
+                    else 0,
+                    "status": "available",
+                }
+            )
         except Exception as e:
             print(f"Error loading agent {agent_type}: {e}")
-    
-    return jsonify({'agents': agents})
+
+    return jsonify({"agents": agents})
 
 
-@app.route('/api/ceo/analyze', methods=['POST'])
-@app.route('/api/cfo/analyze', methods=['POST'])  # Backward compatibility
+@app.route("/api/scenario/current", methods=["GET", "POST"])
+def scenario_current():
+    """Get or update shared scenario context used by dashboard/admin/reports."""
+    try:
+        if request.method == "GET":
+            return jsonify({"success": True, "scenario": _get_shared_scenario_context()})
+
+        payload = getattr(g, "sanitized_json", request.json or {})
+        if UTILS_AVAILABLE:
+            allowlist_validation = validate_payload_allowlist(
+                payload,
+                allowed_fields={
+                    "company_name",
+                    "name",
+                    "dba_name",
+                    "industry",
+                    "location",
+                    "budget",
+                    "timeline",
+                    "objectives",
+                },
+                required_fields=set(),
+                payload_name="scenario",
+            )
+            if not allowlist_validation.valid:
+                return _allowlist_violation_response(allowlist_validation.errors, "scenario")
+
+        scenario = _normalize_scenario_context(payload, payload.get("objectives"))
+        _update_shared_scenario_context(
+            scenario,
+            source="api_scenario_update",
+            broadcast=True,
+            user_modified=True,
+        )
+        return jsonify({"success": True, "scenario": _get_shared_scenario_context()})
+    except Exception as e:
+        if UTILS_AVAILABLE:
+            logger.error(f"Error handling scenario_current: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/ceo/analyze", methods=["POST"])
+@app.route("/api/cfo/analyze", methods=["POST"])  # Backward compatibility
 def analyze_objectives():
     """Analyze strategic objectives with CEO/CFO agent"""
     try:
-        data = request.json
+        # Validate content type
+        if request.content_type and "application/json" not in request.content_type:
+            return (
+                jsonify(
+                    {
+                        "error": "Unsupported Media Type",
+                        "message": "Content-Type must be application/json",
+                    }
+                ),
+                415,
+            )
+
+        data = getattr(g, "sanitized_json", request.json or {})
+        if UTILS_AVAILABLE:
+            allowlist_validation = validate_payload_allowlist(
+                data,
+                allowed_fields={
+                    "company_name",
+                    "industry",
+                    "location",
+                    "objectives",
+                    "budget",
+                    "timeline",
+                },
+                required_fields={"company_name", "industry", "location"},
+                payload_name="analyze",
+            )
+            if not allowlist_validation.valid:
+                return _allowlist_violation_response(allowlist_validation.errors, "analyze")
+
         print(f"📊 CEO Analysis request received: {data}")
         print(f"📊 Data type: {type(data)}")
         print(f"📊 Data keys: {data.keys() if data else 'None'}")
-        
-        # Create initial state matching CFOAgentState schema
+
+        if not CEO_AGENT_AVAILABLE:
+            return jsonify({"success": False, "error": "CEO agent not available"}), 503
+
+        normalized_scenario = _normalize_scenario_context(
+            {
+                "company_name": data.get("company_name"),
+                "name": data.get("company_name"),
+                "dba_name": data.get("dba_name") or data.get("company_name"),
+                "industry": data.get("industry"),
+                "location": data.get("location"),
+                "budget": data.get("budget", 5000),
+                "timeline": data.get("timeline", 90),
+            },
+            data.get("objectives"),
+        )
+        _update_shared_scenario_context(
+            normalized_scenario,
+            source="api_analyze",
+            broadcast=True,
+            user_modified=True,
+        )
+
+        # Create initial state matching CEOAgentState schema
         state = {
-            # Top-level company info (not nested)
-            'company_name': data.get('company_name', 'Amazon Granite LLC'),
-            'industry': data.get('industry', 'Granite & Countertops'),
-            'location': data.get('location', 'Cincinnati, Ohio'),
-            
+            # Company context
+            "company_name": normalized_scenario["company_name"],
+            "industry": normalized_scenario["industry"],
+            "location": normalized_scenario["location"],
+            "business_goals": [],
             # Strategic objectives
-            'strategic_objectives': data.get('objectives', [
-                f"Launch {data.get('company_name', 'business')} with digital presence",
-                "Build brand identity and market positioning"
-            ]),
-            
+            "strategic_objectives": normalized_scenario["objectives"]
+            or data.get(
+                "objectives",
+                [
+                    f"Launch {normalized_scenario['company_name']} with digital presence",
+                    "Build brand identity and market positioning",
+                ],
+            ),
             # Budget management
-            'total_budget': float(data.get('budget', 5000)),
-            'budget_allocated': {},
-            'budget_spent': {},
-            'budget_remaining': float(data.get('budget', 5000)),
-            
+            "total_budget": float(normalized_scenario["budget"]),
+            "budget_allocated": {},
+            "budget_reserved_for_fees": 0,
+            "pending_approvals": [],
+            "approved_actions": [],
+            "rejected_actions": [],
+            "pending_payments": [],
             # Timeline
-            'target_completion_days': int(data.get('timeline', 90)),
-            'current_day': 0,
-            'milestones': [],
-            
+            "target_completion_days": int(normalized_scenario["timeline"]),
+            "current_day": 0,
+            "milestones": [],
             # Multi-agent orchestration
-            'active_agents': [],
-            'agent_outputs': [],
-            'agent_status': {},
-            
+            "active_agents": [],
+            "agent_outputs": [],
+            "agent_status": {},
+            "delegated_tasks": {},
             # Task breakdown
-            'identified_tasks': [],
-            'assigned_tasks': {},
-            'completed_tasks': [],
-            
+            "identified_tasks": [],
+            "assigned_tasks": {},
+            "completed_tasks": [],
+            "blocked_tasks": [],
             # Risk management
-            'risks': [],
-            'opportunities': [],
-            
+            "risks": [],
+            "risk_mitigation_plans": {},
+            "opportunities": [],
+            "opportunity_analysis": [],
             # Deliverables
-            'deliverables': [],
-            'status_reports': [],
-            'final_executive_summary': '',
-            
+            "deliverables": [],
+            "status_reports": [],
+            "final_executive_summary": "",
+            # Governance
+            "guard_rail_violations": [],
+            "liability_warnings": [],
+            "compliance_status": {},
+            "executive_decisions": [],
             # Workflow
-            'current_phase': 'initialization',
-            'completed_phases': []
+            "current_phase": "initialization",
+            "completed_phases": [],
         }
-        
-        print(f"🔄 Running CFO strategic analysis...")
-        
+
+        print("🔄 Running CEO strategic analysis...")
+
         # Run strategic analysis
-        result = analyze_strategic_objectives(state)
-        
+        result = ceo_analyze(state)
+
         print(f"✅ Analysis complete. Tasks: {len(result.get('identified_tasks', []))}")
-        
-        return jsonify({
-            'success': True,
-            'tasks': result.get('identified_tasks', []),
-            'budget_allocation': result.get('budget_allocated', {}),
-            'risks': result.get('risks', []),
-            'timeline': result.get('target_completion_days', 90)
-        })
+
+        return jsonify(
+            {
+                "success": True,
+                "tasks": result.get("identified_tasks", []),
+                "budget_allocation": result.get("budget_allocated", {}),
+                "risks": result.get("risks", []),
+                "timeline": result.get("target_completion_days", 90),
+            }
+        )
     except Exception as e:
         print(f"❌ Analysis error: {str(e)}")
         import traceback
+
         traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/agent/execute/<agent_type>', methods=['POST'])
+@app.route("/api/graph/execute", methods=["POST"])
+def execute_graph():
+    """Execute the LangGraph multi-agent system"""
+    if not GRAPH_ARCHITECTURE_AVAILABLE:
+        return jsonify({"success": False, "error": "Graph architecture not available"}), 503
+
+    try:
+        data = getattr(g, "sanitized_json", request.json or {})
+        if UTILS_AVAILABLE:
+            allowlist_validation = validate_payload_allowlist(
+                data,
+                allowed_fields={
+                    "company_name",
+                    "dba_name",
+                    "industry",
+                    "location",
+                    "total_budget",
+                    "target_days",
+                    "objectives",
+                    "thread_id",
+                    "use_checkpointing",
+                },
+                required_fields={"company_name", "industry", "location", "objectives"},
+                payload_name="graph_execute",
+            )
+            if not allowlist_validation.valid:
+                return _allowlist_violation_response(allowlist_validation.errors, "graph_execute")
+
+        logger.info(f"Graph execution request: {data}")
+
+        # Extract and validate parameters
+        company_name = data.get("company_name", "")
+        industry = data.get("industry", "")
+        location = data.get("location", "")
+        total_budget = data.get("total_budget", 0)
+        target_days = data.get("target_days", 90)
+        objectives = data.get("objectives", [])
+        thread_id = data.get("thread_id") or str(uuid.uuid4())
+        use_checkpointing = data.get("use_checkpointing", True)
+
+        # Validation
+        if not company_name or not industry or not location:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Missing required fields: company_name, industry, location",
+                    }
+                ),
+                400,
+            )
+
+        if not objectives or len(objectives) == 0:
+            return jsonify({"success": False, "error": "At least one objective is required"}), 400
+
+        normalized_scenario = _normalize_scenario_context(
+            {
+                "company_name": company_name,
+                "name": company_name,
+                "dba_name": data.get("dba_name") or company_name,
+                "industry": industry,
+                "location": location,
+                "budget": total_budget,
+                "timeline": target_days,
+            },
+            objectives,
+        )
+        _update_shared_scenario_context(
+            normalized_scenario,
+            source="api_graph_execute",
+            broadcast=True,
+            user_modified=True,
+        )
+
+        # Emit start event
+        socketio.emit(
+            "execution_started",
+            {
+                "thread_id": thread_id,
+                "company_name": company_name,
+                "industry": industry,
+                "total_budget": total_budget,
+                "target_days": target_days,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
+        # Execute in background thread
+        def run_graph_execution():
+            try:
+                logger.info(f"Starting graph execution: {company_name} - {industry}")
+
+                # Update phase
+                socketio.emit(
+                    "phase_update",
+                    {
+                        "phase": "Initializing",
+                        "progress": 0,
+                        "message": "Starting CEO orchestrator...",
+                    },
+                )
+
+                socketio.emit(
+                    "agent_update",
+                    {
+                        "agent": "ceo",
+                        "status": "active",
+                        "message": "CEO orchestrator initializing",
+                        "phase": "initialization",
+                    },
+                )
+
+                # Execute the graph with correct parameters
+                result = execute_multi_agent_system(
+                    company_name=company_name,
+                    industry=industry,
+                    location=location,
+                    total_budget=total_budget,
+                    target_days=target_days,
+                    objectives=objectives,
+                    use_checkpointing=use_checkpointing,
+                    thread_id=thread_id,
+                )
+
+                logger.info(
+                    f"Graph execution completed: {len(result.get('agent_outputs', []))} agent outputs"
+                )
+
+                # Update agents based on result
+                agent_outputs = result.get("agent_outputs", [])
+                unique_agents = set()
+                for output in agent_outputs:
+                    agent = output.get("agent", "").lower()
+                    if agent and agent not in unique_agents:
+                        unique_agents.add(agent)
+                        socketio.emit(
+                            "agent_update",
+                            {
+                                "agent": agent,
+                                "status": "success",
+                                "message": f"{agent.upper()} completed successfully",
+                                "phase": "completed",
+                            },
+                        )
+
+                socketio.emit(
+                    "phase_update",
+                    {
+                        "phase": "Complete",
+                        "progress": 100,
+                        "message": "All agents completed successfully",
+                    },
+                )
+
+                # Emit completion
+                socketio.emit(
+                    "execution_complete",
+                    {
+                        "thread_id": thread_id,
+                        "result": result,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
+
+            except Exception as e:
+                logger.error(f"Graph execution error: {e}", exc_info=True)
+                socketio.emit(
+                    "execution_error",
+                    {
+                        "thread_id": thread_id,
+                        "error": str(e),
+                        "traceback": traceback.format_exc(),
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
+
+        # Start background execution
+        thread = threading.Thread(target=run_graph_execution)
+        thread.daemon = True
+        thread.start()
+
+        return jsonify({"success": True, "thread_id": thread_id, "message": "Execution started"})
+
+    except Exception as e:
+        logger.error(f"Graph execution setup error: {e}", exc_info=True)
+        return (
+            jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}),
+            500,
+        )
+
+
+@app.route("/api/agent/execute/<agent_type>", methods=["POST"])
 def execute_agent(agent_type):
     """Execute a specific specialized agent"""
-    data = request.json
-    
+    data = getattr(g, "sanitized_json", request.json or {})
+    if UTILS_AVAILABLE:
+        allowlist_validation = validate_payload_allowlist(
+            data,
+            allowed_fields={"task", "company_info", "requirements"},
+            required_fields={"task", "company_info"},
+            payload_name="agent_execute",
+        )
+        if not allowlist_validation.valid:
+            return _allowlist_violation_response(allowlist_validation.errors, "agent_execute")
+
+        company_info_validation = validate_company_info_allowlist(data.get("company_info", {}))
+        if not company_info_validation.valid:
+            return _allowlist_violation_response(company_info_validation.errors, "agent_execute")
+
     try:
-        factory = AgentFactory()
-        agent = factory.create_agent(agent_type)
-        
-        # Ensure company_info has the required fields
-        company_info = data.get('company_info', {})
-        if not company_info.get('name'):
-            company_info['name'] = company_info.get('company_name', 'Company')
-        if not company_info.get('dba_name'):
-            company_info['dba_name'] = company_info.get('name', 'Company')
-        if not company_info.get('industry'):
-            company_info['industry'] = 'General Business'
-        if not company_info.get('location'):
-            company_info['location'] = 'United States'
-        
-        # Execute based on agent type
-        result = {
-            'agent_type': agent_type,
-            'agent_name': agent.name,
-            'status': 'executed',
-            'timestamp': datetime.now().isoformat(),
-            'execution_mode': 'AI_PERFORMED'
-        }
-        
-        # Add agent-specific execution
-        if agent_type == 'branding' and hasattr(agent, 'design_concepts'):
-            state = {
-                'task_description': data.get('task', 'Design brand identity'),
-                'company_info': company_info,
-                'research_findings': [],
-                'design_concepts': [],
-                'recommendations': [],
-                'deliverables': [],
-                'status': 'initializing',
-                'budget_used': 0,
-                'timeline_days': 30
-            }
-            concepts_result = agent.design_concepts(state)
-            result['deliverables'] = concepts_result.get('deliverables', [])
-            result['budget_used'] = concepts_result.get('budget_used', 0)
-            
-        elif agent_type == 'web_development' and hasattr(agent, 'analyze_requirements'):
-            state = {
-                'task_description': data.get('task', 'Build website with AR'),
-                'requirements': data.get('requirements', company_info),
-                'tech_stack': [],
-                'architecture_design': '',
-                'ar_features': [],
-                'development_phases': [],
-                'testing_results': [],
-                'deliverables': [],
-                'status': 'initializing',
-                'budget_used': 0,
-                'timeline_days': 60
-            }
-            web_result = agent.analyze_requirements(state)
-            result['tech_stack'] = web_result.get('tech_stack', [])
-            result['deliverables'] = web_result.get('deliverables', [])
-            result['timeline'] = web_result.get('development_phases', [])
-            result['budget_used'] = web_result.get('budget_used', 0)
-            
-        elif agent_type == 'martech' and hasattr(agent, 'configure_stack'):
-            state = {
-                'task_description': data.get('task', 'Configure marketing tech stack'),
-                'current_systems': [],
-                'recommended_stack': [],
-                'integrations': [],
-                'automation_workflows': [],
-                'implementation_plan': '',
-                'status': 'initializing',
-                'budget_used': 0,
-                'timeline_days': 30
-            }
-            martech_result = agent.configure_stack(state)
-            result['tech_stack'] = martech_result.get('recommended_stack', [])
-            result['deliverables'] = [
-                f"✅ {tool.get('tool', 'Tool')}: {tool.get('ai_configures', 'Configured')}"
-                for tool in martech_result.get('recommended_stack', [])
-            ]
-            result['budget_used'] = martech_result.get('budget_used', 0)
-            
-        elif agent_type == 'content' and hasattr(agent, 'produce_content'):
-            state = {
-                'task_description': data.get('task', 'Create marketing content'),
-                'content_types': [],
-                'production_schedule': [],
-                'assets_created': [],
-                'distribution_plan': '',
-                'seo_strategy': '',
-                'status': 'initializing',
-                'budget_used': 0,
-                'timeline_days': 30
-            }
-            content_result = agent.produce_content(state)
-            result['deliverables'] = content_result.get('assets_created', [])
-            result['budget_used'] = content_result.get('budget_used', 0)
-            
-        elif agent_type == 'campaigns' and hasattr(agent, 'launch_campaigns'):
-            state = {
-                'task_description': data.get('task', 'Launch advertising campaigns'),
-                'channels': [],
-                'audience_targeting': [],
-                'creative_assets': [],
-                'budget_allocation': [],
-                'performance_metrics': [],
-                'status': 'initializing',
-                'budget_used': 0,
-                'timeline_days': 30
-            }
-            campaign_result = agent.launch_campaigns(state)
-            result['timeline'] = campaign_result.get('creative_concepts', [])
-            result['deliverables'] = [
-                concept.get('ai_creates', 'Campaign created')
-                for concept in campaign_result.get('creative_concepts', [])
-            ]
-            result['budget_used'] = campaign_result.get('budget_used', 0)
-        
-        elif agent_type == 'legal' and hasattr(agent, 'dba_registration_process'):
-            state = {
-                'task_description': data.get('task', 'Legal compliance and filing'),
-                'jurisdiction': company_info.get('location', 'United States'),
-                'filings_required': [],
-                'compliance_checklist': [],
-                'documents_prepared': [],
-                'risks_identified': [],
-                'status': 'initializing',
-                'budget_used': 0,
-                'timeline_days': 14
-            }
-            legal_result = agent.dba_registration_process(state)
-            result['deliverables'] = legal_result.get('documents_prepared', [])
-            result['budget_used'] = legal_result.get('budget_used', 0)
-        
-        # Ensure all results have deliverables (fallback for agents without proper execution)
-        if 'deliverables' not in result or not result.get('deliverables'):
-            result['deliverables'] = [
-                f"✅ {agent.name} execution completed",
-                f"📋 Task: {data.get('task', 'Agent task execution')}",
-                f"🏢 Company: {company_info.get('company_name', 'N/A')}"
-            ]
-        if 'budget_used' not in result:
-            result['budget_used'] = agent.budget if hasattr(agent, 'budget') else 0
-        
-        return jsonify({
-            'success': True,
-            'result': result
-        })
-        
+        result = _execute_specialized_agent(agent_type, data)
+        return jsonify({"success": True, "result": result})
+
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/guard-rails/<agent_type>')
+def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
+    """Execute a specialized agent and normalize result payload."""
+    factory = AgentFactory()
+    agent = factory.create_agent(agent_type)
+
+    company_info = dict(data.get("company_info", {}) or {})
+    if not company_info.get("name"):
+        company_info["name"] = company_info.get("company_name", "Company")
+    if not company_info.get("dba_name"):
+        company_info["dba_name"] = company_info.get("name", "Company")
+    if not company_info.get("industry"):
+        company_info["industry"] = "General Business"
+    if not company_info.get("location"):
+        company_info["location"] = "United States"
+
+    result = {
+        "agent_type": agent_type,
+        "agent_name": agent.name,
+        "status": "executed",
+        "timestamp": datetime.now().isoformat(),
+        "execution_mode": "AI_PERFORMED",
+    }
+
+    if agent_type == "branding" and hasattr(agent, "design_concepts"):
+        state = {
+            "task_description": data.get("task", "Design brand identity"),
+            "company_info": company_info,
+            "research_findings": [],
+            "design_concepts": [],
+            "recommendations": [],
+            "deliverables": [],
+            "status": "initializing",
+            "budget_used": 0,
+            "timeline_days": 30,
+        }
+        concepts_result = agent.design_concepts(state)
+        result["deliverables"] = concepts_result.get("deliverables", [])
+        result["budget_used"] = concepts_result.get("budget_used", 0)
+
+    elif agent_type == "web_development" and hasattr(agent, "analyze_requirements"):
+        state = {
+            "task_description": data.get("task", "Build website with AR"),
+            "requirements": data.get("requirements", company_info),
+            "tech_stack": [],
+            "architecture_design": "",
+            "ar_features": [],
+            "development_phases": [],
+            "testing_results": [],
+            "deliverables": [],
+            "status": "initializing",
+            "budget_used": 0,
+            "timeline_days": 60,
+        }
+        web_result = agent.analyze_requirements(state)
+        result["tech_stack"] = web_result.get("tech_stack", [])
+        result["deliverables"] = web_result.get("deliverables", [])
+        result["timeline"] = web_result.get("development_phases", [])
+        result["budget_used"] = web_result.get("budget_used", 0)
+
+    elif agent_type == "martech" and hasattr(agent, "configure_stack"):
+        state = {
+            "task_description": data.get("task", "Configure marketing tech stack"),
+            "current_systems": [],
+            "recommended_stack": [],
+            "integrations": [],
+            "automation_workflows": [],
+            "implementation_plan": "",
+            "status": "initializing",
+            "budget_used": 0,
+            "timeline_days": 30,
+        }
+        martech_result = agent.configure_stack(state)
+        result["tech_stack"] = martech_result.get("recommended_stack", [])
+        result["deliverables"] = [
+            f"✅ {tool.get('tool', 'Tool')}: {tool.get('ai_configures', 'Configured')}"
+            for tool in martech_result.get("recommended_stack", [])
+        ]
+        result["budget_used"] = martech_result.get("budget_used", 0)
+
+    elif agent_type == "content" and hasattr(agent, "produce_content"):
+        state = {
+            "task_description": data.get("task", "Create marketing content"),
+            "content_types": [],
+            "production_schedule": [],
+            "assets_created": [],
+            "distribution_plan": "",
+            "seo_strategy": "",
+            "status": "initializing",
+            "budget_used": 0,
+            "timeline_days": 30,
+        }
+        content_result = agent.produce_content(state)
+        result["deliverables"] = content_result.get("assets_created", [])
+        result["budget_used"] = content_result.get("budget_used", 0)
+
+    elif agent_type == "campaigns" and hasattr(agent, "launch_campaigns"):
+        state = {
+            "task_description": data.get("task", "Launch advertising campaigns"),
+            "channels": [],
+            "audience_targeting": [],
+            "creative_assets": [],
+            "budget_allocation": [],
+            "performance_metrics": [],
+            "status": "initializing",
+            "budget_used": 0,
+            "timeline_days": 30,
+        }
+        campaign_result = agent.launch_campaigns(state)
+        result["timeline"] = campaign_result.get("creative_concepts", [])
+        result["deliverables"] = [
+            concept.get("ai_creates", "Campaign created")
+            for concept in campaign_result.get("creative_concepts", [])
+        ]
+        result["budget_used"] = campaign_result.get("budget_used", 0)
+
+    elif agent_type == "legal" and hasattr(agent, "dba_registration_process"):
+        state = {
+            "task_description": data.get("task", "Legal compliance and filing"),
+            "jurisdiction": company_info.get("location", "United States"),
+            "filings_required": [],
+            "compliance_checklist": [],
+            "documents_prepared": [],
+            "risks_identified": [],
+            "status": "initializing",
+            "budget_used": 0,
+            "timeline_days": 14,
+        }
+        legal_result = agent.dba_registration_process(state)
+        result["deliverables"] = legal_result.get("documents_prepared", [])
+        result["budget_used"] = legal_result.get("budget_used", 0)
+
+    if "deliverables" not in result or not result.get("deliverables"):
+        result["deliverables"] = [
+            f"✅ {agent.name} execution completed",
+            f"📋 Task: {data.get('task', 'Agent task execution')}",
+            f"🏢 Company: {company_info.get('company_name', company_info.get('name', 'N/A'))}",
+        ]
+    if "budget_used" not in result:
+        result["budget_used"] = agent.budget if hasattr(agent, "budget") else 0
+
+    return result
+
+
+@app.route("/api/guard-rails/<agent_type>")
 def get_guard_rails(agent_type):
     """Get guard rail information for an agent"""
     try:
         print(f"🛡️ Guard rails request for: {agent_type}")
-        
+
         # Map agent_type to AgentDomain enum
         domain_map = {
-            'branding': 'BRANDING',
-            'web_development': 'WEB_DEVELOPMENT',
-            'legal': 'LEGAL',
-            'martech': 'MARTECH',
-            'content': 'CONTENT',
-            'campaigns': 'CAMPAIGNS'
+            "branding": "BRANDING",
+            "web_development": "WEB_DEVELOPMENT",
+            "legal": "LEGAL",
+            "martech": "MARTECH",
+            "content": "CONTENT",
+            "campaigns": "CAMPAIGNS",
         }
-        
+
         domain_name = domain_map.get(agent_type.lower(), agent_type.upper())
         domain = AgentDomain[domain_name]
-        
+
         summary = create_execution_summary(domain)
         guard_rail = AgentGuardRail(domain)
-        
+
         print(f"✅ Guard rails loaded for {agent_type}")
-        
-        return jsonify({
-            'success': True,
-            'guard_rail': {
-                'summary': summary,
-                'max_budget': guard_rail.budget_constraint.max_budget if guard_rail.budget_constraint else 0,
-                'allowed_categories': guard_rail.budget_constraint.allowed_categories if guard_rail.budget_constraint else [],
-                'forbidden_categories': guard_rail.budget_constraint.forbidden_categories if guard_rail.budget_constraint else [],
-                'permitted_tasks': guard_rail.scope_constraint.permitted_tasks if guard_rail.scope_constraint else [],
-                'quality_standards': guard_rail.quality_standard.metrics if guard_rail.quality_standard else {}
+
+        return jsonify(
+            {
+                "success": True,
+                "guard_rail": {
+                    "summary": summary,
+                    "max_budget": guard_rail.budget_constraint.max_budget
+                    if guard_rail.budget_constraint
+                    else 0,
+                    "allowed_categories": guard_rail.budget_constraint.allowed_categories
+                    if guard_rail.budget_constraint
+                    else [],
+                    "forbidden_categories": guard_rail.budget_constraint.forbidden_categories
+                    if guard_rail.budget_constraint
+                    else [],
+                    "permitted_tasks": guard_rail.scope_constraint.permitted_tasks
+                    if guard_rail.scope_constraint
+                    else [],
+                    "quality_standards": guard_rail.quality_standard.metrics
+                    if guard_rail.quality_standard
+                    else {},
+                },
             }
-        })
+        )
     except Exception as e:
         print(f"❌ Guard rails error for {agent_type}: {str(e)}")
         import traceback
+
         traceback.print_exc()
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ============================================================================
 # CEO AGENT ADMIN API ENDPOINTS
 # ============================================================================
 
-@app.route('/api/approvals/pending', methods=['GET'])
+
+@app.route("/api/approvals/pending", methods=["GET"])
 def get_pending_approvals():
     """Get all pending payment approvals"""
-    return jsonify({
-        'success': True,
-        'approvals': pending_approvals,
-        'count': len(pending_approvals)
-    })
+    return jsonify(
+        {"success": True, "approvals": pending_approvals, "count": len(pending_approvals)}
+    )
 
 
-@app.route('/api/approval/<approval_id>/approve', methods=['POST'])
+@app.route("/api/approval/<approval_id>/approve", methods=["POST"])
 def approve_payment(approval_id):
     """Approve a payment request"""
     global pending_approvals
-    
-    approval = next((a for a in pending_approvals if a['id'] == approval_id), None)
+
+    approval = next((a for a in pending_approvals if a["id"] == approval_id), None)
     if not approval:
-        return jsonify({'success': False, 'error': 'Approval not found'}), 404
-    
+        return jsonify({"success": False, "error": "Approval not found"}), 404
+
     # Remove from pending
-    pending_approvals = [a for a in pending_approvals if a['id'] != approval_id]
-    
+    pending_approvals = [a for a in pending_approvals if a["id"] != approval_id]
+
     # Emit update via SocketIO
-    socketio.emit('approval_approved', {
-        'id': approval_id,
-        'approval': approval,
-        'timestamp': datetime.now().isoformat()
-    })
-    
+    socketio.emit(
+        "approval_approved",
+        {"id": approval_id, "approval": approval, "timestamp": datetime.now().isoformat()},
+    )
+
     if UTILS_AVAILABLE:
         logger.info(f'Payment approved: {approval_id} - ${approval.get("amount", 0)}')
-    
-    return jsonify({
-        'success': True,
-        'message': 'Payment approved',
-        'approval': approval
-    })
+
+    return jsonify({"success": True, "message": "Payment approved", "approval": approval})
 
 
-@app.route('/api/approval/<approval_id>/reject', methods=['POST'])
+@app.route("/api/approval/<approval_id>/reject", methods=["POST"])
 def reject_payment(approval_id):
     """Reject a payment request"""
     global pending_approvals
-    
-    approval = next((a for a in pending_approvals if a['id'] == approval_id), None)
+
+    approval = next((a for a in pending_approvals if a["id"] == approval_id), None)
     if not approval:
-        return jsonify({'success': False, 'error': 'Approval not found'}), 404
-    
+        return jsonify({"success": False, "error": "Approval not found"}), 404
+
     # Remove from pending
-    pending_approvals = [a for a in pending_approvals if a['id'] != approval_id]
-    
+    pending_approvals = [a for a in pending_approvals if a["id"] != approval_id]
+
     # Emit update via SocketIO
-    socketio.emit('approval_rejected', {
-        'id': approval_id,
-        'approval': approval,
-        'timestamp': datetime.now().isoformat()
-    })
-    
+    socketio.emit(
+        "approval_rejected",
+        {"id": approval_id, "approval": approval, "timestamp": datetime.now().isoformat()},
+    )
+
     if UTILS_AVAILABLE:
         logger.info(f'Payment rejected: {approval_id} - ${approval.get("amount", 0)}')
-    
-    return jsonify({
-        'success': True,
-        'message': 'Payment rejected',
-        'approval': approval
-    })
+
+    return jsonify({"success": True, "message": "Payment rejected", "approval": approval})
 
 
-@app.route('/api/reports/strategic', methods=['POST'])
+@app.route("/api/reports/strategic", methods=["POST"])
 def generate_strategic_report():
     """Generate comprehensive strategic report with 30/60/90 day plans"""
     try:
         from services.report_service import report_service
-        
-        company_info = request.json or {}
-        report = report_service.generate_strategic_report(company_info)
-        
+
+        company_info = getattr(g, "sanitized_json", request.json or {})
+        if UTILS_AVAILABLE:
+            allowlist_validation = validate_company_info_allowlist(company_info)
+            if not allowlist_validation.valid:
+                return _allowlist_violation_response(
+                    allowlist_validation.errors, "strategic_report"
+                )
+
+        scenario_defaults = _get_shared_scenario_context()
+        merged_company_info = {
+            "company_name": company_info.get("company_name")
+            or company_info.get("name")
+            or scenario_defaults.get("company_name"),
+            "name": company_info.get("name")
+            or company_info.get("company_name")
+            or scenario_defaults.get("company_name"),
+            "dba_name": company_info.get("dba_name") or scenario_defaults.get("dba_name"),
+            "industry": company_info.get("industry") or scenario_defaults.get("industry"),
+            "location": company_info.get("location") or scenario_defaults.get("location"),
+            "budget": company_info.get("budget", scenario_defaults.get("budget", 5000)),
+            "timeline": company_info.get("timeline", scenario_defaults.get("timeline", 90)),
+        }
+
+        merged_scenario = _normalize_scenario_context(
+            merged_company_info,
+            scenario_defaults.get("objectives", []),
+        )
+        _update_shared_scenario_context(
+            merged_scenario,
+            source="report_strategic",
+            broadcast=True,
+            user_modified=True,
+        )
+
+        report = report_service.generate_strategic_report(merged_company_info)
+
         # Emit update via SocketIO
-        socketio.emit('report_generated', {
-            'report_id': report['report_id'],
-            'report_type': 'strategic',
-            'timestamp': datetime.now().isoformat()
-        })
-        
+        socketio.emit(
+            "report_generated",
+            {
+                "report_id": report["report_id"],
+                "report_type": "strategic",
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
         if UTILS_AVAILABLE:
             logger.info(f'Strategic report generated: {report["report_id"]}')
-        
-        return jsonify({
-            'success': True,
-            'report': report
-        })
-        
+
+        return jsonify({"success": True, "report": report})
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error generating strategic report: {str(e)}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            logger.error(f"Error generating strategic report: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/reports/financial', methods=['POST'])
+@app.route("/api/reports/financial", methods=["POST"])
 def generate_financial_report_endpoint():
     """Generate comprehensive financial report with projections"""
     try:
         from services.report_service import report_service
-        
-        company_info = request.json or {}
-        report = report_service.generate_financial_report(company_info)
-        
+
+        company_info = getattr(g, "sanitized_json", request.json or {})
+        if UTILS_AVAILABLE:
+            allowlist_validation = validate_company_info_allowlist(company_info)
+            if not allowlist_validation.valid:
+                return _allowlist_violation_response(
+                    allowlist_validation.errors, "financial_report"
+                )
+
+        scenario_defaults = _get_shared_scenario_context()
+        merged_company_info = {
+            "company_name": company_info.get("company_name")
+            or company_info.get("name")
+            or scenario_defaults.get("company_name"),
+            "name": company_info.get("name")
+            or company_info.get("company_name")
+            or scenario_defaults.get("company_name"),
+            "dba_name": company_info.get("dba_name") or scenario_defaults.get("dba_name"),
+            "industry": company_info.get("industry") or scenario_defaults.get("industry"),
+            "location": company_info.get("location") or scenario_defaults.get("location"),
+            "budget": company_info.get("budget", scenario_defaults.get("budget", 5000)),
+            "timeline": company_info.get("timeline", scenario_defaults.get("timeline", 90)),
+        }
+
+        merged_scenario = _normalize_scenario_context(
+            merged_company_info,
+            scenario_defaults.get("objectives", []),
+        )
+        _update_shared_scenario_context(
+            merged_scenario,
+            source="report_financial",
+            broadcast=True,
+            user_modified=True,
+        )
+
+        report = report_service.generate_financial_report(merged_company_info)
+
         # Emit update via SocketIO
-        socketio.emit('report_generated', {
-            'report_id': report['report_id'],
-            'report_type': 'financial',
-            'timestamp': datetime.now().isoformat()
-        })
-        
+        socketio.emit(
+            "report_generated",
+            {
+                "report_id": report["report_id"],
+                "report_type": "financial",
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
         if UTILS_AVAILABLE:
             logger.info(f'Financial report generated: {report["report_id"]}')
-        
-        return jsonify({
-            'success': True,
-            'report': report
-        })
-        
+
+        return jsonify({"success": True, "report": report})
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error generating financial report: {str(e)}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            logger.error(f"Error generating financial report: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/reports/training', methods=['GET'])
+@app.route("/api/reports/training", methods=["GET"])
 def generate_training_report_endpoint():
     """Generate training progress report"""
     try:
         from services.report_service import report_service
-        
+
         report = report_service.generate_training_report()
-        
+
         # Emit update via SocketIO
-        socketio.emit('report_generated', {
-            'report_id': report['report_id'],
-            'report_type': 'training',
-            'timestamp': datetime.now().isoformat()
-        })
-        
+        socketio.emit(
+            "report_generated",
+            {
+                "report_id": report["report_id"],
+                "report_type": "training",
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
         if UTILS_AVAILABLE:
             logger.info(f'Training report generated: {report["report_id"]}')
-        
-        return jsonify({
-            'success': True,
-            'report': report
-        })
-        
+
+        return jsonify({"success": True, "report": report})
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error generating training report: {str(e)}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            logger.error(f"Error generating training report: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/reports/research', methods=['GET'])
+@app.route("/api/reports/research", methods=["GET"])
 def generate_research_report_endpoint():
     """Generate research findings report"""
     try:
         from services.report_service import report_service
-        
+
         report = report_service.generate_research_report()
-        
+
         # Emit update via SocketIO
-        socketio.emit('report_generated', {
-            'report_id': report['report_id'],
-            'report_type': 'research',
-            'timestamp': datetime.now().isoformat()
-        })
-        
+        socketio.emit(
+            "report_generated",
+            {
+                "report_id": report["report_id"],
+                "report_type": "research",
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+
         if UTILS_AVAILABLE:
             logger.info(f'Research report generated: {report["report_id"]}')
-        
-        return jsonify({
-            'success': True,
-            'report': report
-        })
-        
+
+        return jsonify({"success": True, "report": report})
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error generating research report: {str(e)}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            logger.error(f"Error generating research report: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/reports/history', methods=['GET'])
+@app.route("/api/reports/history", methods=["GET"])
 def get_report_history():
     """Get all historical reports"""
     try:
         from services.report_service import report_service
-        
+
         history = report_service.get_report_history()
-        
-        return jsonify({
-            'success': True,
-            'reports': history,
-            'count': len(history)
-        })
-        
+
+        return jsonify({"success": True, "reports": history, "count": len(history)})
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error retrieving report history: {str(e)}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            logger.error(f"Error retrieving report history: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/reports/<report_id>', methods=['GET'])
+@app.route("/api/reports/<report_id>", methods=["GET"])
 def get_report_by_id(report_id):
     """Get specific report by ID"""
     try:
         from services.report_service import report_service
-        
+
         report = report_service.get_report_by_id(report_id)
-        
+
         if report is None:
-            return jsonify({
-                'success': False,
-                'error': 'Report not found'
-            }), 404
-        
-        return jsonify({
-            'success': True,
-            'report': report
-        })
-        
+            return jsonify({"success": False, "error": "Report not found"}), 404
+
+        return jsonify({"success": True, "report": report})
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error retrieving report: {str(e)}', exc_info=True)
-        return jsonify({
-            'success': False,
-            'error': str(e)
-        }), 500
+            logger.error(f"Error retrieving report: {str(e)}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/cfo/report', methods=['GET'])
+@app.route("/api/cfo/report", methods=["GET"])
 def get_cfo_report():
     """Get CFO financial report"""
     try:
         if CEO_AGENT_AVAILABLE:
             # Use new CFO agent
             state = {
-                'tracked_spending': {},
-                'api_budget_allocated': system_settings['cfo_api_limit'],
-                'legal_budget_allocated': system_settings['cfo_legal_limit'],
-                'budget_alerts': [],
-                'payment_requests': pending_approvals,
-                'financial_insights': [],
-                'recommendations': []
+                "company_name": "CEO Agent Platform",
+                "industry": "AI Technology",
+                "total_budget": system_settings["total_budget"],
+                "allocated_to_api_fees": system_settings["cfo_api_limit"],
+                "api_costs_incurred": [],
+                "legal_filing_costs": [],
+                "daily_api_spend": {},
+                "monthly_projections": {},
+                "budget_alerts": [],
+                "pending_payment_requests": [
+                    {
+                        "request_id": item.get("id", f"REQ_{index}"),
+                        "amount": item.get("amount", 0),
+                        "purpose": item.get("payment_type", item.get("title", "Payment request")),
+                        "requested_by": item.get("requested_by", "system"),
+                    }
+                    for index, item in enumerate(pending_approvals)
+                ],
+                "cfo_recommendations": [],
+                "approved_payments": [],
+                "rejected_payments": [],
+                "spending_violations": [],
+                "financial_risks": [],
+                "compliance_checks": {},
+                "financial_reports": [],
+                "audit_trail": [],
             }
             report = generate_financial_report(state)
-            return jsonify({'success': True, 'report': report})
+            return jsonify({"success": True, "report": report})
         else:
             # Fallback report
-            return jsonify({
-                'success': True,
-                'report': {
-                    'total_budget': system_settings['total_budget'],
-                    'cfo_managed': system_settings['cfo_api_limit'] + system_settings['cfo_legal_limit'],
-                    'user_approval_required': system_settings['total_budget'] - (system_settings['cfo_api_limit'] + system_settings['cfo_legal_limit']),
-                    'pending_approvals': len(pending_approvals)
+            return jsonify(
+                {
+                    "success": True,
+                    "report": {
+                        "total_budget": system_settings["total_budget"],
+                        "cfo_managed": system_settings["cfo_api_limit"]
+                        + system_settings["cfo_legal_limit"],
+                        "user_approval_required": system_settings["total_budget"]
+                        - (system_settings["cfo_api_limit"] + system_settings["cfo_legal_limit"]),
+                        "pending_approvals": len(pending_approvals),
+                    },
                 }
-            })
+            )
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/settings/update', methods=['POST'])
+@app.route("/api/settings/update", methods=["POST"])
 def update_settings():
     """Update system settings"""
     global system_settings
-    
+
     try:
-        data = request.json
-        
-        # Update settings
-        if 'systemMode' in data:
-            system_settings['system_mode'] = data['systemMode']
-        if 'autoApproveAPI' in data:
-            system_settings['auto_approve_api'] = data['autoApproveAPI']
-        if 'emailNotifications' in data:
-            system_settings['email_notifications'] = data['emailNotifications']
-        if 'totalBudget' in data:
-            system_settings['total_budget'] = float(data['totalBudget'])
-        if 'cfoAPILimit' in data:
-            system_settings['cfo_api_limit'] = float(data['cfoAPILimit'])
-        if 'cfoLegalLimit' in data:
-            system_settings['cfo_legal_limit'] = float(data['cfoLegalLimit'])
-        
+        data = getattr(g, "sanitized_json", request.json or {})
         if UTILS_AVAILABLE:
-            logger.info(f'Settings updated: {system_settings}')
-        
-        return jsonify({
-            'success': True,
-            'settings': system_settings
-        })
+            allowlist_validation = validate_payload_allowlist(
+                data,
+                allowed_fields={
+                    "systemMode",
+                    "autoApproveAPI",
+                    "emailNotifications",
+                    "totalBudget",
+                    "cfoAPILimit",
+                    "cfoLegalLimit",
+                },
+                payload_name="settings",
+            )
+            if not allowlist_validation.valid:
+                return _allowlist_violation_response(allowlist_validation.errors, "settings")
+
+        # Update settings
+        if "systemMode" in data:
+            system_settings["system_mode"] = data["systemMode"]
+        if "autoApproveAPI" in data:
+            system_settings["auto_approve_api"] = data["autoApproveAPI"]
+        if "emailNotifications" in data:
+            system_settings["email_notifications"] = data["emailNotifications"]
+        if "totalBudget" in data:
+            system_settings["total_budget"] = float(data["totalBudget"])
+        if "cfoAPILimit" in data:
+            system_settings["cfo_api_limit"] = float(data["cfoAPILimit"])
+        if "cfoLegalLimit" in data:
+            system_settings["cfo_legal_limit"] = float(data["cfoLegalLimit"])
+
+        if UTILS_AVAILABLE:
+            logger.info(f"Settings updated: {system_settings}")
+
+        return jsonify({"success": True, "settings": system_settings})
     except Exception as e:
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
-@app.route('/api/research/start', methods=['POST'])
+@app.route("/api/research/start", methods=["POST"])
 def start_research():
     """Start research session"""
-    data = request.json or {}
-    
+    data = getattr(g, "sanitized_json", request.json or {})
+
+    if UTILS_AVAILABLE:
+        allowlist_validation = validate_payload_allowlist(
+            data,
+            allowed_fields={"topic", "sources", "priority"},
+            payload_name="research",
+        )
+        if not allowlist_validation.valid:
+            return _allowlist_violation_response(allowlist_validation.errors, "research")
+
     # Simulate research findings
-    socketio.emit('research_update', {
-        'title': 'AI Tool Discovery',
-        'description': 'Found new cost-effective API alternatives',
-        'tags': ['API', 'Cost Optimization'],
-        'timestamp': datetime.now().isoformat()
-    })
-    
-    return jsonify({'success': True, 'message': 'Research started'})
+    socketio.emit(
+        "research_update",
+        {
+            "title": "AI Tool Discovery",
+            "description": "Found new cost-effective API alternatives",
+            "tags": ["API", "Cost Optimization"],
+            "timestamp": datetime.now().isoformat(),
+        },
+    )
+
+    return jsonify({"success": True, "message": "Research started"})
+
+
+@app.route("/api/logs", methods=["GET"])
+def get_logs():
+    """Get system logs"""
+    try:
+        log_files = []
+        logs_dir = "logs"
+
+        if os.path.exists(logs_dir):
+            for filename in os.listdir(logs_dir):
+                if filename.endswith(".log"):
+                    filepath = os.path.join(logs_dir, filename)
+                    with open(filepath, "r") as f:
+                        # Get last 100 lines
+                        lines = f.readlines()
+                        log_files.append(
+                            {
+                                "filename": filename,
+                                "lines": lines[-100:] if len(lines) > 100 else lines,
+                                "size": os.path.getsize(filepath),
+                            }
+                        )
+
+        return jsonify({"success": True, "logs": log_files})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 
 
 # ============================================================================
 # WEBSOCKET HANDLERS - Chat & Real-time Updates
 # ============================================================================
 
-@socketio.on('connect')
+
+@socketio.on("connect")
 def handle_connect():
     """Handle WebSocket connection"""
     if UTILS_AVAILABLE:
-        logger.info(f'Client connected: {request.sid}')
-    emit('connected', {
-        'message': 'Connected to CEO Agent Executive AI System',
-        'timestamp': datetime.now().isoformat(),
-        'session_id': request.sid,
-        'mode': system_settings['system_mode']
-    })
+        logger.info(f"Client connected: {request.sid}")
+    emit(
+        "connected",
+        {
+            "message": "Connected to CEO Agent Executive AI System",
+            "timestamp": datetime.now().isoformat(),
+            "session_id": request.sid,
+            "mode": system_settings["system_mode"],
+        },
+    )
 
 
-@socketio.on('disconnect')
+@socketio.on("disconnect")
 def handle_disconnect():
     """Handle WebSocket disconnection"""
     if UTILS_AVAILABLE:
-        logger.info(f'Client disconnected: {request.sid}')
+        logger.info(f"Client disconnected: {request.sid}")
 
 
-@socketio.on('chat_message')
+@socketio.on("chat_message")
 def handle_chat_message(data):
     """Handle incoming chat messages"""
     try:
-        message = data.get('message', '').strip()
-        sender = data.get('sender', 'user')
-        
         if UTILS_AVAILABLE:
-            logger.info(f'Chat message from {sender}: {message[:100]}...')
-            
+            allowlist_validation = validate_payload_allowlist(
+                data,
+                allowed_fields={"message", "sender"},
+                required_fields={"message"},
+                payload_name="chat_message",
+            )
+            if not allowlist_validation.valid:
+                emit(
+                    "chat_error",
+                    {
+                        "errors": allowlist_validation.errors,
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                )
+                return
+
+        message = data.get("message", "").strip()
+        sender = data.get("sender", "user")
+
+        if UTILS_AVAILABLE:
+            logger.info(f"Chat message from {sender}: {message[:100]}...")
+
             # Validate message
             validation = validate_chat_message(data)
             if not validation.valid:
-                emit('chat_error', {
-                    'errors': validation.errors,
-                    'timestamp': datetime.now().isoformat()
-                })
+                emit(
+                    "chat_error",
+                    {"errors": validation.errors, "timestamp": datetime.now().isoformat()},
+                )
                 return
-        
+
         # Sanitize input
         if UTILS_AVAILABLE:
             message = sanitize_input(message, max_length=5000)
-        
+
         # Echo message back to all clients
-        emit('chat_message', {
-            'message': message,
-            'sender': sender,
-            'timestamp': datetime.now().isoformat()
-        }, broadcast=True)
-        
+        emit(
+            "chat_message",
+            {"message": message, "sender": sender, "timestamp": datetime.now().isoformat()},
+            broadcast=True,
+        )
+
         # Process commands if from user
-        if sender == 'user':
+        if sender == "user":
             response = process_chat_command(message)
             if response:
-                socketio.emit('chat_message', {
-                    'message': response,
-                    'sender': 'assistant',
-                    'timestamp': datetime.now().isoformat()
-                }, broadcast=True)
-                
+                socketio.emit(
+                    "chat_message",
+                    {
+                        "message": response,
+                        "sender": "assistant",
+                        "timestamp": datetime.now().isoformat(),
+                    },
+                    broadcast=True,
+                )
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error handling chat message: {str(e)}', exc_info=True)
-        emit('chat_error', {
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        })
+            logger.error(f"Error handling chat message: {str(e)}", exc_info=True)
+        emit("chat_error", {"error": str(e), "timestamp": datetime.now().isoformat()})
 
 
 def process_chat_command(message: str) -> str:
     """Process chat commands and return response"""
     lower_msg = message.lower()
-    
+
     # Status query
-    if 'status' in lower_msg:
+    if "status" in lower_msg:
         return "System is operational. All agents are ready for execution."
-    
+
     # Budget query
-    if 'budget' in lower_msg:
+    if "budget" in lower_msg:
         return "Total budget: $5,000. Use the dashboard to track spending."
-    
+
     # Agent list
-    if 'agent' in lower_msg and ('list' in lower_msg or 'available' in lower_msg):
+    if "agent" in lower_msg and ("list" in lower_msg or "available" in lower_msg):
         return "Available agents: Branding, Web Development, Legal, MarTech, Content, Campaigns"
-    
+
     return None
 
 
-@socketio.on('agent_status_update')
+@socketio.on("agent_status_update")
 def handle_agent_status(data):
     """Handle agent status updates"""
     try:
-        agent_type = data.get('agent_type')
-        status = data.get('status')
-        
         if UTILS_AVAILABLE:
-            logger.info(f'Agent status update: {agent_type} - {status}')
-        
-        emit('agent_status_update', {
-            'agent_type': agent_type,
-            'status': status,
-            'timestamp': datetime.now().isoformat()
-        }, broadcast=True)
-        
+            allowlist_validation = validate_payload_allowlist(
+                data,
+                allowed_fields={"agent_type", "status"},
+                required_fields={"agent_type", "status"},
+                payload_name="agent_status_update",
+            )
+            if not allowlist_validation.valid:
+                return
+
+        agent_type = data.get("agent_type")
+        status = data.get("status")
+
+        if UTILS_AVAILABLE:
+            logger.info(f"Agent status update: {agent_type} - {status}")
+
+        emit(
+            "agent_status_update",
+            {"agent_type": agent_type, "status": status, "timestamp": datetime.now().isoformat()},
+            broadcast=True,
+        )
+
     except Exception as e:
         if UTILS_AVAILABLE:
-            logger.error(f'Error handling agent status: {str(e)}', exc_info=True)
+            logger.error(f"Error handling agent status: {str(e)}", exc_info=True)
 
 
-@socketio.on('execute_full_orchestration')
+@socketio.on("execute_full_orchestration")
 def handle_full_orchestration(data):
     """Execute full CFO orchestration in background"""
     if UTILS_AVAILABLE:
-        logger.info(f'Full orchestration request received: {data}')
+        allowlist_validation = validate_payload_allowlist(
+            data,
+            allowed_fields={"company_info", "objectives"},
+            required_fields={"company_info", "objectives"},
+            payload_name="full_orchestration",
+        )
+        if not allowlist_validation.valid:
+            socketio.emit(
+                "orchestration_error",
+                {"error": "; ".join(allowlist_validation.errors)},
+                to=None,
+            )
+            return
+
+        company_info_validation = validate_company_info_allowlist(data.get("company_info", {}))
+        if not company_info_validation.valid:
+            socketio.emit(
+                "orchestration_error",
+                {"error": "; ".join(company_info_validation.errors)},
+                to=None,
+            )
+            return
+
+    if UTILS_AVAILABLE:
+        logger.info(f"Full orchestration request received: {data}")
     else:
         print(f"🚀 Full orchestration request received: {data}")
-    
+
+    incoming_company_info = data.get("company_info", {})
+    incoming_objectives = data.get("objectives", [])
+    normalized_scenario = _normalize_scenario_context(
+        incoming_company_info,
+        incoming_objectives,
+    )
+    _update_shared_scenario_context(
+        normalized_scenario,
+        source="socket_orchestration",
+        broadcast=True,
+        user_modified=True,
+    )
+
     def run_orchestration():
         try:
             print("📡 Emitting orchestration_started")
-            socketio.emit('orchestration_started', {'timestamp': datetime.now().isoformat()}, to=None)
-            
-            # Create state matching CFOAgentState schema
-            company_info = data.get('company_info', {})
-            state = {
-                # Top-level company info (extract from company_info object)
-                'company_name': company_info.get('company_name') or company_info.get('name', 'Amazon Granite LLC'),
-                'industry': company_info.get('industry', 'Granite & Countertops'),
-                'location': company_info.get('location', 'Cincinnati, Ohio'),
-                
-                # Strategic objectives
-                'strategic_objectives': data.get('objectives', []),
-                
-                # Budget management
-                'total_budget': 5000.0,
-                'budget_allocated': {},
-                'budget_spent': {},
-                'budget_remaining': 5000.0,
-                
-                # Timeline
-                'target_completion_days': 90,
-                'current_day': 0,
-                'milestones': [],
-                
-                # Multi-agent orchestration
-                'active_agents': [],
-                'agent_outputs': [],
-                'agent_status': {},
-                
-                # Task breakdown
-                'identified_tasks': [],
-                'assigned_tasks': {},
-                'completed_tasks': [],
-                
-                # Risk management
-                'risks': [],
-                'opportunities': [],
-                
-                # Deliverables
-                'deliverables': [],
-                'status_reports': [],
-                'final_executive_summary': '',
-                
-                # Workflow
-                'current_phase': 'initialization',
-                'completed_phases': []
+            socketio.emit(
+                "orchestration_started", {"timestamp": datetime.now().isoformat()}, to=None
+            )
+
+            if not CEO_AGENT_AVAILABLE:
+                raise RuntimeError("CEO agent is not available")
+
+            # Create state matching CEOAgentState schema
+            company_info = {
+                "company_name": normalized_scenario["company_name"],
+                "name": normalized_scenario["company_name"],
+                "dba_name": normalized_scenario["dba_name"],
+                "industry": normalized_scenario["industry"],
+                "location": normalized_scenario["location"],
+                "budget": normalized_scenario["budget"],
+                "timeline": normalized_scenario["timeline"],
             }
-            
+            state = {
+                # Company context
+                "company_name": normalized_scenario["company_name"],
+                "industry": normalized_scenario["industry"],
+                "location": normalized_scenario["location"],
+                "business_goals": [],
+                # Strategic objectives
+                "strategic_objectives": normalized_scenario["objectives"],
+                # Budget management
+                "total_budget": float(normalized_scenario["budget"]),
+                "budget_allocated": {},
+                "budget_reserved_for_fees": 0,
+                "pending_approvals": [],
+                "approved_actions": [],
+                "rejected_actions": [],
+                "pending_payments": [],
+                # Timeline
+                "target_completion_days": int(normalized_scenario["timeline"]),
+                "current_day": 0,
+                "milestones": [],
+                # Multi-agent orchestration
+                "active_agents": [],
+                "agent_outputs": [],
+                "agent_status": {},
+                "delegated_tasks": {},
+                # Task breakdown
+                "identified_tasks": [],
+                "assigned_tasks": {},
+                "completed_tasks": [],
+                "blocked_tasks": [],
+                # Risk management
+                "risks": [],
+                "risk_mitigation_plans": {},
+                "opportunities": [],
+                "opportunity_analysis": [],
+                # Deliverables
+                "deliverables": [],
+                "status_reports": [],
+                "final_executive_summary": "",
+                # Governance
+                "guard_rail_violations": [],
+                "liability_warnings": [],
+                "compliance_status": {},
+                "executive_decisions": [],
+                # Workflow
+                "current_phase": "initialization",
+                "completed_phases": [],
+            }
+
             print("🔄 Running strategic analysis phase...")
             # Analyze objectives
-            socketio.emit('phase', {'name': 'Strategic Analysis', 'status': 'running'}, to=None)
-            state = analyze_strategic_objectives(state)
-            socketio.emit('phase', {'name': 'Strategic Analysis', 'status': 'complete', 'tasks': state.get('identified_tasks', [])}, to=None)
+            socketio.emit("phase", {"name": "Strategic Analysis", "status": "running"}, to=None)
+            state = ceo_analyze(state)
+            socketio.emit(
+                "phase",
+                {
+                    "name": "Strategic Analysis",
+                    "status": "complete",
+                    "tasks": state.get("identified_tasks", []),
+                },
+                to=None,
+            )
             print(f"✅ Strategic analysis complete. Tasks: {len(state.get('identified_tasks', []))}")
-            
-            # Deploy agents
+
+            # Deploy agents - dynamically include current and future available agents
             print("🤖 Deploying agents...")
-            socketio.emit('phase', {'name': 'Agent Deployment', 'status': 'running'}, to=None)
-            
-            for task in state.get('identified_tasks', [])[:3]:  # Deploy first 3 for demo
-                agent_type = task.get('required_expertise', '').lower()
+            socketio.emit("phase", {"name": "Agent Deployment", "status": "running"}, to=None)
+
+            factory = AgentFactory()
+            available_agents = list(factory.get_available_agents())
+            task_map = {
+                task.get("required_expertise", "").lower(): task
+                for task in state.get("identified_tasks", [])
+                if task.get("required_expertise")
+            }
+
+            execution_order = []
+            for task in state.get("identified_tasks", []):
+                agent_type = task.get("required_expertise", "").lower()
+                if (
+                    agent_type
+                    and agent_type in available_agents
+                    and agent_type not in execution_order
+                ):
+                    execution_order.append(agent_type)
+
+            # Ensure any newly available agents are still orchestrated
+            for agent_type in available_agents:
+                if agent_type not in execution_order:
+                    execution_order.append(agent_type)
+
+            total_budget_used = 0
+            for agent_type in execution_order:
+                task = task_map.get(agent_type, {})
+                task_id = task.get("task_id", f"AUTO_{agent_type.upper()}")
+
                 print(f"  - Deploying {agent_type} agent")
-                socketio.emit('agent_deploying', {'agent': agent_type, 'task': task.get('task_id')}, to=None)
-                time.sleep(1)  # Simulate processing
-                socketio.emit('agent_deployed', {'agent': agent_type, 'status': 'success'}, to=None)
-            
+                socketio.emit("agent_deploying", {"agent": agent_type, "task": task_id}, to=None)
+
+                payload = {
+                    "task": task.get("description", f"Execute {agent_type} workstream"),
+                    "company_info": company_info,
+                    "requirements": {
+                        "objectives": normalized_scenario.get("objectives", []),
+                        "task": task,
+                    },
+                }
+
+                try:
+                    agent_result = _execute_specialized_agent(agent_type, payload)
+                    budget_used = float(agent_result.get("budget_used", 0) or 0)
+                    total_budget_used += budget_used
+
+                    state.setdefault("agent_outputs", []).append(
+                        {
+                            "agent": agent_type,
+                            "agent_name": agent_result.get("agent_name", agent_type),
+                            "summary": f"{agent_result.get('status', 'executed')} - {len(agent_result.get('deliverables', []))} deliverables",
+                            "result": agent_result,
+                        }
+                    )
+                    state.setdefault("deliverables", []).extend(
+                        agent_result.get("deliverables", [])
+                    )
+                    state.setdefault("completed_tasks", []).append(task_id)
+                    state.setdefault("agent_status", {})[agent_type] = "success"
+
+                    socketio.emit(
+                        "agent_deployed", {"agent": agent_type, "status": "success"}, to=None
+                    )
+                except Exception as agent_error:
+                    state.setdefault("agent_status", {})[agent_type] = "failed"
+                    state.setdefault("risks", []).append(
+                        {
+                            "category": "agent_execution",
+                            "description": f"{agent_type} execution failed: {agent_error}",
+                            "mitigation": "Review logs and retry agent execution",
+                        }
+                    )
+                    socketio.emit(
+                        "agent_deployed", {"agent": agent_type, "status": "failed"}, to=None
+                    )
+
             print("✅ Orchestration complete")
-            socketio.emit('orchestration_complete', {
-                'status': 'success',
-                'budget_used': sum(state.get('budget_allocated', {}).values()),
-                'timestamp': datetime.now().isoformat()
-            }, to=None)
-            
+
+            # Prepare comprehensive orchestration report
+            orchestration_report = {
+                "status": "success",
+                "company_name": state.get("company_name", "Company"),
+                "industry": state.get("industry", "N/A"),
+                "location": state.get("location", "N/A"),
+                "budget_used": total_budget_used,
+                "budget_remaining": state.get("total_budget", 0) - total_budget_used,
+                "total_budget": state.get("total_budget", 5000),
+                "tasks": state.get("identified_tasks", []),
+                "completed_tasks": len(state.get("completed_tasks", [])),
+                "total_tasks": len(execution_order),
+                "budget_allocation": state.get("budget_allocated", {}),
+                "risks": state.get("risks", []),
+                "opportunities": state.get("opportunities", []),
+                "deliverables": state.get("deliverables", []),
+                "agent_outputs": state.get("agent_outputs", []),
+                "current_phase": state.get("current_phase", "complete"),
+                "timeline": state.get("target_completion_days", 90),
+                "timestamp": datetime.now().isoformat(),
+            }
+
+            with shared_state_lock:
+                shared_runtime_state["last_orchestration_report"] = copy.deepcopy(
+                    orchestration_report
+                )
+
+            socketio.emit("orchestration_complete", orchestration_report, to=None)
+
         except Exception as e:
             print(f"❌ Orchestration error: {str(e)}")
             import traceback
+
             traceback.print_exc()
-            socketio.emit('orchestration_error', {'error': str(e)}, to=None)
-    
+            socketio.emit("orchestration_error", {"error": str(e)}, to=None)
+
     thread = threading.Thread(target=run_orchestration)
     thread.start()
     print("🔄 Orchestration thread started")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Create templates directory if it doesn't exist
-    os.makedirs('templates', exist_ok=True)
-    os.makedirs('static/css', exist_ok=True)
-    os.makedirs('static/js', exist_ok=True)
-    
-    print("\n" + "="*80)
-    print("� CEO AGENT - EXECUTIVE AI SYSTEM")
-    print("="*80)
-    print("\n📱 Starting web server...")
-    print("🌐 Admin Dashboard:  http://localhost:5001/admin")
-    print("   Legacy Dashboard: http://localhost:5001")
+    os.makedirs("templates", exist_ok=True)
+    os.makedirs("static/css", exist_ok=True)
+    os.makedirs("static/js", exist_ok=True)
+
+    print("\n" + "=" * 80)
+    print("👔 CEO EXECUTIVE AGENT - AI ORCHESTRATION SYSTEM")
+    print("=" * 80)
+
+    print("\n🌐 SERVER ENDPOINTS:")
+    print("   Main Dashboard:   http://localhost:5001")
+    print("   Admin Dashboard:  http://localhost:5001/admin")
     print("   Alternative:      http://127.0.0.1:5001/admin")
-    print("\n💡 Features:")
-    print("   • Executive Admin Dashboard")
-    print("   • CEO Strategic Decision-Making")
-    print("   • CFO Financial Oversight")
-    print("   • Payment Approval Workflow")
-    print("   • Agent Training Interface")
-    print("   • Daily Research & Evolution")
-    print("   • Real-time Budget Tracking")
-    print("   • Financial Guard Rails")
-    print("\n⚙️  System Mode: TRAINING")
+
+    print("\n💡 FEATURES:")
+    print("   ✅ CEO Executive Orchestration")
+    print("   ✅ Multi-Agent Strategy Engine (6 Specialized Agents)")
+    print("   ✅ Financial Guard Rails & Budget Tracking")
+    print("   ✅ Real-time SocketIO Communication")
+    print("   ✅ Payment Approval Workflow")
+    print("   ✅ Agent Training Interface")
+
+    print("\n🔒 SECURITY STATUS:")
+    print("   ✅ XSS Protection (HTML Escaping)")
+    print("   ✅ Input Sanitization (Regex Filters)")
+    print("   ✅ Content Security Policy (CSP)")
+    print("   ✅ Security Headers (X-Frame-Options, X-Content-Type-Options, etc.)")
+    print("   ✅ Request Size Limits (10MB)")
+    print("   ✅ CORS Protection")
+    print("   ✅ Structured Logging with Rotation")
+    print("   ⚠️  Authentication: NOT CONFIGURED")
+    print("   ⚠️  Rate Limiting: NOT CONFIGURED")
+    print("   ⚠️  HTTPS/TLS: NOT CONFIGURED (development mode)")
+
+    print("\n📚 DOCUMENTATION:")
+    print("   • README.md - Project overview & setup")
+    print("   • SECURITY_AUDIT_2026.md - Comprehensive security audit (B+ rating)")
+    print("   • SECURITY_PATCH_FEB_2026.md - XSS vulnerability fixes")
+    print("   • docs/archive/CODE_REVIEW_SENIOR_CONSULTANT.md - Engineering recommendations")
+    print("   • tests/README.md - Testing guide & best practices")
+
+    print("\n⚙️  ENVIRONMENT:")
+    print(f"   Mode: {os.getenv('ENVIRONMENT', 'development').upper()}")
+    print(f"   Debug: {os.getenv('DEBUG', 'False')}")
+    print(f"   System Mode: TRAINING")
     print("   🎓 Agents in development - train before production")
-    print("\n⚠️  Development Server Active")
-    print("   For production, use: gunicorn -w 4 -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker app:app")
+
+    print("\n⚠️  DEVELOPMENT SERVER ACTIVE")
+    print("   For production deployment, use:")
+    print("   gunicorn -w 4 -k geventwebsocket.gunicorn.workers.GeventWebSocketWorker app:app")
+
+    print("\n🚀 NEXT STEPS:")
+    print("   1. Run tests: pytest tests/ -v --cov=.")
+    print("   2. Implement authentication (see SECURITY_AUDIT_2026.md)")
+    print("   3. Add rate limiting (Flask-Limiter)")
+    print("   4. Configure production environment")
+
     print("\n🛑 Press CTRL+C to stop")
-    print("="*80 + "\n")
-    
-    socketio.run(app, debug=False, host='0.0.0.0', port=5001, allow_unsafe_werkzeug=True)
+    print("=" * 80 + "\n")
+
+    socketio.run(app, debug=False, host="0.0.0.0", port=5001, allow_unsafe_werkzeug=True)

@@ -1,5 +1,5 @@
-/* 
- * CFO Catalyst - Professional Design System
+/*
+ * CEO Executive Agent - Professional Design System
  * Based on: Material Design 3, MIT Media Lab HCI, Stanford d.school
  * Accessibility: WCAG 2.1 AA+ Compliant
  * Design Principles: 8pt grid, Modular scale typography, Dynamic color
@@ -13,13 +13,13 @@
   --color-secondary: #f093fb;
   --color-secondary-light: #ffc1ff;
   --color-secondary-dark: #d066e8;
-  
+
   /* Accent Colors */
   --color-accent-cyan: #4facfe;
   --color-accent-purple: #764ba2;
   --color-accent-green: #43e97b;
   --color-accent-orange: #fa709a;
-  
+
   /* Neutral Palette - Dark Theme */
   --color-bg-dark: #0f0f23;
   --color-bg-medium: #1a1f2e;
@@ -27,22 +27,22 @@
   --color-surface: #34495e;
   --color-border: rgba(52, 152, 219, 0.2);
   --color-border-hover: rgba(52, 152, 219, 0.5);
-  
+
   /* Semantic Colors */
   --color-success: #2ecc71;
   --color-warning: #f39c12;
   --color-error: #e74c3c;
   --color-info: #3498db;
-  
+
   /* Text Colors */
   --color-text-primary: #ecf0f1;
   --color-text-secondary: #95a5a6;
   --color-text-muted: #7f8c8d;
-  
+
   /* Typography - Modular Scale (1.25 ratio) */
   --font-family-primary: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
   --font-family-mono: "Fira Code", "Cascadia Code", Consolas, monospace;
-  
+
   --font-size-xs: 0.64rem;
   --font-size-sm: 0.8rem;
   --font-size-base: 1rem;
@@ -51,17 +51,17 @@
   --font-size-xxl: 1.953rem;
   --font-size-xxxl: 2.441rem;
   --font-size-display: 3.052rem;
-  
+
   --font-weight-light: 300;
   --font-weight-regular: 400;
   --font-weight-medium: 500;
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
-  
+
   --line-height-tight: 1.2;
   --line-height-normal: 1.5;
   --line-height-relaxed: 1.75;
-  
+
   /* Spacing - 8pt Grid System */
   --spacing-xs: 4px;
   --spacing-sm: 8px;
@@ -70,33 +70,33 @@
   --spacing-xl: 32px;
   --spacing-xxl: 48px;
   --spacing-xxxl: 64px;
-  
+
   /* Border Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-xl: 16px;
   --radius-full: 9999px;
-  
+
   /* Shadows */
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.1);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.2);
   --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.25);
   --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.4);
-  
+
   /* Transitions */
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-slow: 500ms cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent-purple) 100%);
   --gradient-secondary: linear-gradient(135deg, var(--color-secondary) 0%, var(--color-secondary-dark) 100%);
   --gradient-success: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
   --gradient-cosmic: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
   --gradient-ocean: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  
+
   /* Glass morphism */
   --glass-bg: rgba(255, 255, 255, 0.1);
   --glass-border: rgba(255, 255, 255, 0.2);

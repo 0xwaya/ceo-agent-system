@@ -1,0 +1,41 @@
+name: Code Quality
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Black check
+        run: black --check . --line-length 100
+
+      - name: Flake8 check
+        run: flake8 . --max-line-length=100
+
+      - name: Enforce docs/workflow consistency
+        run: python3 tools/enforce_consistency_gate.py
+
+      - name: Smoke dashboard rendering
+        run: python3 tools/smoke_dashboard_render.py
+
+      - name: Run tests
+        run: pytest -q

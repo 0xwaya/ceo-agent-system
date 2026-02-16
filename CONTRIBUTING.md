@@ -30,6 +30,9 @@ source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 
+# Install local quality hooks
+pre-commit install
+
 # Copy environment template
 cp .env.example .env
 
@@ -86,6 +89,31 @@ pytest tests/test_agents.py
 pytest tests/test_agents.py::test_cfo_agent
 ```
 
+### Enforced Quality Gates
+
+The repository enforces automated checks via:
+
+- **Pre-commit hooks** (`.pre-commit-config.yaml`) on local commits
+- **GitHub Actions** (`.github/workflows/code-quality.yml`) on pushes and pull requests
+
+Required checks:
+
+- `black --check . --line-length 100`
+- `flake8 . --max-line-length=100`
+- `python3 tools/enforce_consistency_gate.py`
+- `pytest -q`
+
+If a change modifies runtime behavior, include a quick smoke test in your PR notes.
+
+### Major Change Consistency Policy (Enforced)
+
+When a PR changes major runtime code (backend/frontend core paths), CI requires:
+
+- At least one documentation update (`*.md`)
+- At least one workflow update (`.github/workflows/*.yml`)
+
+This is enforced by `tools/enforce_consistency_gate.py` and will fail CI if missing.
+
 ### Code Quality Checklist
 
 - [ ] Code follows PEP 8 style guide
@@ -95,12 +123,13 @@ pytest tests/test_agents.py::test_cfo_agent
 - [ ] Tests pass locally
 - [ ] No linting errors
 - [ ] Documentation updated
+- [ ] Workflow updates included for major runtime code changes
 
 ## Commit Guidelines
 
 ### Commit Message Format
 
-```
+```text
 <type>(<scope>): <subject>
 
 <body>
@@ -135,6 +164,8 @@ git commit -m "docs(readme): update installation instructions"
 - [ ] No linting errors
 - [ ] Documentation updated
 - [ ] CHANGELOG.md updated (if applicable)
+- [ ] Pre-commit hooks installed and passing locally
+- [ ] CI quality workflow is passing
 
 ### 2. Create Pull Request
 
@@ -174,9 +205,15 @@ Brief description of changes
 - Address feedback and update PR
 - Squash commits before merging (if requested)
 
+### Branch Protection
+
+Use the repository branch protection baseline in:
+
+- `.github/BRANCH_PROTECTION_RECOMMENDATIONS.md`
+
 ## Project Structure
 
-```
+```text
 ceo-agent-system/
 ├── agents/          # Agent implementations
 ├── services/        # Business logic services
@@ -216,7 +253,7 @@ ceo-agent-system/
 - [ ] Use case examples
 - [ ] Architecture diagrams
 
-## Questions or Help?
+## Questions or Help
 
 - Open an issue with `question` label
 - Check existing issues and discussions

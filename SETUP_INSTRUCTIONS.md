@@ -5,7 +5,7 @@
 ### Step 1: Install Required Packages
 
 ```bash
-cd /Users/pc/Desktop/code/langraph
+cd /Users/pc/code/langraph
 
 # Install OpenAI package
 pip install openai==1.12.0
@@ -220,13 +220,13 @@ def check_budget(category: str, cost: float) -> bool:
     """Check if spending is within daily limit"""
     daily_limit = float(os.getenv(f"DAILY_BUDGET_{category.upper()}", 0))
     daily_spent = get_daily_spending(category)  # Track in DB
-    
+
     if daily_spent + cost > daily_limit:
         raise BudgetExceededError(
             f"Daily budget exceeded for {category}: "
             f"${daily_spent + cost} > ${daily_limit}"
         )
-    
+
     return True
 ```
 
@@ -360,7 +360,7 @@ Before deploying to production:
 
 ---
 
-## What's Next?
+## What's Next
 
 1. ✅ **You've completed:** Logo generation with DALL-E
 2. 🎯 **Next task:** Integrate GPT-4 for LLM reasoning
@@ -370,4 +370,4 @@ Before deploying to production:
 
 **Your agents are now capable of real-world task execution!** 🎉
 
-Continue with the [Real-World Execution Roadmap](REAL_WORLD_EXECUTION_ROADMAP.md) for the complete implementation guide.
+Continue with the [Real-World Execution Roadmap](docs/REAL_WORLD_EXECUTION_ROADMAP.md) for the complete implementation guide.

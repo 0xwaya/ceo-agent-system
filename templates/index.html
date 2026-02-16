@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CFO Catalyst - Multi-Agent System</title>
+    <title>CEO Executive Agent - AI Orchestration System</title>
     <link rel="stylesheet" href="/static/css/style.css" />
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   </head>
@@ -12,17 +12,29 @@
     <header class="main-header">
       <div class="container">
         <div class="logo">
-          <h1><span class="logo-icon">💼</span> CFO Catalyst</h1>
-          <p>AI-Powered Chief Financial Officer Orchestration</p>
+          <h1><span class="logo-icon">👔</span> CEO Executive Agent</h1>
+          <p>AI-Powered Executive Orchestration System</p>
         </div>
         <div class="budget-display">
           <div class="budget-item">
             <span class="label">Total Budget:</span>
-            <span class="value" id="totalBudget">$5,000</span>
+            <span class="value" id="totalBudget">
+              {% if (scenario_defaults.budget | default(0))|float > 0 %}
+                ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
+              {% else %}
+                -
+              {% endif %}
+            </span>
           </div>
           <div class="budget-item">
             <span class="label">Remaining:</span>
-            <span class="value success" id="remainingBudget">$5,000</span>
+            <span class="value success" id="remainingBudget">
+              {% if (scenario_defaults.budget | default(0))|float > 0 %}
+                ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
+              {% else %}
+                -
+              {% endif %}
+            </span>
           </div>
         </div>
       </div>
@@ -37,30 +49,60 @@
           <div class="objectives-form">
             <div class="form-group">
               <label>Company Name:</label>
-              <input type="text" id="companyName" value="Amazon Granite LLC" />
+              <input
+                type="text"
+                id="companyName"
+                value="{{ scenario_defaults.company_name | default('Amazon Granite LLC') }}"
+              />
             </div>
             <div class="form-group">
               <label>DBA Name:</label>
-              <input type="text" id="dbaName" value="SURFACECRAFT STUDIO" />
+              <input
+                type="text"
+                id="dbaName"
+                value="{{ scenario_defaults.dba_name | default('SurfaceCraft Studio') }}"
+              />
             </div>
             <div class="form-group">
               <label>Industry:</label>
+              <select id="industry">
+                <option value="">Select industry</option>
+                <option value="Technology">Technology</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Financial Services">Financial Services</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Retail">Retail</option>
+                <option value="Construction">Construction</option>
+                <option value="Real Estate">Real Estate</option>
+                <option value="Education">Education</option>
+                <option value="Transportation & Logistics">Transportation & Logistics</option>
+                <option value="Hospitality & Tourism">Hospitality & Tourism</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group" id="industryOtherGroup" style="display: none">
+              <label>Other Industry:</label>
               <input
                 type="text"
-                id="industry"
-                value="Granite & Engineered Quartz Countertops"
+                id="industryOther"
+                value="{{ scenario_defaults.industry_other | default('Construction, Custom Countertops') }}"
+                placeholder="Enter your industry"
               />
             </div>
             <div class="form-group">
               <label>Location:</label>
-              <input type="text" id="location" value="Cincinnati, Ohio" />
+              <input
+                type="text"
+                id="location"
+                value="{{ scenario_defaults.location | default('Cincinnati, OH') }}"
+              />
             </div>
             <div class="form-group">
               <label>Total Budget ($):</label>
               <input
                 type="number"
                 id="budget"
-                value="5000"
+                value="{{ scenario_defaults.budget | default(1000) }}"
                 min="1000"
                 max="100000"
               />
@@ -70,7 +112,7 @@
               <input
                 type="number"
                 id="timeline"
-                value="90"
+                value="{{ scenario_defaults.timeline | default(30) }}"
                 min="30"
                 max="365"
               />
@@ -173,7 +215,7 @@
       <div class="chat-header">
         <div class="chat-title">
           <span class="chat-icon">💬</span>
-          <span>CFO Catalyst Chat</span>
+          <span>CEO Executive Chat</span>
         </div>
         <div class="chat-controls">
           <button id="clearChat" class="chat-btn-clear" title="Clear chat">
@@ -187,8 +229,9 @@
       <div id="chatMessages" class="chat-messages">
         <div class="chat-message system">
           <div class="chat-message-content">
-            <strong>System:</strong> Welcome to CFO Catalyst! I can help you
-            configure and execute AI agents. Ask me anything!
+            <strong>System:</strong> Welcome to CEO Executive Agent! I can help
+            you configure and execute AI agents for strategic business
+            orchestration. Ask me anything!
           </div>
           <div class="chat-message-time">Just now</div>
         </div>
@@ -208,6 +251,12 @@
       <div class="chat-status" id="chatStatus"></div>
     </div>
 
+    <script>
+      window.LEGACY_DASHBOARD_CONFIG = {
+        isProduction: {{ is_production | default(false) | tojson }},
+        defaults: {{ scenario_defaults | default({}) | tojson }}
+      };
+    </script>
     <script src="/static/js/app.js"></script>
   </body>
 </html>

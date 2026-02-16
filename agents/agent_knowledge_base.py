@@ -17,6 +17,7 @@ from dataclasses import dataclass
 @dataclass
 class ExpertiseArea:
     """Represents a domain of expertise with master-level knowledge"""
+
     name: str
     field: str
     key_principles: List[str]
@@ -83,7 +84,7 @@ BRANDING_EXPERTISE = ExpertiseArea(
         "Paul Rand - 'Design, Form, and Chaos'",
         "Marty Neumeier - 'The Brand Gap'",
         "Debbie Millman - 'How to Think Like a Great Graphic Designer'",
-    ]
+    ],
 )
 
 
@@ -144,7 +145,7 @@ WEB_DEV_EXPERTISE = ExpertiseArea(
         "Google Web Fundamentals",
         "Mozilla Developer Network (MDN)",
         "8th Wall WebAR Documentation",
-    ]
+    ],
 )
 
 
@@ -202,7 +203,7 @@ LEGAL_EXPERTISE = ExpertiseArea(
         "Ohio Revised Code Chapter 1329 (Trade Names)",
         "Small Business Administration (SBA) Legal Guides",
         "American Bar Association Business Law Resources",
-    ]
+    ],
 )
 
 
@@ -264,7 +265,7 @@ MARTECH_EXPERTISE = ExpertiseArea(
         "HubSpot Academy - Inbound Marketing Certification",
         "Google Analytics Academy",
         "Salesforce Trailhead Learning Platform",
-    ]
+    ],
 )
 
 
@@ -326,7 +327,7 @@ CONTENT_EXPERTISE = ExpertiseArea(
         "Ann Handley - 'Everybody Writes'",
         "Jay Baer - 'Youtility'",
         "HubSpot Content Marketing Playbook",
-    ]
+    ],
 )
 
 
@@ -388,7 +389,60 @@ CAMPAIGN_EXPERTISE = ExpertiseArea(
         "Google Skillshop - Google Ads Certification",
         "Byron Sharp - 'How Brands Grow'",
         "Gary Vaynerchuk - 'Jab, Jab, Jab, Right Hook'",
-    ]
+    ],
+)
+
+
+# ============================================================================
+# SOFTWARE + BLOCKCHAIN SECURITY EXPERTISE
+# ============================================================================
+
+SECURITY_EXPERTISE = ExpertiseArea(
+    name="Software & Blockchain Security",
+    field="Security Engineering",
+    key_principles=[
+        "Shift-left security: threat model early, verify continuously",
+        "Defense in depth across app, infra, secrets, and runtime",
+        "Zero-trust defaults for authN/authZ and network assumptions",
+        "Smart-contract invariants with adversarial testing",
+        "Least privilege and explicit trust boundaries",
+        "Security observability as a first-class product requirement",
+    ],
+    frameworks=[
+        "OWASP ASVS + API Security Top 10",
+        "NIST SSDF for secure software development",
+        "SCSVS / smart contract security checklists",
+        "STRIDE threat modeling",
+        "Foundry invariant + fuzz testing methodologies",
+    ],
+    tools=[
+        "Static analysis: semgrep, bandit, eslint security rules",
+        "Dependency security: pip-audit, npm audit, SCA scanners",
+        "Smart contract testing: Foundry, Echidna, Slither",
+        "Runtime hardening: CSP, secure cookies, strict headers",
+        "Monitoring: SIEM alerts and anomaly detection",
+    ],
+    success_metrics=[
+        "Zero critical findings open before release",
+        "MTTR for security incidents < 24h",
+        "100% secret material out of source control",
+        "Security regression tests on every PR",
+        "Coverage of critical attack paths in tests",
+    ],
+    common_pitfalls=[
+        "Relying on perimeter security only",
+        "Unbounded trust in client-side validation",
+        "Missing upgradeability governance controls",
+        "Ignoring dependency and supply-chain risks",
+        "Treating audits as one-time events",
+    ],
+    references=[
+        "Cyfrin learning/security tracks",
+        "Secureum bootcamp material",
+        "OpenZeppelin documentation and forum guidance",
+        "PortSwigger Web Security Academy labs",
+        "Damn Vulnerable DeFi and Ethernaut challenge sets",
+    ],
 )
 
 
@@ -403,6 +457,7 @@ EXPERTISE_REGISTRY: Dict[str, ExpertiseArea] = {
     "martech": MARTECH_EXPERTISE,
     "content": CONTENT_EXPERTISE,
     "campaigns": CAMPAIGN_EXPERTISE,
+    "security": SECURITY_EXPERTISE,
 }
 
 

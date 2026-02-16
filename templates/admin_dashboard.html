@@ -15,7 +15,7 @@
       rel="stylesheet"
     />
   </head>
-  <body>
+  <body data-initial-section="{{ initial_section|default('dashboard') }}">
     <!-- Main Container -->
     <div class="admin-container">
       <!-- Sidebar Navigation -->
@@ -38,7 +38,7 @@
           <a href="#agents" class="nav-item" data-section="agents">
             <span class="nav-icon">🤖</span>
             <span class="nav-label">Agents</span>
-            <span class="nav-badge">6</span>
+            <span class="nav-badge" id="agents-nav-count">0</span>
           </a>
           <a href="#training" class="nav-item" data-section="training">
             <span class="nav-icon">🎓</span>
@@ -115,7 +115,7 @@
               <div class="metric-icon">🤖</div>
               <div class="metric-content">
                 <span class="metric-label">Active Agents</span>
-                <span class="metric-value" id="metric-active-agents">6</span>
+                <span class="metric-value" id="metric-active-agents">0</span>
                 <span class="metric-change positive">+0% from last week</span>
               </div>
             </div>
@@ -133,7 +133,13 @@
               <div class="metric-icon">💰</div>
               <div class="metric-content">
                 <span class="metric-label">Budget Remaining</span>
-                <span class="metric-value" id="metric-budget">$50,000</span>
+                <span class="metric-value" id="metric-budget">
+                  {% if (scenario_defaults.budget | default(0))|float > 0 %}
+                    ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
+                  {% else %}
+                    -
+                  {% endif %}
+                </span>
                 <span class="metric-change">100% available</span>
               </div>
             </div>
@@ -186,6 +192,49 @@
                   <small id="approvals-summary">No pending items</small>
                 </span>
               </button>
+            </div>
+          </div>
+
+          <div class="activity-section">
+            <div class="activity-header">
+              <h3>Active Scenario</h3>
+            </div>
+            <div class="activity-feed" style="padding: 1rem;">
+              <div class="metric-card" style="margin-bottom: 0;">
+                <div class="metric-content" style="display: grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap: 0.75rem 1rem; width: 100%;">
+                  <div>
+                    <span class="metric-label">Company</span>
+                    <span class="metric-value" id="scenario-company" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">DBA</span>
+                    <span class="metric-value" id="scenario-dba" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Industry</span>
+                    <span class="metric-value" id="scenario-industry" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Location</span>
+                    <span class="metric-value" id="scenario-location" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Budget</span>
+                    <span class="metric-value" id="scenario-budget" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Timeline</span>
+                    <span class="metric-value" id="scenario-timeline" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div style="grid-column: 1 / -1;">
+                    <span class="metric-label">Objectives</span>
+                    <span class="metric-value" id="scenario-objectives" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div style="grid-column: 1 / -1; color: var(--text-secondary); font-size: 0.85rem;">
+                    Last synced: <span id="scenario-updated">-</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -444,6 +493,49 @@
             <p>Comprehensive insights and analytics</p>
           </div>
 
+          <div class="activity-section" style="margin-bottom: 1.25rem;">
+            <div class="activity-header">
+              <h3>Active Scenario</h3>
+            </div>
+            <div class="activity-feed" style="padding: 1rem;">
+              <div class="metric-card" style="margin-bottom: 0;">
+                <div class="metric-content" style="display: grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap: 0.75rem 1rem; width: 100%;">
+                  <div>
+                    <span class="metric-label">Company</span>
+                    <span class="metric-value" id="scenario-company-reports" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">DBA</span>
+                    <span class="metric-value" id="scenario-dba-reports" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Industry</span>
+                    <span class="metric-value" id="scenario-industry-reports" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Location</span>
+                    <span class="metric-value" id="scenario-location-reports" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Budget</span>
+                    <span class="metric-value" id="scenario-budget-reports" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div>
+                    <span class="metric-label">Timeline</span>
+                    <span class="metric-value" id="scenario-timeline-reports" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div style="grid-column: 1 / -1;">
+                    <span class="metric-label">Objectives</span>
+                    <span class="metric-value" id="scenario-objectives-reports" style="font-size: 1rem;">-</span>
+                  </div>
+                  <div style="grid-column: 1 / -1; color: var(--text-secondary); font-size: 0.85rem;">
+                    Last synced: <span id="scenario-updated-reports">-</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div class="reports-grid">
             <div class="report-card" onclick="generateReport('ceo')">
               <div class="report-icon">👔</div>
@@ -600,6 +692,12 @@
 
     <!-- Scripts -->
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+      window.ADMIN_DASHBOARD_CONFIG = {
+        isProduction: {{ is_production | default(false) | tojson }},
+        defaults: {{ scenario_defaults | default({}) | tojson }}
+      };
+    </script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
   </body>
 </html>

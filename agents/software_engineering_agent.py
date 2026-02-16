@@ -55,7 +55,7 @@ class ArchitectureReview:
 
 class SoftwareEngineeringAgent:
     """Analyzes and improves code architecture and quality"""
-    
+
     def __init__(self):
         self.name = "Software Engineering & Architecture Specialist"
         self.expertise = [
@@ -64,433 +64,489 @@ class SoftwareEngineeringAgent:
             "Performance optimization",
             "Architecture design",
             "Best practices enforcement",
-            "Technical debt reduction"
+            "Technical debt reduction",
         ]
-    
+
     def analyze_multi_agent_system(self) -> Dict[str, Any]:
         """Comprehensive analysis of the multi-agent system"""
-        
-        print("\n" + "="*80)
+
+        print("\n" + "=" * 80)
         print("🔍 SOFTWARE ENGINEERING AGENT - ARCHITECTURE REVIEW")
-        print("="*80 + "\n")
-        
+        print("=" * 80 + "\n")
+
         issues = []
-        
+
         # ANALYSIS 1: Current Architecture Assessment
         print("📊 PHASE 1: Architecture Assessment")
-        print("-"*80)
-        
+        print("-" * 80)
+
         architecture_issues = self._analyze_architecture()
         issues.extend(architecture_issues)
-        
+
         # ANALYSIS 2: Code Quality Review
         print("\n📊 PHASE 2: Code Quality Review")
-        print("-"*80)
-        
+        print("-" * 80)
+
         quality_issues = self._analyze_code_quality()
         issues.extend(quality_issues)
-        
+
         # ANALYSIS 3: Performance Analysis
         print("\n📊 PHASE 3: Performance Analysis")
-        print("-"*80)
-        
+        print("-" * 80)
+
         performance_issues = self._analyze_performance()
         issues.extend(performance_issues)
-        
+
         # ANALYSIS 4: Security Review
         print("\n📊 PHASE 4: Security Review")
-        print("-"*80)
-        
+        print("-" * 80)
+
         security_issues = self._analyze_security()
         issues.extend(security_issues)
-        
+
         # ANALYSIS 5: Best Practices Compliance
         print("\n📊 PHASE 5: Best Practices Review")
-        print("-"*80)
-        
+        print("-" * 80)
+
         practices_issues = self._analyze_best_practices()
         issues.extend(practices_issues)
-        
+
         return {
-            'issues': issues,
-            'summary': self._generate_summary(issues),
-            'recommendations': self._generate_recommendations(issues)
+            "issues": issues,
+            "summary": self._generate_summary(issues),
+            "recommendations": self._generate_recommendations(issues),
         }
-    
+
     def _analyze_architecture(self) -> List[CodeIssue]:
         """Analyze overall architecture"""
         issues = []
-        
+
         # Issue 1: Tight coupling between agents and state
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.HIGH,
-            category="Architecture",
-            description="Agent classes tightly coupled to TypedDict state definitions",
-            file="specialized_agents.py",
-            line=None,
-            suggestion="Implement Dependency Injection pattern with abstract base state",
-            impact="Reduces flexibility, makes testing difficult, violates SOLID principles"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.HIGH,
+                category="Architecture",
+                description="Agent classes tightly coupled to TypedDict state definitions",
+                file="specialized_agents.py",
+                line=None,
+                suggestion="Implement Dependency Injection pattern with abstract base state",
+                impact="Reduces flexibility, makes testing difficult, violates SOLID principles",
+            )
+        )
+
         # Issue 2: Missing abstraction layer
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.HIGH,
-            category="Architecture",
-            description="No clear separation between business logic and presentation",
-            file="cfo_agent.py",
-            line=None,
-            suggestion="Implement Service Layer pattern to separate concerns",
-            impact="Mixed concerns make code harder to maintain and test"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.HIGH,
+                category="Architecture",
+                description="No clear separation between business logic and presentation",
+                file="cfo_agent.py",
+                line=None,
+                suggestion="Implement Service Layer pattern to separate concerns",
+                impact="Mixed concerns make code harder to maintain and test",
+            )
+        )
+
         # Issue 3: Lack of error handling strategy
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.CRITICAL,
-            category="Architecture",
-            description="No centralized error handling or logging strategy",
-            file="All agent files",
-            line=None,
-            suggestion="Implement Exception hierarchy and centralized error handler",
-            impact="Errors propagate uncaught, poor debugging experience"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.CRITICAL,
+                category="Architecture",
+                description="No centralized error handling or logging strategy",
+                file="All agent files",
+                line=None,
+                suggestion="Implement Exception hierarchy and centralized error handler",
+                impact="Errors propagate uncaught, poor debugging experience",
+            )
+        )
+
         # Issue 4: State management complexity
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Architecture",
-            description="State passed as mutable dictionaries across functions",
-            file="specialized_agents.py, cfo_agent.py",
-            line=None,
-            suggestion="Implement immutable state with State pattern or Pydantic models",
-            impact="State mutations hard to track, potential for bugs"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Architecture",
+                description="State passed as mutable dictionaries across functions",
+                file="specialized_agents.py, cfo_agent.py",
+                line=None,
+                suggestion="Implement immutable state with State pattern or Pydantic models",
+                impact="State mutations hard to track, potential for bugs",
+            )
+        )
+
         print("  ✓ Identified 4 architecture issues")
         return issues
-    
+
     def _analyze_code_quality(self) -> List[CodeIssue]:
         """Analyze code quality and maintainability"""
         issues = []
-        
+
         # Issue 1: Large functions
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Code Quality",
-            description="Functions exceed 50 lines (design_concepts, analyze_requirements)",
-            file="specialized_agents.py",
-            line=None,
-            suggestion="Break down into smaller, single-responsibility functions",
-            impact="Reduced readability and maintainability"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Code Quality",
+                description="Functions exceed 50 lines (design_concepts, analyze_requirements)",
+                file="specialized_agents.py",
+                line=None,
+                suggestion="Break down into smaller, single-responsibility functions",
+                impact="Reduced readability and maintainability",
+            )
+        )
+
         # Issue 2: Magic numbers and strings
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.LOW,
-            category="Code Quality",
-            description="Hard-coded values scattered throughout (budget amounts, timelines)",
-            file="All files",
-            line=None,
-            suggestion="Extract to constants or configuration file",
-            impact="Difficult to maintain and update values"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.LOW,
+                category="Code Quality",
+                description="Hard-coded values scattered throughout (budget amounts, timelines)",
+                file="All files",
+                line=None,
+                suggestion="Extract to constants or configuration file",
+                impact="Difficult to maintain and update values",
+            )
+        )
+
         # Issue 3: Inconsistent error handling
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Code Quality",
-            description="try/except blocks only in some functions, not all",
-            file="app.py, specialized_agents.py",
-            line=None,
-            suggestion="Add consistent error handling with custom exceptions",
-            impact="Unpredictable error behavior"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Code Quality",
+                description="try/except blocks only in some functions, not all",
+                file="app.py, specialized_agents.py",
+                line=None,
+                suggestion="Add consistent error handling with custom exceptions",
+                impact="Unpredictable error behavior",
+            )
+        )
+
         # Issue 4: Missing type hints
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.LOW,
-            category="Code Quality",
-            description="Some functions lack complete type annotations",
-            file="cfo_agent.py",
-            line=None,
-            suggestion="Add complete type hints for all function parameters and returns",
-            impact="Reduced IDE support and type safety"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.LOW,
+                category="Code Quality",
+                description="Some functions lack complete type annotations",
+                file="cfo_agent.py",
+                line=None,
+                suggestion="Add complete type hints for all function parameters and returns",
+                impact="Reduced IDE support and type safety",
+            )
+        )
+
         # Issue 5: Lack of documentation
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Code Quality",
-            description="Many functions lack docstrings explaining parameters and returns",
-            file="All files",
-            line=None,
-            suggestion="Add comprehensive docstrings following Google or NumPy style",
-            impact="Harder for developers to understand code"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Code Quality",
+                description="Many functions lack docstrings explaining parameters and returns",
+                file="All files",
+                line=None,
+                suggestion="Add comprehensive docstrings following Google or NumPy style",
+                impact="Harder for developers to understand code",
+            )
+        )
+
         print("  ✓ Identified 5 code quality issues")
         return issues
-    
+
     def _analyze_performance(self) -> List[CodeIssue]:
         """Analyze performance bottlenecks"""
         issues = []
-        
+
         # Issue 1: No caching
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Performance",
-            description="Agent initialization and knowledge base loading not cached",
-            file="specialized_agents.py",
-            line=None,
-            suggestion="Implement caching decorator or singleton pattern for agents",
-            impact="Repeated initialization overhead"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Performance",
+                description="Agent initialization and knowledge base loading not cached",
+                file="specialized_agents.py",
+                line=None,
+                suggestion="Implement caching decorator or singleton pattern for agents",
+                impact="Repeated initialization overhead",
+            )
+        )
+
         # Issue 2: Synchronous operations
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.LOW,
-            category="Performance",
-            description="All agent operations synchronous, no async/await",
-            file="All agent files",
-            line=None,
-            suggestion="Implement async methods for I/O operations",
-            impact="Slower execution for independent tasks"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.LOW,
+                category="Performance",
+                description="All agent operations synchronous, no async/await",
+                file="All agent files",
+                line=None,
+                suggestion="Implement async methods for I/O operations",
+                impact="Slower execution for independent tasks",
+            )
+        )
+
         # Issue 3: No lazy loading
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.LOW,
-            category="Performance",
-            description="Knowledge base loaded on initialization even if not used",
-            file="agent_knowledge_base.py",
-            line=None,
-            suggestion="Implement lazy loading for expertise data",
-            impact="Unnecessary memory usage"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.LOW,
+                category="Performance",
+                description="Knowledge base loaded on initialization even if not used",
+                file="agent_knowledge_base.py",
+                line=None,
+                suggestion="Implement lazy loading for expertise data",
+                impact="Unnecessary memory usage",
+            )
+        )
+
         print("  ✓ Identified 3 performance issues")
         return issues
-    
+
     def _analyze_security(self) -> List[CodeIssue]:
         """Analyze security vulnerabilities"""
         issues = []
-        
+
         # Issue 1: No input validation
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.HIGH,
-            category="Security",
-            description="User inputs not validated before processing",
-            file="app.py, interactive_chat.py",
-            line=None,
-            suggestion="Add input validation and sanitization layer",
-            impact="Potential injection attacks or malformed data"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.HIGH,
+                category="Security",
+                description="User inputs not validated before processing",
+                file="app.py, interactive_chat.py",
+                line=None,
+                suggestion="Add input validation and sanitization layer",
+                impact="Potential injection attacks or malformed data",
+            )
+        )
+
         # Issue 2: No authentication
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.CRITICAL,
-            category="Security",
-            description="Web interface has no authentication or authorization",
-            file="app.py",
-            line=None,
-            suggestion="Implement Flask-Login or JWT authentication",
-            impact="Anyone can access and execute agents"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.CRITICAL,
+                category="Security",
+                description="Web interface has no authentication or authorization",
+                file="app.py",
+                line=None,
+                suggestion="Implement Flask-Login or JWT authentication",
+                impact="Anyone can access and execute agents",
+            )
+        )
+
         # Issue 3: Debug mode in production
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.CRITICAL,
-            category="Security",
-            description="Flask debug mode enabled, exposes stack traces",
-            file="app.py",
-            line=None,
-            suggestion="Use environment variables to control debug mode",
-            impact="Security information disclosure"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.CRITICAL,
+                category="Security",
+                description="Flask debug mode enabled, exposes stack traces",
+                file="app.py",
+                line=None,
+                suggestion="Use environment variables to control debug mode",
+                impact="Security information disclosure",
+            )
+        )
+
         # Issue 4: No rate limiting
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.HIGH,
-            category="Security",
-            description="API endpoints have no rate limiting",
-            file="app.py",
-            line=None,
-            suggestion="Implement Flask-Limiter for rate limiting",
-            impact="Vulnerable to DoS attacks"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.HIGH,
+                category="Security",
+                description="API endpoints have no rate limiting",
+                file="app.py",
+                line=None,
+                suggestion="Implement Flask-Limiter for rate limiting",
+                impact="Vulnerable to DoS attacks",
+            )
+        )
+
         print("  ✓ Identified 4 security issues")
         return issues
-    
+
     def _analyze_best_practices(self) -> List[CodeIssue]:
         """Analyze compliance with best practices"""
         issues = []
-        
+
         # Issue 1: No unit tests
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.HIGH,
-            category="Best Practices",
-            description="No unit tests or test suite",
-            file="N/A",
-            line=None,
-            suggestion="Create pytest test suite with >80% coverage",
-            impact="No automated verification, high regression risk"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.HIGH,
+                category="Best Practices",
+                description="No unit tests or test suite",
+                file="N/A",
+                line=None,
+                suggestion="Create pytest test suite with >80% coverage",
+                impact="No automated verification, high regression risk",
+            )
+        )
+
         # Issue 2: No CI/CD
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Best Practices",
-            description="No continuous integration or deployment pipeline",
-            file="N/A",
-            line=None,
-            suggestion="Set up GitHub Actions or similar CI/CD",
-            impact="Manual testing and deployment errors"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Best Practices",
+                description="No continuous integration or deployment pipeline",
+                file="N/A",
+                line=None,
+                suggestion="Set up GitHub Actions or similar CI/CD",
+                impact="Manual testing and deployment errors",
+            )
+        )
+
         # Issue 3: No dependency management
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Best Practices",
-            description="No pinned dependency versions in requirements",
-            file="requirements-web.txt",
-            line=None,
-            suggestion="Pin exact versions and use pip-tools or Poetry",
-            impact="Inconsistent environments, potential breakage"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Best Practices",
+                description="No pinned dependency versions in requirements",
+                file="requirements-web.txt",
+                line=None,
+                suggestion="Pin exact versions and use pip-tools or Poetry",
+                impact="Inconsistent environments, potential breakage",
+            )
+        )
+
         # Issue 4: No logging configuration
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Best Practices",
-            description="Using print() instead of proper logging",
-            file="All files",
-            line=None,
-            suggestion="Implement Python logging module with levels and handlers",
-            impact="No log levels, difficult to debug production issues"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Best Practices",
+                description="Using print() instead of proper logging",
+                file="All files",
+                line=None,
+                suggestion="Implement Python logging module with levels and handlers",
+                impact="No log levels, difficult to debug production issues",
+            )
+        )
+
         # Issue 5: No configuration management
-        issues.append(CodeIssue(
-            level=CodeIssueLevel.MEDIUM,
-            category="Best Practices",
-            description="Configuration hard-coded in source files",
-            file="All files",
-            line=None,
-            suggestion="Use environment variables and config files (python-decouple)",
-            impact="Can't configure without code changes"
-        ))
-        
+        issues.append(
+            CodeIssue(
+                level=CodeIssueLevel.MEDIUM,
+                category="Best Practices",
+                description="Configuration hard-coded in source files",
+                file="All files",
+                line=None,
+                suggestion="Use environment variables and config files (python-decouple)",
+                impact="Can't configure without code changes",
+            )
+        )
+
         print("  ✓ Identified 5 best practice violations")
         return issues
-    
+
     def _generate_summary(self, issues: List[CodeIssue]) -> Dict[str, Any]:
         """Generate summary statistics"""
-        
+
         by_level = {}
         for level in CodeIssueLevel:
             by_level[level.value] = len([i for i in issues if i.level == level])
-        
+
         by_category = {}
         for issue in issues:
             by_category[issue.category] = by_category.get(issue.category, 0) + 1
-        
+
         return {
-            'total_issues': len(issues),
-            'by_level': by_level,
-            'by_category': by_category,
-            'critical_count': by_level.get('critical', 0),
-            'high_count': by_level.get('high', 0)
+            "total_issues": len(issues),
+            "by_level": by_level,
+            "by_category": by_category,
+            "critical_count": by_level.get("critical", 0),
+            "high_count": by_level.get("high", 0),
         }
-    
+
     def _generate_recommendations(self, issues: List[CodeIssue]) -> List[Dict[str, Any]]:
         """Generate prioritized recommendations"""
-        
+
         recommendations = []
-        
+
         # Priority 1: Critical Security Issues
-        critical_security = [i for i in issues if i.level == CodeIssueLevel.CRITICAL and i.category == "Security"]
+        critical_security = [
+            i for i in issues if i.level == CodeIssueLevel.CRITICAL and i.category == "Security"
+        ]
         if critical_security:
-            recommendations.append({
-                'priority': 1,
-                'phase': 'Immediate',
-                'title': 'Fix Critical Security Vulnerabilities',
-                'actions': [
-                    'Disable Flask debug mode in production',
-                    'Implement authentication and authorization',
-                    'Add input validation and sanitization'
-                ],
-                'estimated_effort': '2-3 days'
-            })
-        
+            recommendations.append(
+                {
+                    "priority": 1,
+                    "phase": "Immediate",
+                    "title": "Fix Critical Security Vulnerabilities",
+                    "actions": [
+                        "Disable Flask debug mode in production",
+                        "Implement authentication and authorization",
+                        "Add input validation and sanitization",
+                    ],
+                    "estimated_effort": "2-3 days",
+                }
+            )
+
         # Priority 2: Architecture Improvements
         arch_issues = [i for i in issues if i.category == "Architecture"]
         if arch_issues:
-            recommendations.append({
-                'priority': 2,
-                'phase': 'Short-term',
-                'title': 'Refactor Architecture',
-                'actions': [
-                    'Implement Dependency Injection for state management',
-                    'Add Service Layer to separate concerns',
-                    'Create centralized error handling',
-                    'Use immutable state objects (Pydantic models)'
-                ],
-                'estimated_effort': '1 week'
-            })
-        
+            recommendations.append(
+                {
+                    "priority": 2,
+                    "phase": "Short-term",
+                    "title": "Refactor Architecture",
+                    "actions": [
+                        "Implement Dependency Injection for state management",
+                        "Add Service Layer to separate concerns",
+                        "Create centralized error handling",
+                        "Use immutable state objects (Pydantic models)",
+                    ],
+                    "estimated_effort": "1 week",
+                }
+            )
+
         # Priority 3: Code Quality
         quality_issues = [i for i in issues if i.category == "Code Quality"]
         if quality_issues:
-            recommendations.append({
-                'priority': 3,
-                'phase': 'Short-term',
-                'title': 'Improve Code Quality',
-                'actions': [
-                    'Refactor large functions (>50 lines)',
-                    'Extract magic numbers to constants',
-                    'Add comprehensive docstrings',
-                    'Complete type annotations'
-                ],
-                'estimated_effort': '3-4 days'
-            })
-        
+            recommendations.append(
+                {
+                    "priority": 3,
+                    "phase": "Short-term",
+                    "title": "Improve Code Quality",
+                    "actions": [
+                        "Refactor large functions (>50 lines)",
+                        "Extract magic numbers to constants",
+                        "Add comprehensive docstrings",
+                        "Complete type annotations",
+                    ],
+                    "estimated_effort": "3-4 days",
+                }
+            )
+
         # Priority 4: Testing & CI/CD
-        test_issues = [i for i in issues if 'test' in i.description.lower() or 'CI' in i.description]
+        test_issues = [
+            i for i in issues if "test" in i.description.lower() or "CI" in i.description
+        ]
         if test_issues:
-            recommendations.append({
-                'priority': 4,
-                'phase': 'Medium-term',
-                'title': 'Implement Testing & CI/CD',
-                'actions': [
-                    'Create pytest test suite',
-                    'Achieve >80% code coverage',
-                    'Set up GitHub Actions CI/CD',
-                    'Add pre-commit hooks (black, flake8, mypy)'
-                ],
-                'estimated_effort': '1 week'
-            })
-        
+            recommendations.append(
+                {
+                    "priority": 4,
+                    "phase": "Medium-term",
+                    "title": "Implement Testing & CI/CD",
+                    "actions": [
+                        "Create pytest test suite",
+                        "Achieve >80% code coverage",
+                        "Set up GitHub Actions CI/CD",
+                        "Add pre-commit hooks (black, flake8, mypy)",
+                    ],
+                    "estimated_effort": "1 week",
+                }
+            )
+
         # Priority 5: Performance Optimization
         perf_issues = [i for i in issues if i.category == "Performance"]
         if perf_issues:
-            recommendations.append({
-                'priority': 5,
-                'phase': 'Long-term',
-                'title': 'Optimize Performance',
-                'actions': [
-                    'Implement caching for agent instances',
-                    'Add async/await for I/O operations',
-                    'Implement lazy loading for knowledge base',
-                    'Add performance monitoring'
-                ],
-                'estimated_effort': '1 week'
-            })
-        
+            recommendations.append(
+                {
+                    "priority": 5,
+                    "phase": "Long-term",
+                    "title": "Optimize Performance",
+                    "actions": [
+                        "Implement caching for agent instances",
+                        "Add async/await for I/O operations",
+                        "Implement lazy loading for knowledge base",
+                        "Add performance monitoring",
+                    ],
+                    "estimated_effort": "1 week",
+                }
+            )
+
         return recommendations
-    
+
     def generate_improvement_plan(self, analysis: Dict[str, Any]) -> str:
         """Generate detailed improvement plan"""
-        
+
         plan = """
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                    ARCHITECTURE IMPROVEMENT PLAN                              ║
@@ -498,8 +554,8 @@ class SoftwareEngineeringAgent:
 ╚══════════════════════════════════════════════════════════════════════════════╝
 
 """
-        
-        summary = analysis['summary']
+
+        summary = analysis["summary"]
         plan += f"""
 📊 CURRENT STATE ASSESSMENT
 {'='*80}
@@ -515,18 +571,18 @@ By Severity:
 
 By Category:
 """
-        
-        for category, count in sorted(summary['by_category'].items(), key=lambda x: -x[1]):
+
+        for category, count in sorted(summary["by_category"].items(), key=lambda x: -x[1]):
             plan += f"  • {category:20} {count} issues\n"
-        
+
         plan += f"""
 
 🎯 IMPROVEMENT ROADMAP
 {'='*80}
 
 """
-        
-        for rec in analysis['recommendations']:
+
+        for rec in analysis["recommendations"]:
             plan += f"""
 Phase {rec['priority']}: {rec['phase']}
 {'-'*80}
@@ -535,9 +591,9 @@ Estimated Effort: {rec['estimated_effort']}
 
 Actions:
 """
-            for action in rec['actions']:
+            for action in rec["actions"]:
                 plan += f"  ✓ {action}\n"
-        
+
         plan += """
 
 💡 QUICK WINS (Implement First)
@@ -811,37 +867,39 @@ After Improvements:
 
 
 """
-        
+
         return plan
 
 
 def main():
     """Run software engineering analysis"""
     agent = SoftwareEngineeringAgent()
-    
-    print("\n" + "╔" + "═"*78 + "╗")
-    print("║" + " "*15 + "SOFTWARE ENGINEERING AGENT" + " "*36 + "║")
-    print("║" + " "*12 + "Multi-Agent System Analysis" + " "*38 + "║")
-    print("╚" + "═"*78 + "╝\n")
-    
+
+    print("\n" + "╔" + "═" * 78 + "╗")
+    print("║" + " " * 15 + "SOFTWARE ENGINEERING AGENT" + " " * 36 + "║")
+    print("║" + " " * 12 + "Multi-Agent System Analysis" + " " * 38 + "║")
+    print("╚" + "═" * 78 + "╝\n")
+
     analysis = agent.analyze_multi_agent_system()
-    
-    print("\n" + "="*80)
+
+    print("\n" + "=" * 80)
     print("📊 ANALYSIS COMPLETE")
-    print("="*80 + "\n")
-    
-    summary = analysis['summary']
+    print("=" * 80 + "\n")
+
+    summary = analysis["summary"]
     print(f"Total Issues: {summary['total_issues']}")
-    print(f"Critical: {summary['by_level'].get('critical', 0)} | High: {summary['by_level'].get('high', 0)} | " +
-          f"Medium: {summary['by_level'].get('medium', 0)} | Low: {summary['by_level'].get('low', 0)}\n")
-    
+    print(
+        f"Critical: {summary['by_level'].get('critical', 0)} | High: {summary['by_level'].get('high', 0)} | "
+        + f"Medium: {summary['by_level'].get('medium', 0)} | Low: {summary['by_level'].get('low', 0)}\n"
+    )
+
     plan = agent.generate_improvement_plan(analysis)
     print(plan)
-    
+
     # Save plan to file
-    with open('IMPROVEMENT_PLAN.md', 'w') as f:
+    with open("IMPROVEMENT_PLAN.md", "w") as f:
         f.write(plan)
-    
+
     print("\n✅ Improvement plan saved to: IMPROVEMENT_PLAN.md\n")
 
 

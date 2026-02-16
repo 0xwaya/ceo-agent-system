@@ -11,7 +11,7 @@ failed=0
 for agent in "${agents[@]}"; do
     echo ""
     echo "🧪 Testing $agent..."
-    
+
     response=$(curl -s -X POST "http://localhost:5001/api/agent/execute/$agent" \
         -H "Content-Type: application/json" \
         -d '{
@@ -22,7 +22,7 @@ for agent in "${agents[@]}"; do
                 "location": "SF"
             }
         }')
-    
+
     # Check if response has success=true
     if echo "$response" | grep -q '"success": true'; then
         budget=$(echo "$response" | grep -o '"budget_used": [0-9.]*' | grep -o '[0-9.]*')

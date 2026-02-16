@@ -3,6 +3,17 @@
 # CEO Agent - Executive AI System Launcher
 # Simple script to start the CEO Agent admin dashboard
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+if [ -d ".venv" ]; then
+    ENV_DIR=".venv"
+elif [ -d "venv" ]; then
+    ENV_DIR="venv"
+else
+    ENV_DIR=".venv"
+fi
+
 # Colors for output
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
@@ -22,7 +33,7 @@ echo -e "${BLUE}Checking Python version...${NC}"
 python_version=$(python3 --version 2>&1 | awk '{print $2}')
 required_version="3.10"
 
-if [[ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" = "$required_version" ]]; then 
+if [[ "$(printf '%s\n' "$required_version" "$python_version" | sort -V | head -n1)" = "$required_version" ]]; then
     echo -e "${GREEN}✓ Python $python_version detected${NC}"
 else
     echo -e "${RED}✗ Python 3.10+ required (found $python_version)${NC}"
@@ -30,24 +41,24 @@ else
 fi
 
 # Check if virtual environment exists
-if [ ! -d "venv" ]; then
+if [ ! -d "$ENV_DIR" ]; then
     echo -e "${YELLOW}⚠ No virtual environment found${NC}"
     echo -e "${BLUE}Creating virtual environment...${NC}"
-    python3 -m venv venv
+    python3 -m venv "$ENV_DIR"
     echo -e "${GREEN}✓ Virtual environment created${NC}"
 fi
 
 # Activate virtual environment
 echo -e "${BLUE}Activating virtual environment...${NC}"
-source venv/bin/activate
+source "$ENV_DIR/bin/activate"
 echo -e "${GREEN}✓ Virtual environment activated${NC}"
 
 # Check dependencies
 echo -e "${BLUE}Checking dependencies...${NC}"
-if ! python -c "import flask" 2>/dev/null; then
+if ! python3 -c "import flask" 2>/dev/null; then
     echo -e "${YELLOW}⚠ Dependencies not installed${NC}"
     echo -e "${BLUE}Installing dependencies...${NC}"
-    pip install -r requirements.txt --quiet
+    pip3 install -r requirements.txt --quiet
     echo -e "${GREEN}✓ Dependencies installed${NC}"
 else
     echo -e "${GREEN}✓ Dependencies OK${NC}"
@@ -87,4 +98,4 @@ echo -e "${GREEN}═════════════════════
 echo ""
 
 # Start the application
-python app.py
+python3 app.py

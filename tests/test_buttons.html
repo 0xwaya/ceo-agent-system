@@ -1,12 +1,22 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Button Test</title>
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        .output-panel {
+            background: #f0f0f0;
+            padding: 20px;
+            margin: 20px 0;
+            font-family: monospace;
+        }
+    </style>
 </head>
 <body>
     <h1>Button Test Console</h1>
-    <div id="output" style="background: #f0f0f0; padding: 20px; margin: 20px 0; font-family: monospace;">
+    <div id="output" class="output-panel">
         Waiting for test results...
     </div>
 
@@ -56,7 +66,7 @@
 
         async function testOrchestration() {
             log('🧪 Testing orchestration...');
-            
+
             const companyInfo = {
                 company_name: 'Test Company',
                 dba_name: 'Test DBA',
@@ -79,7 +89,7 @@
 
         async function testExecuteAgent(agentType) {
             log('🧪 Testing execute agent: ' + agentType);
-            
+
             try {
                 const response = await fetch(`http://localhost:5001/api/agent/execute/${agentType}`, {
                     method: 'POST',
@@ -105,7 +115,7 @@
 
         async function testViewDetails(agentType) {
             log('🧪 Testing view details: ' + agentType);
-            
+
             try {
                 const response = await fetch(`http://localhost:5001/api/guard-rails/${agentType}`);
                 const data = await response.json();

@@ -1,0 +1,44 @@
+{
+  "active_stage": "stage2_services",
+  "stages": {
+    "stage1_tooling": {
+      "description": "Core lint tooling and guard scripts",
+      "paths": [
+        "tools/check_python3_commands.py",
+        "tools/check_markdown_rules.py",
+        "tools/staged_flake8.py"
+      ]
+    },
+    "stage2_services": {
+      "description": "Service modules cleanup",
+      "paths": [
+        "services/*.py",
+        "utils/*.py"
+      ]
+    },
+    "stage3_agents": {
+      "description": "Agent modules cleanup",
+      "paths": [
+        "agent.py",
+        "agents/*.py"
+      ]
+    },
+    "stage4_app": {
+      "description": "Application entrypoints and orchestration",
+      "paths": [
+        "app.py",
+        "interactive_chat.py",
+        "ceo_agent.py",
+        "cfo_agent.py"
+      ]
+    },
+    "stage5_tests_tools": {
+      "description": "Tests and remaining tools",
+      "paths": [
+        "tests/*.py",
+        "test_*.py",
+        "tools/*.py"
+      ]
+    }
+  }
+}

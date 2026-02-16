@@ -1,0 +1,40 @@
+repos:
+  - repo: local
+    hooks:
+      - id: enforce-python3-commands
+        name: enforce python3 commands
+        entry: python3 tools/check_python3_commands.py
+        language: system
+        files: \.(md|sh|ya?ml|txt)$
+
+      - id: enforce-markdown-rules
+        name: enforce markdown rules
+        entry: python3 tools/check_markdown_rules.py
+        language: system
+        files: \.md$
+
+      - id: staged-flake8
+        name: staged flake8
+        entry: python3 tools/staged_flake8.py
+        language: system
+        files: \.py$
+
+      - id: staged-secrets-scan
+        name: staged secrets scan
+        entry: python3 tools/check_staged_secrets.py
+        language: system
+        pass_filenames: false
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+      - id: check-merge-conflict
+
+  - repo: https://github.com/psf/black
+    rev: 23.12.1
+    hooks:
+      - id: black
+        args: ["--line-length=100"]

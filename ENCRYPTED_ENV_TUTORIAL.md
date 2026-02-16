@@ -18,7 +18,7 @@ This tutorial demonstrates how to securely store and manage API keys and sensiti
 
 ---
 
-## Why Encryption?
+## Why Encryption
 
 ### The Problem
 - **Exposed Secrets**: API keys in plain text `.env` files
@@ -64,6 +64,30 @@ Files:
 
 ## Quick Start
 
+### Before You Begin (Recommended)
+
+Use your project virtual environment and confirm command access first:
+
+```bash
+cd /Users/pc/code/langraph
+source .venv/bin/activate
+python3 tools/encrypted_env_demo.py show
+```
+
+If this is your first encrypted setup in this repo, continue below.
+
+### Step 0: Safety Check (One-Time)
+
+```bash
+# Confirm sensitive files are ignored
+grep -E "^\.env$|^\.env\.key$|^\*\.key$" .gitignore
+
+# Optional: verify current git view before changes
+git status
+```
+
+Expected: `.env` and `.env.key` are ignored, while `.env.encrypted` is safe to commit.
+
 ### Step 1: Initial Setup
 ```bash
 # Generate encryption key and sample .env file
@@ -84,6 +108,8 @@ python3 tools/encrypted_env_demo.py setup
 # Edit .env with your real API keys
 nano .env
 ```
+
+> Note: You wrote `.evn` in chat, but the correct filename is `.env`.
 
 **Example `.env` content:**
 ```bash
@@ -113,11 +139,51 @@ python3 tools/encrypted_env_demo.py encrypt
 📋 Safe to commit: .env.encrypted
 ```
 
+### Step 3.5: Validate Encryption State
+
+```bash
+python3 tools/encrypted_env_demo.py show
+```
+
+You should see:
+- `.env.key` exists (do not commit)
+- `.env` exists (do not commit)
+- `.env.encrypted` exists (safe to commit)
+
 ### Step 4: Commit to Git
 ```bash
 git add .env.encrypted .gitignore
 git commit -m "Add encrypted environment configuration"
 git push
+```
+
+### Step 5: Runtime Validation (Important)
+
+Confirm the app can load encrypted values on startup:
+
+```bash
+# Optional dry run for decrypt
+python3 tools/encrypted_env_demo.py decrypt
+
+# Start app and verify no env-loading errors
+python3 app.py
+```
+
+If `.env` is missing but `.env.encrypted` and `.env.key` are present, the app bootstrap will attempt decrypt/load automatically.
+
+### Rollback / Recovery
+
+If you encrypt with the wrong key or wrong values:
+
+```bash
+# Re-edit plaintext
+nano .env
+
+# Re-encrypt with current key
+python3 tools/encrypted_env_demo.py encrypt
+
+# Re-check status
+python3 tools/encrypted_env_demo.py show
 ```
 
 ---
@@ -133,7 +199,7 @@ python3 tools/encrypted_env_demo.py show
 ```
 📊 Encrypted Environment Configuration Status
 ============================================================
-Project root: /Users/pc/Desktop/code/langraph
+Project root: /Users/pc/code/langraph
 
 Files:
   .env.key:       ✓ EXISTS (DO NOT COMMIT)
@@ -225,14 +291,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Decrypt environment
         env:
           ENV_KEY: ${{ secrets.ENV_ENCRYPTION_KEY }}
         run: |
           echo "$ENV_KEY" > .env.key
           python3 tools/encrypted_env_demo.py decrypt
-      
+
       - name: Deploy application
         run: |
           # Your deployment commands here
@@ -263,10 +329,10 @@ jobs:
    ```bash
    # Generate new key
    python3 tools/encrypted_env_demo.py setup --overwrite
-   
+
    # Re-encrypt with new key
    python3 tools/encrypted_env_demo.py encrypt
-   
+
    # Update key in secret manager
    ```
 
@@ -436,7 +502,7 @@ Most services offer **free tiers** perfect for development and testing:
 ```bash
 # Minimum viable configuration
 OPENAI_API_KEY=sk-...           # AI generation
-SECRET_KEY=random-string         # App security  
+SECRET_KEY=random-string         # App security
 FLASK_ENV=development           # Environment
 ```
 
@@ -474,7 +540,7 @@ SENTRY_DSN=...                 # Error tracking
 
 The encrypted `.env` supports integration with:
 
-#### **AI/LLM Services**
+### **AI/LLM Services**
 - **OpenAI** (GPT-4, GPT-3.5): `OPENAI_API_KEY`
 - **Anthropic** (Claude): `ANTHROPIC_API_KEY`
 - **Google** (Gemini): `GOOGLE_API_KEY`
@@ -544,7 +610,7 @@ python3 tools/encrypted_env_demo.py encrypt
 ### Developer Workflow
 ```bash
 # Day 1: Setup
-cd /Users/pc/Desktop/code/langraph
+cd /Users/pc/code/langraph
 python3 tools/encrypted_env_demo.py setup
 nano .env  # Add real API keys
 python3 tools/encrypted_env_demo.py encrypt
@@ -559,7 +625,7 @@ python3 tools/encrypted_env_demo.py decrypt
 python3 app.py  # App loads environment variables
 ```
 
-### Production Deployment
+### Production Server Deployment
 ```bash
 # On production server
 git pull

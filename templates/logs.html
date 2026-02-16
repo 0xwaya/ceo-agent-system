@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>System Logs - CEO Agent</title>
+    <link rel="stylesheet" href="/static/css/dark-theme.css" />
+    <style>
+      .log-viewer {
+        background: var(--gray-900);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+      }
+      .log-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid var(--border);
+      }
+      .log-file-name {
+        font-family: var(--font-mono);
+        font-size: var(--text-lg);
+        color: var(--accent-cyan);
+      }
+      .log-file-size {
+        font-size: var(--text-sm);
+        color: var(--text-tertiary);
+      }
+      .log-content {
+        font-family: var(--font-mono);
+        font-size: var(--text-sm);
+        line-height: 1.6;
+        max-height: 500px;
+        overflow-y: auto;
+        background: var(--bg-primary);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+      }
+      .log-line {
+        margin: 0;
+        padding: 0.25rem 0;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      .log-line:hover {
+        background: var(--bg-secondary);
+      }
+      .log-line.error {
+        color: var(--error);
+      }
+      .log-line.warning {
+        color: var(--warning);
+      }
+      .log-line.info {
+        color: var(--accent-cyan);
+      }
+      .log-line.success {
+        color: var(--success);
+      }
+      .filter-controls {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
+      }
+      .filter-btn {
+        padding: 0.5rem 1rem;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: var(--text-sm);
+        transition: all 150ms;
+      }
+      .filter-btn:hover {
+        background: var(--bg-tertiary);
+      }
+      .filter-btn.active {
+        background: var(--accent-blue);
+        border-color: var(--accent-blue);
+        color: white;
+      }
+      .loading {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-tertiary);
+      }
+      .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--bg-tertiary);
+        border-top-color: var(--accent-blue);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--text-tertiary);
+      }
+      .refresh-btn {
+        position: fixed;
+        bottom: 2rem;
+        right: 2rem;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: var(--accent-blue);
+        color: white;
+        border: none;
+        cursor: pointer;
+        box-shadow: var(--shadow-lg);
+        font-size: 1.5rem;
+        transition: all 150ms;
+      }
+      .refresh-btn:hover {
+        transform: scale(1.1);
+        box-shadow: var(--shadow-xl);
+      }
+      .refresh-btn:active {
+        transform: scale(0.95);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="container"
+      style="max-width: 1400px; margin: 0 auto; padding: 2rem"
+    >
+      <!-- Header -->
+      <div style="margin-bottom: 3rem">
+        <h1 style="font-size: 2rem; margin-bottom: 0.5rem">📋 System Logs</h1>
+        <p style="color: var(--text-secondary)">
+          Real-time application logs and debug information
+        </p>
+      </div>
+
+      <!-- Filter Controls -->
+      <div class="filter-controls">
+        <button class="filter-btn active" onclick="filterLogs('all')">
+          All Logs
+        </button>
+        <button class="filter-btn" onclick="filterLogs('error')">Errors</button>
+        <button class="filter-btn" onclick="filterLogs('warning')">
+          Warnings
+        </button>
+        <button class="filter-btn" onclick="filterLogs('info')">Info</button>
+        <button class="filter-btn" onclick="filterLogs('success')">
+          Success
+        </button>
+      </div>
+
+      <!-- Log Viewers Container -->
+      <div id="logsContainer">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p style="margin-top: 1rem">Loading logs...</p>
+        </div>
+      </div>
+
+      <!-- Refresh Button -->
+      <button class="refresh-btn" onclick="loadLogs()" title="Refresh logs">
+        🔄
+      </button>
+
+      <!-- Back Link -->
+      <div style="margin-top: 3rem; text-align: center">
+        <a
+          href="/graph"
+          style="color: var(--accent-blue); text-decoration: none"
+          >← Back to Dashboard</a
+        >
+      </div>
+    </div>
+
+    <script>
+      let currentFilter = "all";
+      let logsData = [];
+
+      // Load logs on page load
+      window.addEventListener("DOMContentLoaded", loadLogs);
+
+      async function loadLogs() {
+        const container = document.getElementById("logsContainer");
+        container.innerHTML =
+          '<div class="loading"><div class="spinner"></div><p style="margin-top: 1rem;">Loading logs...</p></div>';
+
+        try {
+          // Use absolute URL to avoid any domain issues
+          const apiUrl = window.location.origin + "/api/logs";
+          console.log("Fetching logs from:", apiUrl);
+
+          const response = await fetch(apiUrl);
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          console.log("Logs data received:", data);
+
+          if (!data.success) {
+            throw new Error(data.error || "Failed to load logs");
+          }
+
+          logsData = data.logs || [];
+
+          if (logsData.length === 0) {
+            container.innerHTML = `
+                        <div class="empty-state">
+                            <p style="font-size: 3rem; margin-bottom: 1rem;">📁</p>
+                            <h3 style="margin-bottom: 0.5rem;">No logs found</h3>
+                            <p>Log files will appear here when the system generates them</p>
+                        </div>
+                    `;
+            return;
+          }
+
+          displayLogs(logsData);
+        } catch (error) {
+          console.error("Error loading logs:", error);
+          const errorMsg = error.message || "Unknown error occurred";
+          container.innerHTML = `
+                    <div class="empty-state">
+                        <p style="font-size: 3rem; margin-bottom: 1rem;">❌</p>
+                        <h3 style="margin-bottom: 0.5rem; color: var(--error);">Error Loading Logs</h3>
+                        <p style='margin-bottom: 0.5rem;'>${errorMsg}</p>
+                        <p style='font-size: var(--text-sm); color: var(--text-tertiary);'>API URL: ${window.location.origin}/api/logs</p>
+                        <button class="btn btn-primary" style="margin-top: 1rem;" onclick="loadLogs()">Try Again</button>
+                    </div>
+                `;
+        }
+      }
+
+      function displayLogs(logs) {
+        const container = document.getElementById("logsContainer");
+        container.innerHTML = "";
+
+        logs.forEach((logFile) => {
+          const logViewer = document.createElement("div");
+          logViewer.className = "log-viewer";
+
+          const header = document.createElement("div");
+          header.className = "log-header";
+          header.innerHTML = `
+                    <div>
+                        <div class="log-file-name">${logFile.filename}</div>
+                        <div class="log-file-size">${formatFileSize(logFile.size)} · ${logFile.lines.length} lines</div>
+                    </div>
+                    <button class="btn btn-sm btn-secondary" onclick="downloadLog('${logFile.filename}')">
+                        Download
+                    </button>
+                `;
+
+          const content = document.createElement("div");
+          content.className = "log-content";
+
+          if (logFile.lines.length === 0) {
+            content.innerHTML =
+              '<p style="color: var(--text-tertiary); text-align: center;">No log entries</p>';
+          } else {
+            logFile.lines.forEach((line, index) => {
+              const lineDiv = document.createElement("div");
+              lineDiv.className = `log-line ${getLogLevel(line)}`;
+              lineDiv.textContent = line;
+              lineDiv.dataset.level = getLogLevel(line);
+              content.appendChild(lineDiv);
+            });
+          }
+
+          logViewer.appendChild(header);
+          logViewer.appendChild(content);
+          container.appendChild(logViewer);
+        });
+
+        // Apply current filter
+        applyFilter(currentFilter);
+      }
+
+      function getLogLevel(line) {
+        if (!line) return "";
+        const lowerLine = line.toLowerCase();
+        if (lowerLine.includes("error") || lowerLine.includes("❌"))
+          return "error";
+        if (lowerLine.includes("warning") || lowerLine.includes("⚠️"))
+          return "warning";
+        if (lowerLine.includes("success") || lowerLine.includes("✅"))
+          return "success";
+        if (lowerLine.includes("info") || lowerLine.includes("ℹ️"))
+          return "info";
+        return "";
+      }
+
+      function filterLogs(level) {
+        currentFilter = level;
+
+        // Update button states
+        document.querySelectorAll(".filter-btn").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+        event.target.classList.add("active");
+
+        // Apply filter
+        applyFilter(level);
+      }
+
+      function applyFilter(level) {
+        document.querySelectorAll(".log-line").forEach((line) => {
+          if (level === "all") {
+            line.style.display = "";
+          } else {
+            line.style.display = line.dataset.level === level ? "" : "none";
+          }
+        });
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return (
+          Math.round((bytes / Math.pow(k, i)) * 100) / 100 + " " + sizes[i]
+        );
+      }
+
+      function downloadLog(filename) {
+        const logFile = logsData.find((log) => log.filename === filename);
+        if (!logFile) return;
+
+        const content = logFile.lines.join("\n");
+        const blob = new Blob([content], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // Auto-refresh every 30 seconds
+      setInterval(loadLogs, 30000);
+    </script>
+  </body>
+</html>

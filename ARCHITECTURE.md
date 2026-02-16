@@ -263,17 +263,17 @@ from models import AgentType, Task
 class BrandingAgent(BaseAgent):
     def __init__(self, **kwargs):
         super().__init__(agent_type=AgentType.BRANDING, **kwargs)
-    
+
     def get_capabilities(self) -> List[str]:
         return ["Logo design", "Brand guidelines"]
-    
+
     def get_domain(self) -> str:
         return "branding"
-    
+
     def execute_task(self, task: Task, context: Dict) -> Dict:
         # Implementation
         return {'deliverables': [...], 'cost': 150.0}
-    
+
     def validate_context(self, context: Dict) -> bool:
         return 'company_info' in context
 ```
@@ -354,7 +354,6 @@ class BaseAgent:
 - Flexible configuration
 - Clear dependencies
 
-
 ### 2. Factory Pattern
 
 **Purpose**: Create agents dynamically
@@ -365,10 +364,10 @@ class BaseAgent:
 class AgentService:
     def __init__(self):
         self.agent_registry = {}
-    
+
     def register_agent(self, agent_type, agent_class):
         self.agent_registry[agent_type] = agent_class
-    
+
     def get_agent(self, agent_type, budget_allocation=None):
         agent_class = self.agent_registry[agent_type]
         return agent_class(
@@ -389,13 +388,13 @@ class BaseAgent:
         # Template method
         self._prepare_context(company_info, context)
         self.validate_context(exec_context)
-        
+
         if tasks:
             for task in tasks:
                 self._execute_single_task(task, exec_context)
         else:
             self._execute_default(exec_context)  # Hook method
-        
+
         return self._create_result()
 ```
 
@@ -654,7 +653,7 @@ Execute specific agent.
 1. **Run application**:
 
    ```bash
-   python app.py
+    python3 app.py
    ```
 
 ### Production Checklist

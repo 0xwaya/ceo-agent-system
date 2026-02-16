@@ -11,34 +11,30 @@ from agents.specialized_agents import (
     LegalComplianceAgent,
     MartechAgent,
     ContentAgent,
-    CampaignAgent
+    CampaignAgent,
 )
-from agents.cfo_agent import (
-    CFOAgentState,
-    analyze_strategic_objectives,
-    deploy_specialized_agents
-)
+from agents.cfo_agent import CFOAgentState, analyze_strategic_objectives, deploy_specialized_agents
 from agents.agent_guard_rails import (
     AgentGuardRail,
     AgentDomain,
     validate_agent_output,
-    create_execution_summary
+    create_execution_summary,
 )
 
 __all__ = [
-    'BaseAgent',
-    'AgentFactory',
-    'BrandingAgent',
-    'WebDevelopmentAgent',
-    'LegalComplianceAgent',
-    'MartechAgent',
-    'ContentAgent',
-    'CampaignAgent',
-    'CFOAgentState',
-    'analyze_strategic_objectives',
-    'deploy_specialized_agents',
-    'AgentGuardRail',
-    'AgentDomain',
-    'validate_agent_output',
-    'create_execution_summary'
+    "BaseAgent",
+    "AgentFactory",
+    "BrandingAgent",
+    "WebDevelopmentAgent",
+    "LegalComplianceAgent",
+    "MartechAgent",
+    "ContentAgent",
+    "CampaignAgent",
+    "CFOAgentState",
+    "analyze_strategic_objectives",
+    "deploy_specialized_agents",
+    "AgentGuardRail",
+    "AgentDomain",
+    "validate_agent_output",
+    "create_execution_summary",
 ]

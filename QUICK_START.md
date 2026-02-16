@@ -186,7 +186,7 @@ python3 app.py
 ### "Module not found" errors
 ```bash
 # Make sure you're in the project root
-cd /Users/pc/Desktop/code/langraph
+cd /Users/pc/code/langraph
 
 # Verify Python path
 python3 -c "import sys; print(sys.path)"
@@ -267,13 +267,13 @@ gunicorn -w 4 -b 0.0.0.0:5001 app:app
 
 ---
 
-## 🆘 Need Help?
+## 🆘 Need Help
 
 1. **Read the docs:**
    - [README.md](README.md) - Project overview
    - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
    - [ENCRYPTED_ENV_TUTORIAL.md](ENCRYPTED_ENV_TUTORIAL.md) - API setup guide
-   - [REORGANIZATION_SUMMARY.md](REORGANIZATION_SUMMARY.md) - Recent changes
+   - [REORGANIZATION_SUMMARY.md](docs/REORGANIZATION_SUMMARY.md) - Recent changes
 
 2. **Check the code:**
    - Agent implementations: `agents/`

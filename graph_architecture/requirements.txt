@@ -1,0 +1,25 @@
+# Requirements for Hierarchical Graph-Based Multi-Agent System
+
+# Core LangGraph dependencies
+langgraph>=0.0.40
+langgraph-checkpoint-sqlite>=1.0.0
+
+# Optional: PostgreSQL checkpointing (production)
+# langgraph-checkpoint-postgres>=1.0.0
+# psycopg2-binary>=2.9.0
+
+# Data validation and schemas
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Type hints
+typing-extensions>=4.5.0
+
+# Existing project dependencies (already in requirements.txt)
+# These remain the same
+# langchain>=0.1.0
+# langchain-openai>=0.0.5
+# python-dotenv>=1.0.0
+# Flask>=3.0.0
+# Flask-SocketIO>=5.3.5
+# etc.

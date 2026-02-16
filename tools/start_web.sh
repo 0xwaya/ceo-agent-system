@@ -33,7 +33,7 @@ if [ ${#MISSING_PACKAGES[@]} -ne 0 ]; then
     echo ""
     echo "Installing missing packages..."
     pip3 install Flask flask-socketio eventlet python-socketio
-    
+
     if [ $? -ne 0 ]; then
         echo "❌ Failed to install packages"
         exit 1
@@ -49,7 +49,7 @@ if lsof -Pi :5000 -sTCP:LISTEN -t >/dev/null 2>&1; then
     echo ""
     read -p "   Kill existing process and restart? (y/n): " -n 1 -r
     echo ""
-    
+
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo "   Stopping existing process..."
         lsof -ti:5000 | xargs kill -9 2>/dev/null

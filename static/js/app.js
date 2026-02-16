@@ -3,13 +3,49 @@
 // Initialize Socket.IO connection
 let socket;
 
+const SCENARIO_STORAGE_KEY = 'ceo_agent_scenario';
+const LEGACY_DASHBOARD_CONFIG = window.LEGACY_DASHBOARD_CONFIG || {};
+const SCENARIO_STORAGE_SCHEMA_VERSION = LEGACY_DASHBOARD_CONFIG.defaults?.scenario_schema_version || 1;
+const SCENARIO_DEFAULTS_VERSION = LEGACY_DASHBOARD_CONFIG.defaults?.scenario_defaults_version || (LEGACY_DASHBOARD_CONFIG.isProduction ? 'production' : 'development');
+const INDUSTRY_OPTIONS = new Set([
+    'Technology',
+    'Healthcare',
+    'Financial Services',
+    'Manufacturing',
+    'Retail',
+    'Construction',
+    'Real Estate',
+    'Education',
+    'Transportation & Logistics',
+    'Hospitality & Tourism'
+]);
+
+const DEFAULT_DEV_OBJECTIVES = [
+    'Launch AR platform showroom',
+    'Relaunch the company brand as SurfaceCraft Studio',
+    'Create a brand kit to be use across platforms',
+    'Create and maintain social media accounts and content creation',
+    'Possition the company in the highend exclusive market',
+    'Create all necessary agent to execute and manage customer caption and retention',
+    'Create sales agent to target residential and commercial contracts',
+    'Register as a minority business with the city of Cincinnati',
+    'Automate most processes that deals with outside sales'
+];
+
+const LEGACY_OBJECTIVE_MARKERS = new Set([
+    'Launch SaaS platform',
+    'Build enterprise sales team',
+    'Establish market presence',
+    'Scale to $1M ARR'
+]);
+
 // State management
 const state = {
     agents: [],
     tasks: [],
     budget: {
-        total: 5000,
-        remaining: 5000,
+        total: 1000,
+        remaining: 1000,
         allocated: {}
     },
     executionStatus: 'idle'
@@ -37,8 +73,312 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize chat interface
     initializeChat();
 
+    // Persist and hydrate scenario data for cross-page consistency (/ -> /admin)
+    initializeScenarioSync();
+
     console.log('✅ Dashboard initialized');
 });
+
+function buildDefaultObjectives(companyInfo) {
+    void companyInfo;
+    return [...DEFAULT_DEV_OBJECTIVES];
+}
+
+function getDefaultScenario() {
+    const configDefaults = LEGACY_DASHBOARD_CONFIG.defaults || {};
+
+    if (LEGACY_DASHBOARD_CONFIG.isProduction) {
+        return {
+            company_name: '',
+            dba_name: '',
+            industry: '',
+            location: '',
+            budget: 0,
+            timeline: 0,
+            objectives: []
+        };
+    }
+
+    return {
+        company_name: configDefaults.company_name || 'Amazon Granite LLC',
+        dba_name: configDefaults.dba_name || 'SurfaceCraft Studio',
+        industry: configDefaults.industry || 'Construction, Custom Countertops',
+        location: configDefaults.location || 'Cincinnati, OH',
+        budget: Number.parseFloat(configDefaults.budget) || 1000,
+        timeline: Number.parseInt(configDefaults.timeline, 10) || 30,
+        objectives: Array.isArray(configDefaults.objectives) && configDefaults.objectives.length > 0
+            ? configDefaults.objectives
+            : [...DEFAULT_DEV_OBJECTIVES]
+    };
+}
+
+function isLegacyScenarioShape(scenario) {
+    if (!scenario || typeof scenario !== 'object') return false;
+
+    let score = 0;
+    if (['Software & Technology', 'AI Technology', 'General Business', 'Granite & Countertops'].includes((scenario.industry || '').trim())) {
+        score += 1;
+    }
+    if (['San Francisco, CA', 'United States', 'Cincinnati, Ohio'].includes((scenario.location || '').trim())) {
+        score += 1;
+    }
+
+    const budget = Number.parseFloat(scenario.budget);
+    if (Number.isFinite(budget) && [5000, 100000].includes(budget)) {
+        score += 1;
+    }
+
+    const timeline = Number.parseInt(scenario.timeline, 10);
+    if (Number.isFinite(timeline) && timeline === 90) {
+        score += 1;
+    }
+
+    const objectives = Array.isArray(scenario.objectives) ? scenario.objectives : [];
+    if (objectives.some((item) => LEGACY_OBJECTIVE_MARKERS.has(item))) {
+        score += 1;
+    }
+
+    return score >= 2;
+}
+
+function buildScenarioEnvelope(scenario, options = {}) {
+    return {
+        meta: {
+            schema_version: SCENARIO_STORAGE_SCHEMA_VERSION,
+            defaults_version: SCENARIO_DEFAULTS_VERSION,
+            environment: LEGACY_DASHBOARD_CONFIG.isProduction ? 'production' : 'development',
+            source: options.source || 'legacy_dashboard',
+            user_modified: Boolean(options.userModified),
+            saved_at: new Date().toISOString()
+        },
+        scenario
+    };
+}
+
+function parseScenarioEnvelope(rawValue) {
+    if (!rawValue) return null;
+
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== 'object') return null;
+
+        if (parsed.scenario && typeof parsed.scenario === 'object') {
+            const meta = parsed.meta || {};
+            const schemaMatch = meta.schema_version === SCENARIO_STORAGE_SCHEMA_VERSION;
+            const defaultsMatch = meta.defaults_version === SCENARIO_DEFAULTS_VERSION;
+
+            if (schemaMatch && defaultsMatch) {
+                return parsed.scenario;
+            }
+
+            if (!LEGACY_DASHBOARD_CONFIG.isProduction && !meta.user_modified && isLegacyScenarioShape(parsed.scenario)) {
+                return getDefaultScenario();
+            }
+
+            return parsed.scenario;
+        }
+
+        if (parsed.company_name || parsed.industry || parsed.location) {
+            if (!LEGACY_DASHBOARD_CONFIG.isProduction && isLegacyScenarioShape(parsed)) {
+                return getDefaultScenario();
+            }
+            return parsed;
+        }
+    } catch (error) {
+        console.warn('Failed to parse scenario envelope:', error);
+    }
+
+    return null;
+}
+
+function setIndustryValue(industryValue) {
+    const industrySelect = document.getElementById('industry');
+    const industryOtherInput = document.getElementById('industryOther');
+    const industryOtherGroup = document.getElementById('industryOtherGroup');
+    const normalized = (industryValue || '').trim();
+
+    if (!industrySelect || !industryOtherInput || !industryOtherGroup) {
+        return;
+    }
+
+    if (!normalized) {
+        industrySelect.value = '';
+        industryOtherInput.value = '';
+        industryOtherGroup.style.display = 'none';
+        return;
+    }
+
+    if (INDUSTRY_OPTIONS.has(normalized)) {
+        industrySelect.value = normalized;
+        industryOtherInput.value = '';
+        industryOtherGroup.style.display = 'none';
+    } else {
+        industrySelect.value = 'Other';
+        industryOtherInput.value = normalized;
+        industryOtherGroup.style.display = 'block';
+    }
+}
+
+function getIndustryValueFromForm() {
+    const industrySelect = document.getElementById('industry');
+    const industryOtherInput = document.getElementById('industryOther');
+
+    if (!industrySelect) {
+        return '';
+    }
+
+    if (industrySelect.value === 'Other') {
+        return industryOtherInput?.value?.trim() || '';
+    }
+
+    return industrySelect.value || '';
+}
+
+function bindIndustrySelectorBehavior() {
+    const industrySelect = document.getElementById('industry');
+    const industryOtherInput = document.getElementById('industryOther');
+    const industryOtherGroup = document.getElementById('industryOtherGroup');
+
+    if (!industrySelect || !industryOtherInput || !industryOtherGroup) {
+        return;
+    }
+
+    industrySelect.addEventListener('change', () => {
+        const showOther = industrySelect.value === 'Other';
+        industryOtherGroup.style.display = showOther ? 'block' : 'none';
+        if (!showOther) {
+            industryOtherInput.value = '';
+        }
+    });
+}
+
+function getScenarioFromForm() {
+    const defaults = getDefaultScenario();
+    const companyNameInput = document.getElementById('companyName');
+    const dbaNameInput = document.getElementById('dbaName');
+    const locationInput = document.getElementById('location');
+    const budgetInput = document.getElementById('budget');
+    const timelineInput = document.getElementById('timeline');
+
+    const parsedBudget = Number.parseFloat(budgetInput?.value || '');
+    const parsedTimeline = Number.parseInt(timelineInput?.value || '', 10);
+
+    const companyInfo = {
+        company_name: companyNameInput?.value || defaults.company_name,
+        dba_name: dbaNameInput?.value || companyNameInput?.value || defaults.dba_name,
+        industry: getIndustryValueFromForm() || defaults.industry,
+        location: locationInput?.value || defaults.location,
+        budget: Number.isFinite(parsedBudget) ? parsedBudget : defaults.budget,
+        timeline: Number.isFinite(parsedTimeline) ? parsedTimeline : defaults.timeline
+    };
+
+    return {
+        ...companyInfo,
+        objectives: Array.isArray(defaults.objectives) ? defaults.objectives : buildDefaultObjectives(companyInfo),
+        updated_at: new Date().toISOString()
+    };
+}
+
+function applyScenarioToForm(scenario) {
+    if (!scenario || typeof scenario !== 'object') {
+        return;
+    }
+
+    const fieldMap = {
+        companyName: scenario.company_name,
+        dbaName: scenario.dba_name,
+        location: scenario.location,
+        budget: scenario.budget,
+        timeline: scenario.timeline
+    };
+
+    Object.entries(fieldMap).forEach(([elementId, value]) => {
+        const input = document.getElementById(elementId);
+        if (input && value !== undefined && value !== null) {
+            input.value = value;
+        }
+    });
+
+    setIndustryValue(scenario.industry);
+}
+
+async function syncScenarioToBackend(scenario) {
+    try {
+        await fetch('/api/scenario/current', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(scenario)
+        });
+    } catch (error) {
+        console.warn('Scenario sync to backend failed:', error);
+    }
+}
+
+function persistScenarioToStorage(options = {}) {
+    const scenario = getScenarioFromForm();
+    const envelope = buildScenarioEnvelope(scenario, {
+        source: options.source || 'legacy_form',
+        userModified: Boolean(options.userModified)
+    });
+    localStorage.setItem(SCENARIO_STORAGE_KEY, JSON.stringify(envelope));
+
+    if (options.syncBackend !== false) {
+        syncScenarioToBackend(scenario);
+    }
+
+    return scenario;
+}
+
+function hydrateScenarioFromStorage() {
+    if (LEGACY_DASHBOARD_CONFIG.isProduction) {
+        const defaults = getDefaultScenario();
+        applyScenarioToForm(defaults);
+        localStorage.removeItem(SCENARIO_STORAGE_KEY);
+        return;
+    }
+
+    const raw = localStorage.getItem(SCENARIO_STORAGE_KEY);
+    if (!raw) {
+        persistScenarioToStorage({ syncBackend: false, userModified: false, source: 'init_defaults' });
+        return;
+    }
+
+    const scenario = parseScenarioEnvelope(raw);
+    if (!scenario || typeof scenario !== 'object') {
+        persistScenarioToStorage({ syncBackend: false, userModified: false, source: 'init_reset' });
+        return;
+    }
+
+    applyScenarioToForm(scenario);
+    localStorage.setItem(
+        SCENARIO_STORAGE_KEY,
+        JSON.stringify(buildScenarioEnvelope(scenario, { source: 'init_migrated', userModified: false }))
+    );
+}
+
+function initializeScenarioSync() {
+    bindIndustrySelectorBehavior();
+    hydrateScenarioFromStorage();
+
+    const handleUserChange = () => {
+        persistScenarioToStorage({ syncBackend: true, userModified: true, source: 'user_change' });
+    };
+
+    ['companyName', 'dbaName', 'industry', 'industryOther', 'location', 'budget', 'timeline'].forEach((elementId) => {
+        const input = document.getElementById(elementId);
+        if (!input) {
+            return;
+        }
+
+        input.addEventListener('input', handleUserChange);
+        input.addEventListener('change', handleUserChange);
+    });
+
+    if (LEGACY_DASHBOARD_CONFIG.isProduction) {
+        syncScenarioToBackend(getScenarioFromForm());
+        return;
+    }
+}
 
 // Setup button event listeners
 function setupButtonListeners() {
@@ -74,13 +414,26 @@ function setupSocketListeners() {
     socket.on('connect', () => {
         console.log('✅ Socket.IO connected');
         addLogEntry('Connected to server', 'success');
-        addChatMessage('🌐 Connected to CFO Catalyst server. Real-time updates enabled.', 'system');
+        addChatMessage('🌐 Connected to CEO Executive Agent server. Real-time updates enabled.', 'system');
     });
 
     socket.on('disconnect', () => {
         console.log('⚠️ Socket.IO disconnected');
         addLogEntry('Disconnected from server', 'warning');
         addChatMessage('⚠️ Disconnected from server. Attempting to reconnect...', 'system');
+    });
+
+    socket.on('scenario_updated', (data) => {
+        if (!data || !data.scenario) {
+            return;
+        }
+
+        localStorage.setItem(
+            SCENARIO_STORAGE_KEY,
+            JSON.stringify(buildScenarioEnvelope(data.scenario, { source: 'socket_sync', userModified: false }))
+        );
+        applyScenarioToForm(data.scenario);
+        addLogEntry('Scenario context synchronized', 'success');
     });
 
     socket.on('phase', (data) => {
@@ -118,12 +471,39 @@ function setupSocketListeners() {
     });
 
     socket.on('orchestration_complete', (data) => {
+        console.log('🎉 Orchestration complete event received:', data);
+
         updateStatus('Orchestration complete! All agents executed successfully.', 'success');
         addLogEntry(`Total budget used: $${data.budget_used}`, 'success');
         updateProgress(100);
 
+        // Display comprehensive orchestration report
+        const companyInfo = {
+            company_name: data.company_name || 'Company',
+            industry: data.industry || 'N/A',
+            location: data.location || 'N/A'
+        };
+
+        const analysisData = {
+            tasks: data.tasks || [],
+            budget_allocation: data.budget_allocation || {},
+            risks: data.risks || [],
+            opportunities: data.opportunities || [],
+            timeline: data.timeline || 90,
+            deliverables: data.deliverables || [],
+            agent_outputs: data.agent_outputs || [],
+            completed_tasks: data.completed_tasks || 0,
+            total_tasks: data.total_tasks || 0,
+            budget_used: data.budget_used || 0,
+            budget_remaining: data.budget_remaining || 0,
+            total_budget: data.total_budget || 0
+        };
+
+        console.log('📊 Displaying orchestration report with:', analysisData);
+        displayOrchestrationReport(companyInfo, analysisData);
+
         // Chat notification - orchestration complete
-        addChatMessage(`🎉 Full orchestration complete! Total budget used: $${data.budget_used}. All deliverables generated successfully.`, 'assistant');
+        addChatMessage(`🎉 Full orchestration complete! Executed ${data.total_tasks || 0} tasks. Total budget used: $${data.budget_used}. Check the Execution Report below for details.`, 'assistant');
 
         setTimeout(() => {
             hideProgressBar();
@@ -198,11 +578,11 @@ function displayAgents(agents) {
                 ${capabilitiesList}
             </ul>
             <div class="agent-actions">
-                <button class="btn btn-small" style="background: rgba(255,255,255,0.9); color: #1A365D;" 
+                <button class="btn btn-small" style="background: rgba(255,255,255,0.9); color: #1A365D;"
                         onclick="viewAgentDetails('${agent.type}')">
                     View Details
                 </button>
-                <button class="btn btn-small" style="background: rgba(255,255,255,0.2); color: white;" 
+                <button class="btn btn-small" style="background: rgba(255,255,255,0.2); color: white;"
                         onclick="executeAgent('${agent.type}')">
                     Execute
                 </button>
@@ -243,14 +623,7 @@ async function analyzeObjectives() {
         updateStatus('Analyzing strategic objectives...', 'running');
         addLogEntry('CFO Agent: Starting strategic analysis', 'warning');
 
-        const companyInfo = {
-            company_name: document.getElementById('companyName').value,
-            dba_name: document.getElementById('dbaName').value,
-            industry: document.getElementById('industry').value,
-            location: document.getElementById('location').value,
-            budget: parseFloat(document.getElementById('budget').value),
-            timeline: parseInt(document.getElementById('timeline').value)
-        };
+        const companyInfo = persistScenarioToStorage();
 
         console.log('Company Info:', companyInfo);
 
@@ -295,21 +668,19 @@ async function analyzeObjectives() {
 function runFullOrchestration() {
     console.log('🚀 Launch Full Orchestration button clicked');
     try {
+        const scenario = persistScenarioToStorage();
         const companyInfo = {
-            company_name: document.getElementById('companyName').value,
-            dba_name: document.getElementById('dbaName').value,
-            industry: document.getElementById('industry').value,
-            location: document.getElementById('location').value
+            company_name: scenario.company_name,
+            dba_name: scenario.dba_name,
+            industry: scenario.industry,
+            location: scenario.location,
+            budget: scenario.budget,
+            timeline: scenario.timeline
         };
 
-        const objectives = [
-            `File DBA registration for ${companyInfo.dba_name}`,
-            'Engage branding agency for logo/visual identity',
-            'Develop website with AR integration',
-            'Set up marketing technology stack',
-            'Create foundational content',
-            'Launch Phase 1 campaigns within 90 days'
-        ];
+        const objectives = Array.isArray(scenario.objectives) && scenario.objectives.length > 0
+            ? scenario.objectives
+            : buildDefaultObjectives(companyInfo);
 
         console.log('Emitting execute_full_orchestration with:', { company_info: companyInfo, objectives });
 
@@ -337,12 +708,15 @@ async function executeAgent(agentType) {
     highlightAgent(agentType, 'executing');
 
     try {
+        const scenario = persistScenarioToStorage();
         const companyInfo = {
-            company_name: document.getElementById('companyName').value,
-            name: document.getElementById('companyName').value,
-            dba_name: document.getElementById('dbaName').value,
-            industry: document.getElementById('industry').value,
-            location: document.getElementById('location').value
+            company_name: scenario.company_name,
+            name: scenario.company_name,
+            dba_name: scenario.dba_name,
+            industry: scenario.industry,
+            location: scenario.location,
+            budget: scenario.budget,
+            timeline: scenario.timeline
         };
 
         // Chat notification - agent starting
@@ -457,20 +831,20 @@ function showAgentModal(agentType, guardRail) {
 
     content.innerHTML = `
         <h2>${getAgentIcon(agentType)} ${agentType.toUpperCase().replace('_', ' ')} Agent</h2>
-        
+
         <h3>💰 Budget Constraint</h3>
         <p style="font-size: 24px; font-weight: bold; color: #10B981;">$${guardRail.max_budget}</p>
-        
+
         <h3>✅ What This Agent DOES (Execution Mode)</h3>
         <ul style="list-style: none; padding-left: 0;">
             ${permittedTasks}
         </ul>
-        
+
         <h3>💳 Allowed Spending Categories</h3>
         <ul style="list-style: none; padding-left: 0;">
             ${allowedCategories}
         </ul>
-        
+
         <h3>🛡️ Guard Rails Active</h3>
         <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; color: #065F46;">
             <strong>✅ Execution Mode:</strong> AI performs work (does not recommend vendors)<br>
@@ -577,7 +951,7 @@ function showAgentResults(agentType, resultData, companyInfo) {
                 ✓ Complete
             </span>
         </div>
-        
+
         <div class="results-grid">
             <div class="result-card">
                 <div class="result-value">$${resultData.budget_used || 0}</div>
@@ -592,23 +966,23 @@ function showAgentResults(agentType, resultData, companyInfo) {
                 <div class="result-label">Status</div>
             </div>
         </div>
-        
+
         <div class="results-section">
             <h3>📦 Deliverables</h3>
             ${deliverablesHTML}
         </div>
-        
+
         ${techStackHTML}
         ${timelineHTML}
         ${budgetBreakdownHTML}
-        
+
         ${resultData.recommendations ? `
             <div class="results-section">
                 <h3>💡 Recommendations</h3>
                 <p>${resultData.recommendations}</p>
             </div>
         ` : ''}
-        
+
         <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #34495e; opacity: 0.6; font-size: 0.9rem;">
             <p>Execution Time: ${resultData.timestamp || new Date().toLocaleString()}</p>
         </div>
@@ -730,15 +1104,15 @@ function displayAgentReport(agentType, resultData, companyInfo) {
                 <h3>${agentName} Agent Report</h3>
                 <span class="report-badge">✓ Completed</span>
             </div>
-            
+
             <div class="report-section" style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.08); border-radius: 10px; border-left: 4px solid #3b82f6;">
                 <p style="color: #cbd5e1; margin: 0; font-size: 15px;">
-                    <strong style="color: #60a5fa;">Company:</strong> ${companyName} | 
-                    <strong style="color: #60a5fa;">Industry:</strong> ${industry} | 
+                    <strong style="color: #60a5fa;">Company:</strong> ${companyName} |
+                    <strong style="color: #60a5fa;">Industry:</strong> ${industry} |
                     <strong style="color: #60a5fa;">Location:</strong> ${location}
                 </p>
             </div>
-        
+
         <div class="report-metrics">
             <div class="report-metric">
                 <div class="report-metric-label">Budget Used</div>
@@ -753,23 +1127,23 @@ function displayAgentReport(agentType, resultData, companyInfo) {
                 <div class="report-metric-value" style="font-size: 20px; color: #10b981;">${resultData.status || 'Completed'}</div>
             </div>
         </div>
-        
+
         <div class="report-section">
             <h4>📦 Deliverables</h4>
             ${deliverablesHTML}
         </div>
-        
+
         ${techStackHTML}
         ${timelineHTML}
         ${budgetBreakdownHTML}
-        
+
         ${resultData.recommendations ? `
             <div class="report-section">
                 <h4>💡 Recommendations</h4>
                 <p style="color: #f1f5f9; line-height: 1.8;">${resultData.recommendations}</p>
             </div>
         ` : ''}
-        
+
         <div style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(59, 130, 246, 0.2); opacity: 0.7; font-size: 0.9rem; color: #94a3b8;">
             <p style="margin: 0;">⏱️ Execution Time: ${resultData.timestamp || new Date().toLocaleString()}</p>
         </div>
@@ -894,15 +1268,15 @@ function displayAnalysisReport(companyInfo, analysisData) {
                 <h3>Strategic Analysis Report</h3>
                 <span class="report-badge">✓ Complete</span>
             </div>
-            
+
             <div class="report-section" style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.08); border-radius: 10px; border-left: 4px solid #3b82f6;">
                 <p style="color: #334155; margin: 0; font-size: 15px;">
-                    <strong style="color: #667eea;">Company:</strong> ${companyInfo.company_name} | 
-                    <strong style="color: #667eea;">Industry:</strong> ${companyInfo.industry} | 
+                    <strong style="color: #667eea;">Company:</strong> ${companyInfo.company_name} |
+                    <strong style="color: #667eea;">Industry:</strong> ${companyInfo.industry} |
                     <strong style="color: #667eea;">Location:</strong> ${companyInfo.location}
                 </p>
             </div>
-        
+
             <div class="report-metrics">
                 <div class="report-metric">
                     <div class="report-metric-label">Total Tasks</div>
@@ -921,20 +1295,20 @@ function displayAnalysisReport(companyInfo, analysisData) {
                     <div class="report-metric-value" style="font-size: 20px; color: #10b981;">${timeline} days</div>
                 </div>
             </div>
-            
+
             ${budgetHTML}
             ${tasksSummaryHTML}
             ${risksHTML}
-            
+
             <div class="report-section">
                 <h4>👉 Next Steps</h4>
                 <p style="color: #334155; line-height: 1.8; font-size: 15px;">
-                    Review the <strong>Task Decomposition</strong> section below for detailed breakdown. 
-                    You can now execute individual agents from the <strong>Available AI Agents</strong> section 
+                    Review the <strong>Task Decomposition</strong> section below for detailed breakdown.
+                    You can now execute individual agents from the <strong>Available AI Agents</strong> section
                     or click <strong>Launch Full Orchestration</strong> to execute all tasks in optimal order.
                 </p>
             </div>
-            
+
             <div style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(148, 163, 184, 0.2); opacity: 0.7; font-size: 0.9rem; color: #64748b;">
                 <p style="margin: 0;">⏱️ Analysis Time: ${new Date().toLocaleString()}</p>
             </div>
@@ -965,6 +1339,222 @@ function displayAnalysisReport(companyInfo, analysisData) {
     }, 200);
 
     console.log('🎉 [displayAnalysisReport] COMPLETE!');
+}
+
+// Display orchestration report - shows comprehensive results after full orchestration
+function displayOrchestrationReport(companyInfo, reportData) {
+    console.log('🎉 [displayOrchestrationReport] Starting orchestration report display');
+    console.log('📊 Report data:', reportData);
+
+    const reportDisplay = document.getElementById('reportDisplay');
+    if (!reportDisplay) {
+        console.error('❌ [displayOrchestrationReport] Report display element not found!');
+        return;
+    }
+
+    // Add flash effect
+    reportDisplay.style.transition = 'all 0.3s ease';
+    reportDisplay.style.transform = 'scale(0.98)';
+    reportDisplay.style.opacity = '0.7';
+
+    setTimeout(() => {
+        reportDisplay.style.transform = 'scale(1)';
+        reportDisplay.style.opacity = '1';
+    }, 50);
+
+    const tasks = reportData.tasks || [];
+    const budgetAllocation = reportData.budget_allocation || {};
+    const totalAllocated = Object.values(budgetAllocation).reduce((sum, val) => sum + val, 0);
+    const risks = reportData.risks || [];
+    const opportunities = reportData.opportunities || [];
+    const deliverables = reportData.deliverables || [];
+    const agentOutputs = reportData.agent_outputs || [];
+    const completedTasks = reportData.completed_tasks || 0;
+    const totalTasks = reportData.total_tasks || tasks.length;
+    const timeline = reportData.timeline || 90;
+    const budgetUsed = reportData.budget_used || totalAllocated;
+    const totalBudget = reportData.total_budget || (budgetUsed + (reportData.budget_remaining || 0));
+    const budgetRemaining = reportData.budget_remaining || Math.max(0, totalBudget - budgetUsed);
+
+    // Build agent outputs section
+    const agentOutputsHTML = agentOutputs.length > 0
+        ? `<div class="report-section">
+            <h4>🤖 Agent Execution Results</h4>
+            ${agentOutputs.map(output => `
+                <div class="report-timeline-item" style="margin-bottom: 12px;">
+                    <strong style="color: #667eea;">${output.agent_name || output.agent || 'Agent'}:</strong>
+                    <p style="margin: 8px 0 0 0; color: #cbd5e1; line-height: 1.6;">
+                        ${typeof output.summary === 'string'
+                ? output.summary
+                : (output.summary?.key_findings?.join(' • ') || output.result?.status || 'Executed successfully')}
+                    </p>
+                </div>
+            `).join('')}
+        </div>`
+        : '';
+
+    // Build deliverables section
+    const deliverablesHTML = deliverables.length > 0
+        ? `<div class="report-section">
+            <h4>📦 All Deliverables</h4>
+            <ul class="report-deliverables">
+                ${deliverables.map(d => `<li>${d}</li>`).join('')}
+            </ul>
+        </div>`
+        : '';
+
+    // Build opportunities section
+    const opportunitiesHTML = opportunities.length > 0
+        ? `<div class="report-section">
+            <h4>✨ Identified Opportunities</h4>
+            <ul class="report-deliverables" style="list-style: none; padding-left: 0;">
+                ${opportunities.map(opp => `
+                    <li style="padding: 12px; margin-bottom: 8px; background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22c55e; border-radius: 6px;">
+                        ${opp.description || opp}
+                    </li>
+                `).join('')}
+            </ul>
+        </div>`
+        : '';
+
+    // Build risks section
+    const risksHTML = risks.length > 0
+        ? `<div class="report-section">
+            <h4>⚠️ Risk Assessment</h4>
+            <ul class="report-deliverables" style="list-style: none; padding-left: 0;">
+                ${risks.map(risk => `
+                    <li style="padding: 12px; margin-bottom: 8px; background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 6px;">
+                        <strong style="color: #f87171;">${risk.category || 'Risk'}:</strong> ${risk.description || risk}
+                        ${risk.mitigation ? `<br><span style="color: #10b981; font-size: 0.9em;">→ Mitigation: ${risk.mitigation}</span>` : ''}
+                    </li>
+                `).join('')}
+            </ul>
+        </div>`
+        : '';
+
+    // Build budget breakdown
+    const budgetHTML = Object.keys(budgetAllocation).length > 0
+        ? `<div class="report-section">
+            <h4>💰 Budget Allocation by Domain</h4>
+            <div class="report-metrics">
+                ${Object.entries(budgetAllocation).map(([domain, amount]) => `
+                    <div class="report-metric">
+                        <div class="report-metric-label">${domain}</div>
+                        <div class="report-metric-value">$${amount}</div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>`
+        : '';
+
+    // Build task summary
+    const tasksSummaryHTML = `<div class="report-section">
+        <h4>📋 Task Execution Summary</h4>
+        <div class="report-metrics">
+            <div class="report-metric">
+                <div class="report-metric-label">Total Tasks</div>
+                <div class="report-metric-value">${totalTasks}</div>
+            </div>
+            <div class="report-metric">
+                <div class="report-metric-label">Completed</div>
+                <div class="report-metric-value" style="color: #10b981;">${completedTasks}</div>
+            </div>
+            <div class="report-metric">
+                <div class="report-metric-label">Success Rate</div>
+                <div class="report-metric-value">${totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0}%</div>
+            </div>
+        </div>
+    </div>`;
+
+    const reportHTML = `
+        <div class="report-content">
+            <div class="report-header">
+                <span style="font-size: 2.5rem;">🎯</span>
+                <h3>Full Orchestration Complete</h3>
+                <span class="report-badge">✓ Success</span>
+            </div>
+
+            <div class="report-section" style="margin-bottom: 24px; padding: 16px; background: rgba(16, 185, 129, 0.12); border-radius: 10px; border-left: 4px solid #10b981;">
+                <p style="color: #f1f5f9; margin: 0; font-size: 15px;">
+                    <strong style="color: #667eea;">Company:</strong> ${companyInfo.company_name} |
+                    <strong style="color: #667eea;">Industry:</strong> ${companyInfo.industry} |
+                    <strong style="color: #667eea;">Location:</strong> ${companyInfo.location}
+                </p>
+            </div>
+
+            <div class="report-metrics">
+                <div class="report-metric">
+                    <div class="report-metric-label">Total Budget</div>
+                    <div class="report-metric-value">$${totalBudget}</div>
+                </div>
+                <div class="report-metric">
+                    <div class="report-metric-label">Budget Used</div>
+                    <div class="report-metric-value">$${budgetUsed}</div>
+                </div>
+                <div class="report-metric">
+                    <div class="report-metric-label">Budget Remaining</div>
+                    <div class="report-metric-value">$${budgetRemaining}</div>
+                </div>
+                <div class="report-metric">
+                    <div class="report-metric-label">Domains</div>
+                    <div class="report-metric-value">${Object.keys(budgetAllocation).length}</div>
+                </div>
+                <div class="report-metric">
+                    <div class="report-metric-label">Agents Deployed</div>
+                    <div class="report-metric-value">${agentOutputs.length || Object.keys(budgetAllocation).length}</div>
+                </div>
+                <div class="report-metric">
+                    <div class="report-metric-label">Timeline</div>
+                    <div class="report-metric-value" style="font-size: 20px; color: #10b981;">${timeline} days</div>
+                </div>
+            </div>
+
+            ${tasksSummaryHTML}
+            ${budgetHTML}
+            ${agentOutputsHTML}
+            ${deliverablesHTML}
+            ${opportunitiesHTML}
+            ${risksHTML}
+
+    <div class="report-section">
+        <h4>👉 Next Steps</h4>
+        <p style="color: #f1f5f9; line-height: 1.8; font-size: 15px;">
+            ✅ All agents have been successfully deployed and executed.<br>
+                ✅ Review the detailed reports in the <strong>Task Decomposition</strong> section below.<br>
+                    ✅ You can now execute individual agents again or proceed with implementation.<br>
+                        💡 Consider the <strong>risks</strong> and <strong>opportunities</strong> identified above in your planning.
+                    </p>
+                </div>
+
+                <div style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(16, 185, 129, 0.2); opacity: 0.7; font-size: 0.9rem; color: #64748b;">
+                    <p style="margin: 0;">⏱️ Orchestration Time: ${new Date().toLocaleString()}</p>
+                </div>
+            </div>
+    `;
+
+    console.log('🎨 [displayOrchestrationReport] Setting innerHTML...');
+    reportDisplay.innerHTML = reportHTML;
+    console.log('✅ [displayOrchestrationReport] innerHTML set successfully!');
+
+    // Add glowing border effect
+    reportDisplay.style.border = '3px solid #10b981';
+    reportDisplay.style.boxShadow = '0 0 30px rgba(16, 185, 129, 0.6), 0 12px 40px rgba(0, 0, 0, 0.2)';
+
+    setTimeout(() => {
+        reportDisplay.style.border = '2px solid rgba(16, 185, 129, 0.5)';
+        reportDisplay.style.boxShadow = '0 12px 40px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1)';
+    }, 2000);
+
+    // Scroll to report with smooth animation
+    setTimeout(() => {
+        reportDisplay.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+        });
+    }, 200);
+
+    console.log('🎉 [displayOrchestrationReport] COMPLETE - Orchestration report displayed!');
 }
 
 // Close modal when clicking outside of it
@@ -1016,7 +1606,7 @@ function displayTasks(tasks) {
                     ${task.status || 'Pending'}
                 </div>
             </div>
-        `;
+            `;
 
         container.appendChild(card);
     });
@@ -1058,9 +1648,9 @@ function addLogEntry(message, type = 'info') {
 
     const timestamp = new Date().toLocaleTimeString();
     entry.innerHTML = `
-        <span class="timestamp">[${timestamp}]</span>
-        <span class="message">${message}</span>
-    `;
+            <span class="timestamp">[${timestamp}]</span>
+            <span class="message">${message}</span>
+            `;
 
     log.appendChild(entry);
     log.scrollTop = log.scrollHeight;
@@ -1216,16 +1806,16 @@ async function processChatCommand(message) {
     // Help command
     if (lowerMessage.includes('help') || lowerMessage.includes('commands')) {
         return `Available Commands:
-• "Execute [agent name]" - Run a specific agent
-• "Show status" - View system status
-• "Launch orchestration" - Run all agents
-• "Analyze objectives" - Strategic analysis
-• "Clear chat" - Clear chat history
-• "Agent details [name]" - View agent info
+            • "Execute [agent name]" - Run a specific agent
+            • "Show status" - View system status
+            • "Launch orchestration" - Run all agents
+            • "Analyze objectives" - Strategic analysis
+            • "Clear chat" - Clear chat history
+            • "Agent details [name]" - View agent info
 
-Available Agents:
-🎨 Branding • 💻 Web Development • ⚖️ Legal
-📊 MarTech • ✍️ Content • 📢 Campaigns`;
+            Available Agents:
+            🎨 Branding • 💻 Web Development • ⚖️ Legal
+            📊 MarTech • ✍️ Content • 📢 Campaigns`;
     }
 
     // Budget info
@@ -1237,12 +1827,12 @@ Available Agents:
 
     // Default response
     return `I can help you with:
-• Executing AI agents
-• Viewing agent status
-• Running orchestration
-• Managing budgets
+            • Executing AI agents
+            • Viewing agent status
+            • Running orchestration
+            • Managing budgets
 
-Type "help" for available commands or ask me anything!`;
+            Type "help" for available commands or ask me anything!`;
 }
 
 // Add message to chat
@@ -1257,9 +1847,9 @@ function addChatMessage(text, type = 'assistant') {
     const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     messageDiv.innerHTML = `
-        <div class="chat-message-content">${formatChatMessage(text, type)}</div>
-        <div class="chat-message-time">${timeStr}</div>
-    `;
+            <div class="chat-message-content">${formatChatMessage(text, type)}</div>
+            <div class="chat-message-time">${timeStr}</div>
+            `;
 
     messagesContainer.appendChild(messageDiv);
 
@@ -1278,20 +1868,26 @@ function addChatMessage(text, type = 'assistant') {
     }
 }
 
+// Escape HTML to prevent XSS attacks
+function escapeHTML(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
 // Format chat message (preserve line breaks, add styling)
 function formatChatMessage(text, type) {
-    if (type === 'user') {
-        return text;
-    }
+    // ✅ SECURITY: Escape HTML first to prevent XSS
+    let escaped = escapeHTML(text);
 
-    // Convert line breaks to <br>
-    text = text.replace(/\n/g, '<br>');
+    // Now safe to add formatted elements
+    escaped = escaped.replace(/\n/g, '<br>');
 
-    // Add icons for certain keywords
-    text = text.replace(/✓/g, '<span style="color: #2ecc71;">✓</span>');
-    text = text.replace(/⚙️/g, '<span class="pulsing">⚙️</span>');
+    // Add icons for certain keywords (safe since we escaped first)
+    escaped = escaped.replace(/✓/g, '<span style="color: #2ecc71;">✓</span>');
+    escaped = escaped.replace(/⚙️/g, '<span class="pulsing">⚙️</span>');
 
-    return text;
+    return escaped;
 }
 
 // Set chat status
@@ -1302,7 +1898,7 @@ function setChatStatus(status) {
     if (status === 'typing') {
         statusElement.innerHTML = `
             <div class="chat-typing">
-                <span>CFO Catalyst is typing</span>
+                <span>CEO Executive Agent is typing</span>
                 <span></span><span></span><span></span>
             </div>
         `;
@@ -1319,13 +1915,13 @@ function clearChat() {
     if (!messagesContainer) return;
 
     messagesContainer.innerHTML = `
-        <div class="chat-message system">
-            <div class="chat-message-content">
-                <strong>System:</strong> Chat cleared. How can I help you?
-            </div>
-            <div class="chat-message-time">Just now</div>
-        </div>
-    `;
+                <div class="chat-message system">
+                    <div class="chat-message-content">
+                        <strong>System:</strong> Chat cleared. How can I help you?
+                    </div>
+                    <div class="chat-message-time">Just now</div>
+                </div>
+                `;
 
     chatMessages = [];
 }

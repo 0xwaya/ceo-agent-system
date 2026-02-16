@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CEO Executive Agent - Graph Architecture System</title>
+    <link rel="stylesheet" href="/static/css/dark-theme.css" />
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="app-header">
+      <div class="container">
+        <div class="header-content">
+          <div class="app-logo">
+            <span class="logo-icon">👔</span>
+            <div>
+              <h1 class="app-title">CEO Executive Agent</h1>
+              <p class="app-subtitle">
+                Hierarchical Multi-Agent Orchestration System
+              </p>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary btn-sm" onclick="window.location.href='/reports'">
+              📈 Full Reports
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="viewLogs()">
+              📊 View Logs
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="showDocs()">
+              📚 Documentation
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container" style="margin-top: 2rem; margin-bottom: 4rem">
+      <!-- Configuration Section -->
+      <div class="card" style="margin-bottom: 2rem">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🎯</span>
+            Strategic Configuration
+          </h2>
+        </div>
+        <div class="card-body">
+          <div class="grid grid-cols-2">
+            <div class="form-group">
+              <label class="form-label">Company Name</label>
+              <input
+                type="text"
+                class="form-input"
+                id="companyName"
+                placeholder="e.g., TechCorp Inc"
+                value="{{ scenario_defaults.company_name }}"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">DBA Name</label>
+              <input
+                type="text"
+                class="form-input"
+                id="dbaName"
+                placeholder="e.g., SurfaceCraft Studio"
+                value="{{ scenario_defaults.dba_name }}"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Industry</label>
+              <select class="form-input" id="industry">
+                <option value="">Select industry</option>
+                <option value="Technology">Technology</option>
+                <option value="Healthcare">Healthcare</option>
+                <option value="Financial Services">Financial Services</option>
+                <option value="Manufacturing">Manufacturing</option>
+                <option value="Retail">Retail</option>
+                <option value="Construction">Construction</option>
+                <option value="Real Estate">Real Estate</option>
+                <option value="Education">Education</option>
+                <option value="Transportation & Logistics">Transportation & Logistics</option>
+                <option value="Hospitality & Tourism">Hospitality & Tourism</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group" id="industryOtherGroup" style="display: none">
+              <label class="form-label">Other Industry</label>
+              <input
+                type="text"
+                class="form-input"
+                id="industryOther"
+                placeholder="Enter your industry"
+                value="{{ scenario_defaults.industry_other }}"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Location</label>
+              <input
+                type="text"
+                class="form-input"
+                id="location"
+                placeholder="e.g., San Francisco, CA"
+                value="{{ scenario_defaults.location }}"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Total Budget ($)</label>
+              <input
+                type="number"
+                class="form-input"
+                id="totalBudget"
+                min="1000"
+                max="1000000"
+                value="{{ scenario_defaults.budget }}"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Timeline (days)</label>
+              <input
+                type="number"
+                class="form-input"
+                id="targetDays"
+                min="30"
+                max="365"
+                value="{{ scenario_defaults.timeline }}"
+              />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Checkpoint Thread ID (optional)</label>
+              <input
+                type="text"
+                class="form-input"
+                id="threadId"
+                placeholder="Leave empty for new session"
+              />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Strategic Objectives</label>
+            <textarea
+              class="form-textarea"
+              id="objectives"
+              rows="5"
+              placeholder="Enter strategic objectives (one per line)"
+            >{{ scenario_defaults.objectives_text }}</textarea>
+          </div>
+
+          <div style="display: flex; gap: 1rem; margin-top: 1.5rem">
+            <button
+              class="btn btn-primary btn-lg"
+              onclick="executeOrchestration()"
+              id="executeBtn"
+            >
+              🚀 Execute Multi-Agent System
+            </button>
+            <button class="btn btn-secondary" onclick="window.location.href='/reports'">
+              📈 Open Full Reports
+            </button>
+            <button class="btn btn-secondary" onclick="resetForm()">
+              🔄 Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Status Grid -->
+      <div class="grid grid-cols-3" style="margin-bottom: 2rem" id="agentGrid">
+        <!-- CEO Agent -->
+        <div class="agent-card">
+          <div class="agent-icon">👔</div>
+          <div class="agent-header">
+            <div>
+              <h3 class="agent-name">CEO</h3>
+              <p class="agent-role">Chief Executive Officer</p>
+            </div>
+            <span class="badge badge-info" id="ceo-status">Idle</span>
+          </div>
+          <p
+            style="
+              font-size: var(--text-sm);
+              color: var(--text-tertiary);
+              margin-top: var(--space-3);
+            "
+          >
+            Strategic orchestration and final decision-making
+          </p>
+        </div>
+
+        <!-- CFO Agent -->
+        <div class="agent-card">
+          <div class="agent-icon">💰</div>
+          <div class="agent-header">
+            <div>
+              <h3 class="agent-name">CFO</h3>
+              <p class="agent-role">Chief Financial Officer</p>
+            </div>
+            <span class="badge badge-info" id="cfo-status">Idle</span>
+          </div>
+          <p
+            style="
+              font-size: var(--text-sm);
+              color: var(--text-tertiary);
+              margin-top: var(--space-3);
+            "
+          >
+            Budget analysis, cost validation, compliance
+          </p>
+        </div>
+
+        <!-- Engineer Agent -->
+        <div class="agent-card">
+          <div class="agent-icon">🛠️</div>
+          <div class="agent-header">
+            <div>
+              <h3 class="agent-name">Engineer</h3>
+              <p class="agent-role">Technical Implementation</p>
+            </div>
+            <span class="badge badge-info" id="engineer-status">Idle</span>
+          </div>
+          <p
+            style="
+              font-size: var(--text-sm);
+              color: var(--text-tertiary);
+              margin-top: var(--space-3);
+            "
+          >
+            Architecture design, code generation, testing
+          </p>
+        </div>
+
+        <!-- Researcher Agent -->
+        <div class="agent-card">
+          <div class="agent-icon">🔍</div>
+          <div class="agent-header">
+            <div>
+              <h3 class="agent-name">Researcher</h3>
+              <p class="agent-role">Market Intelligence</p>
+            </div>
+            <span class="badge badge-info" id="researcher-status">Idle</span>
+          </div>
+          <p
+            style="
+              font-size: var(--text-sm);
+              color: var(--text-tertiary);
+              margin-top: var(--space-3);
+            "
+          >
+            Market research, competitive analysis, insights
+          </p>
+        </div>
+
+        <!-- Legal Agent (Future) -->
+        <div class="agent-card" style="opacity: 0.5">
+          <div class="agent-icon">⚖️</div>
+          <div class="agent-header">
+            <div>
+              <h3 class="agent-name">Legal</h3>
+              <p class="agent-role">Compliance & Risk</p>
+            </div>
+            <span
+              class="badge"
+              style="
+                background: rgba(100, 116, 139, 0.2);
+                color: var(--text-muted);
+              "
+              >Coming Soon</span
+            >
+          </div>
+          <p
+            style="
+              font-size: var(--text-sm);
+              color: var(--text-tertiary);
+              margin-top: var(--space-3);
+            "
+          >
+            Legal compliance and risk assessment
+          </p>
+        </div>
+
+        <!-- MarTech Agent (Future) -->
+        <div class="agent-card" style="opacity: 0.5">
+          <div class="agent-icon">📱</div>
+          <div class="agent-header">
+            <div>
+              <h3 class="agent-name">MarTech</h3>
+              <p class="agent-role">Marketing Technology</p>
+            </div>
+            <span
+              class="badge"
+              style="
+                background: rgba(100, 116, 139, 0.2);
+                color: var(--text-muted);
+              "
+              >Coming Soon</span
+            >
+          </div>
+          <p
+            style="
+              font-size: var(--text-sm);
+              color: var(--text-tertiary);
+              margin-top: var(--space-3);
+            "
+          >
+            Marketing strategy and automation
+          </p>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom: 2rem">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>🤖</span>
+            Available Agents
+          </h2>
+        </div>
+        <div class="card-body" id="specializedAgentsList">
+          <div style="color: var(--text-tertiary)">Loading agents...</div>
+        </div>
+      </div>
+
+      <!-- Execution Progress -->
+      <div
+        class="card"
+        id="progressCard"
+        style="display: none; margin-bottom: 2rem"
+      >
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>⚙️</span>
+            Execution Progress
+          </h2>
+        </div>
+        <div class="card-body">
+          <div style="margin-bottom: 1rem">
+            <div style="display: flex; justify-between; margin-bottom: 0.5rem;">
+              <span
+                style="font-size: var(--text-sm); color: var(--text-secondary)"
+                >Overall Progress</span
+              >
+              <span
+                style="font-size: var(--text-sm); color: var(--text-secondary)"
+                id="progressPercent"
+                >0%</span
+              >
+            </div>
+            <div class="progress-bar">
+              <div
+                class="progress-fill"
+                id="progressFill"
+                style="width: 0%"
+              ></div>
+            </div>
+          </div>
+          <div
+            id="currentPhase"
+            style="font-size: var(--text-sm); color: var(--text-tertiary)"
+          >
+            Initializing...
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution Output -->
+      <div class="card" id="outputCard" style="display: none">
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>📋</span>
+            Execution Output
+          </h2>
+          <button class="btn btn-secondary btn-sm" onclick="downloadReport()">
+            💾 Download Report
+          </button>
+        </div>
+        <div class="card-body">
+          <div class="terminal" id="executionOutput">
+            <div class="terminal-line">
+              Ready to execute multi-agent orchestration...
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Summary -->
+      <div
+        class="card"
+        id="resultsCard"
+        style="display: none; margin-top: 2rem"
+      >
+        <div class="card-header">
+          <h2 class="card-title">
+            <span>✅</span>
+            Execution Results
+          </h2>
+        </div>
+        <div class="card-body">
+          <div class="grid grid-cols-3" style="margin-bottom: 1.5rem">
+            <div
+              style="
+                padding: 1rem;
+                background: var(--bg-tertiary);
+                border-radius: var(--radius-lg);
+              "
+            >
+              <div
+                style="
+                  font-size: var(--text-xs);
+                  color: var(--text-tertiary);
+                  margin-bottom: 0.25rem;
+                "
+              >
+                Completed Phases
+              </div>
+              <div
+                style="
+                  font-size: var(--text-3xl);
+                  font-weight: 600;
+                  color: var(--accent-green);
+                "
+                id="completedPhases"
+              >
+                0
+              </div>
+            </div>
+            <div
+              style="
+                padding: 1rem;
+                background: var(--bg-tertiary);
+                border-radius: var(--radius-lg);
+              "
+            >
+              <div
+                style="
+                  font-size: var(--text-xs);
+                  color: var(--text-tertiary);
+                  margin-bottom: 0.25rem;
+                "
+              >
+                Executive Decisions
+              </div>
+              <div
+                style="
+                  font-size: var(--text-3xl);
+                  font-weight: 600;
+                  color: var(--accent-blue);
+                "
+                id="executiveDecisions"
+              >
+                0
+              </div>
+            </div>
+            <div
+              style="
+                padding: 1rem;
+                background: var(--bg-tertiary);
+                border-radius: var(--radius-lg);
+              "
+            >
+              <div
+                style="
+                  font-size: var(--text-xs);
+                  color: var(--text-tertiary);
+                  margin-bottom: 0.25rem;
+                "
+              >
+                Budget Remaining
+              </div>
+              <div
+                style="
+                  font-size: var(--text-3xl);
+                  font-weight: 600;
+                  color: var(--accent-amber);
+                "
+                id="budgetRemaining"
+              >
+                $0
+              </div>
+            </div>
+          </div>
+          <div id="agentSummaries"></div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      window.GRAPH_DASHBOARD_CONFIG = {
+        isProduction: {{ is_production | tojson }},
+        defaults: {{ scenario_defaults | tojson }}
+      };
+    </script>
+    <script src="/static/js/dashboard.js"></script>
+  </body>
+</html>

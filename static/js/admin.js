@@ -8,8 +8,91 @@ const state = {
     activities: [],
     uptime: 0,
     uptimeInterval: null,
-    currentSection: 'dashboard'
+    currentSection: 'dashboard',
+    currentScenario: null
 };
+
+const SCENARIO_STORAGE_KEY = 'ceo_agent_scenario';
+const ADMIN_DASHBOARD_CONFIG = window.ADMIN_DASHBOARD_CONFIG || {};
+const SCENARIO_STORAGE_SCHEMA_VERSION = ADMIN_DASHBOARD_CONFIG.defaults?.scenario_schema_version || 1;
+const SCENARIO_DEFAULTS_VERSION = ADMIN_DASHBOARD_CONFIG.defaults?.scenario_defaults_version || (ADMIN_DASHBOARD_CONFIG.isProduction ? 'production' : 'development');
+
+const DEFAULT_DEV_OBJECTIVES = [
+    'Launch AR platform showroom',
+    'Relaunch the company brand as SurfaceCraft Studio',
+    'Create a brand kit to be use across platforms',
+    'Create and maintain social media accounts and content creation',
+    'Possition the company in the highend exclusive market',
+    'Create all necessary agent to execute and manage customer caption and retention',
+    'Create sales agent to target residential and commercial contracts',
+    'Register as a minority business with the city of Cincinnati',
+    'Automate most processes that deals with outside sales'
+];
+
+function getDefaultScenarioContext() {
+    const configDefaults = ADMIN_DASHBOARD_CONFIG.defaults || {};
+
+    if (ADMIN_DASHBOARD_CONFIG.isProduction) {
+        return {
+            company_name: '',
+            dba_name: '',
+            industry: '',
+            location: '',
+            budget: 0,
+            timeline: 0,
+            objectives: []
+        };
+    }
+
+    return {
+        company_name: configDefaults.company_name || 'Amazon Granite LLC',
+        dba_name: configDefaults.dba_name || 'SurfaceCraft Studio',
+        industry: configDefaults.industry || 'Construction, Custom Countertops',
+        location: configDefaults.location || 'Cincinnati, OH',
+        budget: Number.parseFloat(configDefaults.budget) || 1000,
+        timeline: Number.parseInt(configDefaults.timeline, 10) || 30,
+        objectives: Array.isArray(configDefaults.objectives) && configDefaults.objectives.length > 0
+            ? configDefaults.objectives
+            : DEFAULT_DEV_OBJECTIVES
+    };
+}
+
+function buildScenarioEnvelope(scenario, options = {}) {
+    return {
+        meta: {
+            schema_version: SCENARIO_STORAGE_SCHEMA_VERSION,
+            defaults_version: SCENARIO_DEFAULTS_VERSION,
+            environment: ADMIN_DASHBOARD_CONFIG.isProduction ? 'production' : 'development',
+            source: options.source || 'admin_dashboard',
+            user_modified: Boolean(options.userModified),
+            saved_at: new Date().toISOString()
+        },
+        scenario
+    };
+}
+
+function parseScenarioEnvelope(rawValue) {
+    if (!rawValue) return null;
+
+    try {
+        const parsed = JSON.parse(rawValue);
+        if (!parsed || typeof parsed !== 'object') {
+            return null;
+        }
+
+        if (parsed.scenario && typeof parsed.scenario === 'object') {
+            return parsed.scenario;
+        }
+
+        if (parsed.company_name || parsed.industry || parsed.location) {
+            return parsed;
+        }
+    } catch (error) {
+        console.warn('Failed to parse admin scenario storage envelope:', error);
+    }
+
+    return null;
+}
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
@@ -18,6 +101,13 @@ document.addEventListener('DOMContentLoaded', () => {
     loadAgents();
     startUptimeCounter();
     setupEventListeners();
+    loadSharedScenario();
+    renderActiveScenarioPanel();
+
+    const initialSection = document.body?.dataset?.initialSection;
+    if (initialSection === 'reports' || window.location.pathname === '/reports') {
+        switchSection('reports');
+    }
 });
 
 // Socket.IO Connection
@@ -49,6 +139,70 @@ function initializeSocket() {
     state.socket.on('research_update', (data) => {
         handleResearchUpdate(data);
     });
+
+    state.socket.on('scenario_updated', (data) => {
+        if (!data || !data.scenario) {
+            return;
+        }
+
+        state.currentScenario = data.scenario;
+        localStorage.setItem(
+            SCENARIO_STORAGE_KEY,
+            JSON.stringify(buildScenarioEnvelope(data.scenario, { source: 'socket_sync', userModified: false }))
+        );
+        renderActiveScenarioPanel();
+
+        addActivity({
+            icon: '🧭',
+            message: `Scenario synchronized from ${data.source || 'system'}`,
+            time: new Date().toISOString()
+        });
+    });
+
+    state.socket.on('orchestration_complete', (data) => {
+        const tasksMetric = document.getElementById('metric-tasks-completed');
+        if (tasksMetric) {
+            tasksMetric.textContent = String(data.completed_tasks || 0);
+        }
+
+        const budgetMetric = document.getElementById('metric-budget');
+        if (budgetMetric) {
+            const remaining = Number(data.budget_remaining || 0);
+            budgetMetric.textContent = `$${remaining.toLocaleString()}`;
+        }
+
+        addActivity({
+            icon: '🎉',
+            message: `Orchestration completed for ${data.company_name || 'scenario'} (${data.completed_tasks || 0}/${data.total_tasks || 0} tasks)`,
+            time: new Date().toISOString()
+        });
+    });
+
+    state.socket.on('report_generated', (data) => {
+        addActivity({
+            icon: '📄',
+            message: `Report generated: ${data.report_type || 'unknown'} (${data.report_id || 'n/a'})`,
+            time: new Date().toISOString()
+        });
+    });
+}
+
+function loadSharedScenario() {
+    fetch('/api/scenario/current')
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.success && data.scenario) {
+                state.currentScenario = data.scenario;
+                localStorage.setItem(
+                    SCENARIO_STORAGE_KEY,
+                    JSON.stringify(buildScenarioEnvelope(data.scenario, { source: 'api_sync', userModified: false }))
+                );
+                renderActiveScenarioPanel();
+            }
+        })
+        .catch((error) => {
+            console.warn('Could not load shared scenario from backend:', error);
+        });
 }
 
 // Navigation
@@ -106,71 +260,60 @@ function loadSectionData(section) {
 
 // Agent Management
 function loadAgents() {
-    const agentsData = [
-        {
-            id: 'ceo',
-            name: 'CEO Agent',
-            icon: '👔',
-            status: 'active',
-            description: 'Executive orchestrator making strategic decisions within guard rails',
-            tasksCompleted: 0,
-            successRate: 100,
-            budget: 50000
-        },
-        {
-            id: 'cfo',
-            name: 'CFO Agent',
-            icon: '💰',
-            status: 'active',
-            description: 'Financial oversight and budget management',
-            tasksCompleted: 0,
-            successRate: 100,
-            budget: 970
-        },
-        {
-            id: 'brand',
-            name: 'Brand Agent',
-            icon: '🎨',
-            status: 'training',
-            description: 'Brand strategy, design, and visual content creation',
-            tasksCompleted: 0,
-            successRate: 0,
-            budget: 4500
-        },
-        {
-            id: 'legal',
-            name: 'Legal Agent',
-            icon: '⚖️',
-            status: 'training',
-            description: 'Legal research and document preparation (Ohio)',
-            tasksCompleted: 0,
-            successRate: 0,
-            budget: 3000
-        },
-        {
-            id: 'martech',
-            name: 'MarTech Agent',
-            icon: '📱',
-            status: 'training',
-            description: 'Marketing automation, analytics, and customer engagement',
-            tasksCompleted: 0,
-            successRate: 0,
-            budget: 6500
-        },
-        {
-            id: 'ux-ui',
-            name: 'UX/UI Agent',
-            icon: '✨',
-            status: 'training',
-            description: 'User experience design and interface optimization',
-            tasksCompleted: 0,
-            successRate: 0,
-            budget: 5000
-        }
-    ];
+    fetch('/api/agents/available')
+        .then(response => response.json())
+        .then(data => {
+            const agents = Array.isArray(data.agents) ? data.agents : [];
+            state.agents = agents.map((agent) => ({
+                id: agent.type,
+                name: agent.name,
+                icon: getAgentIcon(agent.type),
+                status: agent.status === 'available' ? 'active' : (agent.status || 'active'),
+                description: Array.isArray(agent.capabilities) && agent.capabilities.length > 0
+                    ? agent.capabilities[0]
+                    : 'Specialized AI agent',
+                tasksCompleted: 0,
+                successRate: 0,
+                budget: Number(agent.budget || 0)
+            }));
 
-    state.agents = agentsData;
-    renderAgents();
+            updateAgentCounts();
+            renderAgents();
+        })
+        .catch((error) => {
+            console.error('Failed to load agents:', error);
+            showToast('Could not load agents from API', 'warning');
+            state.agents = [];
+            updateAgentCounts();
+            renderAgents();
+        });
+}
+
+function getAgentIcon(agentType) {
+    const iconMap = {
+        ceo: '👔',
+        cfo: '💰',
+        branding: '🎨',
+        legal: '⚖️',
+        martech: '📱',
+        ux_ui: '✨',
+        software_engineering: '🛠️',
+        security: '🛡️'
+    };
+    return iconMap[agentType] || '🤖';
+}
+
+function updateAgentCounts() {
+    const totalAgents = state.agents.length;
+    const activeMetric = document.getElementById('metric-active-agents');
+    if (activeMetric) {
+        activeMetric.textContent = totalAgents;
+    }
+
+    const navCount = document.getElementById('agents-nav-count');
+    if (navCount) {
+        navCount.textContent = totalAgents;
+    }
 }
 
 function renderAgents() {
@@ -227,13 +370,15 @@ function interactWithAgent(agentId) {
 
 // CEO Strategic Analysis
 function startCEOAnalysis() {
+    const scenario = getScenarioContext();
+
     addActivity({
         icon: '🎯',
-        message: 'Starting CEO strategic analysis...',
+        message: `Starting CEO strategic analysis for ${scenario.company_name}...`,
         time: new Date().toISOString()
     });
 
-    showToast('CEO Agent analyzing strategic objectives', 'info');
+    showToast(`CEO Agent analyzing strategic objectives for ${scenario.company_name}`, 'info');
 
     // Send analysis request to backend
     fetch('/api/ceo/analyze', {
@@ -242,9 +387,12 @@ function startCEOAnalysis() {
             'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            objective: 'Analyze current business objectives and deploy specialized agents',
-            budget: 50000,
-            constraints: ['financial_safety', 'user_approval_required']
+            company_name: scenario.company_name,
+            industry: scenario.industry,
+            location: scenario.location,
+            objectives: scenario.objectives,
+            budget: scenario.budget,
+            timeline: scenario.timeline
         })
     })
         .then(response => response.json())
@@ -306,7 +454,7 @@ function loadTrainingModule(moduleName) {
             <p style="color: var(--text-secondary); margin-bottom: 24px;">
                 Interactive training environment for ${moduleName.replace('-', ' ')} skills.
             </p>
-            
+
             <div style="background: rgba(37, 99, 235, 0.1); padding: 16px; border-radius: 12px; margin-bottom: 16px;">
                 <strong>Training Scenario:</strong>
                 <p style="margin-top: 8px; color: var(--text-secondary);">
@@ -314,7 +462,7 @@ function loadTrainingModule(moduleName) {
                     Provide instructions or run automated training scenarios.
                 </p>
             </div>
-            
+
             <button class="training-btn primary" onclick="runTrainingScenario()" style="width: 100%;">
                 ▶️ Start Training Scenario
             </button>
@@ -364,7 +512,13 @@ function addTrainingMessage(message, type = 'system') {
         'agent': '<strong>Agent:</strong> '
     }[type] || '';
 
-    messageEl.innerHTML = prefix + message;
+    // ✅ SECURITY: Create text node to prevent XSS
+    const prefixSpan = document.createElement('span');
+    prefixSpan.innerHTML = prefix;  // Safe - prefix is from trusted source
+    const messageText = document.createTextNode(message);  // Safe - escapes HTML
+
+    messageEl.appendChild(prefixSpan);
+    messageEl.appendChild(messageText);
     messagesContainer.appendChild(messageEl);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 }
@@ -606,15 +760,17 @@ function generateReport(reportType) {
         return;
     }
 
-    // Prepare company info for POST requests
+    const scenario = getScenarioContext();
+
+    // Prepare allowlist-compatible company info for POST requests
     const companyInfo = {
-        name: 'CEO Agent Platform',
-        industry: 'AI Technology',
-        stage: 'Early Stage',
-        team_size: 'Small (1-10)',
-        monthly_revenue: 10000,
-        monthly_expenses: 45000,
-        available_cash: 200000
+        company_name: scenario.company_name,
+        name: scenario.company_name,
+        dba_name: scenario.dba_name,
+        industry: scenario.industry,
+        location: scenario.location,
+        budget: scenario.budget,
+        timeline: scenario.timeline
     };
 
     // Make API call
@@ -637,7 +793,7 @@ function generateReport(reportType) {
 
                 addActivity({
                     icon: '📊',
-                    message: `Generated ${reportConfig.title} - ${data.report.report_id}`,
+                    message: `Generated ${reportConfig.title} for ${scenario.company_name} - ${data.report.report_id}`,
                     time: new Date().toISOString()
                 });
             } else {
@@ -659,6 +815,92 @@ function generateReport(reportType) {
             content.innerHTML = report.content;
             viewer.style.display = 'flex';
         });
+}
+
+function getScenarioContext() {
+    const fallback = getDefaultScenarioContext();
+
+    if (state.currentScenario && typeof state.currentScenario === 'object') {
+        const current = state.currentScenario;
+        return {
+            company_name: current.company_name || fallback.company_name,
+            dba_name: current.dba_name || current.company_name || fallback.dba_name,
+            industry: current.industry || fallback.industry,
+            location: current.location || fallback.location,
+            budget: Number.parseFloat(current.budget) || fallback.budget,
+            timeline: Number.parseInt(current.timeline, 10) || fallback.timeline,
+            objectives: Array.isArray(current.objectives) && current.objectives.length > 0
+                ? current.objectives
+                : fallback.objectives
+        };
+    }
+
+    if (ADMIN_DASHBOARD_CONFIG.isProduction) {
+        return fallback;
+    }
+
+    const raw = localStorage.getItem(SCENARIO_STORAGE_KEY);
+    if (!raw) {
+        return fallback;
+    }
+
+    const parsed = parseScenarioEnvelope(raw);
+    if (!parsed || typeof parsed !== 'object') {
+        return fallback;
+    }
+
+    return {
+        company_name: parsed.company_name || fallback.company_name,
+        dba_name: parsed.dba_name || parsed.company_name || fallback.dba_name,
+        industry: parsed.industry || fallback.industry,
+        location: parsed.location || fallback.location,
+        budget: Number.parseFloat(parsed.budget) || fallback.budget,
+        timeline: Number.parseInt(parsed.timeline, 10) || fallback.timeline,
+        objectives: Array.isArray(parsed.objectives) && parsed.objectives.length > 0
+            ? parsed.objectives
+            : fallback.objectives
+    };
+}
+
+function renderActiveScenarioPanel() {
+    const scenario = getScenarioContext();
+    const objectiveText = Array.isArray(scenario.objectives) && scenario.objectives.length > 0
+        ? scenario.objectives.join(' • ')
+        : '-';
+
+    const safeSet = (id, value) => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.textContent = value;
+        }
+    };
+
+    const syncTargets = ['', '-reports'];
+    syncTargets.forEach((suffix) => {
+        safeSet(`scenario-company${suffix}`, scenario.company_name || '-');
+        safeSet(`scenario-dba${suffix}`, scenario.dba_name || '-');
+        safeSet(`scenario-industry${suffix}`, scenario.industry || '-');
+        safeSet(`scenario-location${suffix}`, scenario.location || '-');
+        safeSet(`scenario-budget${suffix}`, Number(scenario.budget) > 0 ? `$${Number(scenario.budget).toLocaleString()}` : '-');
+        safeSet(`scenario-timeline${suffix}`, Number(scenario.timeline) > 0 ? `${Number(scenario.timeline)} days` : '-');
+        safeSet(`scenario-objectives${suffix}`, objectiveText);
+    });
+
+    let updatedAt = '-';
+    try {
+        const raw = localStorage.getItem(SCENARIO_STORAGE_KEY);
+        if (raw) {
+            const parsed = parseScenarioEnvelope(raw);
+            if (parsed?.updated_at) {
+                updatedAt = new Date(parsed.updated_at).toLocaleString();
+            }
+        }
+    } catch (error) {
+        console.warn('Failed to parse scenario updated timestamp:', error);
+    }
+    syncTargets.forEach((suffix) => {
+        safeSet(`scenario-updated${suffix}`, updatedAt);
+    });
 }
 
 // Render comprehensive report with 30/60/90 day plans
@@ -726,7 +968,7 @@ function renderStrategicReport(report) {
             <!-- 30/60/90 Day Consolidated Plan -->
             <div class="report-section consolidated-plan">
                 <h3>🎯 Consolidated 30/60/90 Day Strategic Plan</h3>
-                
+
                 ${render30DayPlan(report.consolidated_plan['30_day_plan'])}
                 ${render60DayPlan(report.consolidated_plan['60_day_plan'])}
                 ${render90DayPlan(report.consolidated_plan['90_day_plan'])}
@@ -961,14 +1203,14 @@ function generateCEOReport() {
     return `
         <div style="font-family: Inter, sans-serif;">
             <h2 style="margin-bottom: 24px;">Executive Summary</h2>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">System Status</h3>
                 <p style="color: var(--text-secondary);">
                     CEO Agent system is operational in Training Mode. All core agents initialized and ready for deployment.
                 </p>
             </div>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Strategic Objectives</h3>
                 <ul style="color: var(--text-secondary); padding-left: 20px;">
@@ -978,7 +1220,7 @@ function generateCEOReport() {
                     <li>All contractor payments forbidden to prevent liability</li>
                 </ul>
             </div>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Recommendations</h3>
                 <ul style="color: var(--text-secondary); padding-left: 20px;">
@@ -1307,7 +1549,7 @@ function generateCFOReport() {
     return `
         <div style="font-family: Inter, sans-serif;">
             <h2 style="margin-bottom: 24px;">Financial Overview</h2>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Budget Summary</h3>
                 <table style="width: 100%; color: var(--text-primary);">
@@ -1333,7 +1575,7 @@ function generateCFOReport() {
                     </tr>
                 </table>
             </div>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Approval Limits</h3>
                 <ul style="color: var(--text-secondary); padding-left: 20px;">
@@ -1343,7 +1585,7 @@ function generateCFOReport() {
                     <li>Contractor Payments: Forbidden</li>
                 </ul>
             </div>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Financial Health</h3>
                 <p style="color: var(--success-color); font-weight: 600;">Excellent</p>
@@ -1359,7 +1601,7 @@ function generatePerformanceReport() {
     return `
         <div style="font-family: Inter, sans-serif;">
             <h2 style="margin-bottom: 24px;">Agent Performance Metrics</h2>
-            
+
             ${state.agents.map(agent => `
                 <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 16px;">
                     <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
@@ -1391,14 +1633,14 @@ function generateTrainingReport() {
     return `
         <div style="font-family: Inter, sans-serif;">
             <h2 style="margin-bottom: 24px;">Training Progress Overview</h2>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Overall Status</h3>
                 <p style="color: var(--text-secondary);">
                     System is in Training Mode. All agents require training completion before production deployment.
                 </p>
             </div>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px; margin-bottom: 20px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Training Modules</h3>
                 <div style="display: flex; flex-direction: column; gap: 12px;">
@@ -1424,7 +1666,7 @@ function generateTrainingReport() {
                     </div>
                 </div>
             </div>
-            
+
             <div style="background: var(--card-bg); padding: 20px; border-radius: 12px;">
                 <h3 style="font-size: 16px; margin-bottom: 12px;">Next Steps</h3>
                 <ul style="color: var(--text-secondary); padding-left: 20px;">
@@ -1631,6 +1873,16 @@ function setupEventListeners() {
         if (e.key === 'Enter') {
             sendTrainingMessage();
         }
+    });
+
+    window.addEventListener('storage', (event) => {
+        if (event.key === SCENARIO_STORAGE_KEY) {
+            renderActiveScenarioPanel();
+        }
+    });
+
+    window.addEventListener('focus', () => {
+        renderActiveScenarioPanel();
     });
 }
 

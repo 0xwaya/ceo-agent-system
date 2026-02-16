@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>API Documentation - CEO Agent</title>
+    <link rel="stylesheet" href="/static/css/dark-theme.css" />
+    <style>
+      .endpoint {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+      }
+      .endpoint-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .method {
+        font-weight: 600;
+        padding: 0.25rem 0.75rem;
+        border-radius: var(--radius-md);
+        font-size: var(--text-sm);
+      }
+      .method.get {
+        background: var(--accent-cyan);
+        color: var(--gray-900);
+      }
+      .method.post {
+        background: var(--accent-green);
+        color: var(--gray-900);
+      }
+      .method.put {
+        background: var(--accent-blue);
+        color: var(--gray-900);
+      }
+      .method.delete {
+        background: var(--error);
+        color: white;
+      }
+      .path {
+        font-family: var(--font-mono);
+        font-size: var(--text-base);
+        color: var(--accent-cyan);
+      }
+      .param {
+        background: var(--bg-tertiary);
+        padding: 0.75rem;
+        border-radius: var(--radius-md);
+        margin: 0.5rem 0;
+      }
+      .param-name {
+        font-family: var(--font-mono);
+        color: var(--accent-blue);
+        font-weight: 600;
+      }
+      .param-type {
+        color: var(--accent-green);
+        font-size: var(--text-sm);
+      }
+      pre {
+        background: var(--gray-900);
+        padding: 1rem;
+        border-radius: var(--radius-md);
+        overflow-x: auto;
+        font-size: var(--text-sm);
+      }
+      code {
+        font-family: var(--font-mono);
+        color: var(--accent-cyan);
+      }
+      .nav-tabs {
+        display: flex;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        border-bottom: 2px solid var(--border);
+      }
+      .nav-tab {
+        padding: 0.75rem 1.5rem;
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        margin-bottom: -2px;
+        transition: all 150ms;
+      }
+      .nav-tab.active {
+        color: var(--accent-blue);
+        border-bottom-color: var(--accent-blue);
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      class="container"
+      style="max-width: 1200px; margin: 0 auto; padding: 2rem"
+    >
+      <!-- Header -->
+      <div style="margin-bottom: 3rem">
+        <h1 style="font-size: 2rem; margin-bottom: 0.5rem">
+          📚 API Documentation
+        </h1>
+        <p style="color: var(--text-secondary)">
+          Complete reference for CEO Agent API endpoints and graph architecture
+        </p>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="nav-tabs">
+        <button class="nav-tab active" onclick="switchTab('graph')">
+          Graph API
+        </button>
+        <button class="nav-tab" onclick="switchTab('legacy')">
+          Legacy API
+        </button>
+        <button class="nav-tab" onclick="switchTab('architecture')">
+          Architecture
+        </button>
+      </div>
+
+      <!-- Graph API Tab -->
+      <div id="graph-tab" class="tab-content active">
+        <h2 style="margin-bottom: 1.5rem">🎨 Graph Architecture API</h2>
+
+        <!-- Execute Graph -->
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/graph/execute</span>
+          </div>
+          <p style="color: var(--text-secondary); margin-bottom: 1rem">
+            Execute the LangGraph multi-agent orchestration system
+          </p>
+
+          <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem">
+            Request Body:
+          </h4>
+          <pre><code>{
+  "company_name": "TechCorp Inc",
+  "industry": "Software & Technology",
+  "location": "San Francisco, CA",
+  "total_budget": 100000,
+  "target_days": 90,
+  "objectives": [
+    "Launch SaaS platform",
+    "Build enterprise sales team"
+  ],
+  "thread_id": "optional-uuid",
+  "use_checkpointing": true
+}</code></pre>
+
+          <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem">
+            Parameters:
+          </h4>
+          <div class="param">
+            <span class="param-name">company_name</span>
+            <span class="param-type">string</span>
+            <span style="color: var(--error)">required</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Company name for the project
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">industry</span>
+            <span class="param-type">string</span>
+            <span style="color: var(--error)">required</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Business industry
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">location</span>
+            <span class="param-type">string</span>
+            <span style="color: var(--error)">required</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Company location
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">total_budget</span>
+            <span class="param-type">number</span>
+            <span style="color: var(--error)">required</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Total project budget ($1,000 - $1,000,000)
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">target_days</span>
+            <span class="param-type">number</span>
+            <span style="color: var(--error)">required</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Project timeline in days (30-365)
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">objectives</span>
+            <span class="param-type">array</span>
+            <span style="color: var(--error)">required</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              List of strategic objectives
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">thread_id</span>
+            <span class="param-type">string</span>
+            <span style="color: var(--text-tertiary)">optional</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Resume previous execution by thread ID
+            </p>
+          </div>
+
+          <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem">Response:</h4>
+          <pre><code>{
+  "success": true,
+  "thread_id": "uuid-here",
+  "message": "Execution started"
+}</code></pre>
+
+          <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem">
+            WebSocket Events:
+          </h4>
+          <div class="param">
+            <span class="param-name">execution_started</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Emitted when graph execution begins
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">agent_update</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Agent status changes (idle/active/completed/error)
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">phase_update</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Execution phase transitions with progress percentage
+            </p>
+          </div>
+          <div class="param">
+            <span class="param-name">execution_complete</span>
+            <p
+              style="
+                margin: 0.5rem 0 0 0;
+                font-size: var(--text-sm);
+                color: var(--text-tertiary);
+              "
+            >
+              Final results when all agents complete
+            </p>
+          </div>
+        </div>
+
+        <!-- Get Logs -->
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/api/logs</span>
+          </div>
+          <p style="color: var(--text-secondary); margin-bottom: 1rem">
+            Retrieve system log files
+          </p>
+
+          <h4 style="margin-top: 1.5rem; margin-bottom: 0.75rem">Response:</h4>
+          <pre><code>{
+  "success": true,
+  "logs": [
+    {
+      "filename": "app.log",
+      "lines": ["line1", "line2", ...],
+      "size": 12345
+    }
+  ]
+}</code></pre>
+        </div>
+
+        <!-- Graph Dashboard -->
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/graph</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Access the Graph Architecture Dashboard UI
+          </p>
+        </div>
+      </div>
+
+      <!-- Legacy API Tab -->
+      <div id="legacy-tab" class="tab-content">
+        <h2 style="margin-bottom: 1.5rem">🏛️ Legacy API Endpoints</h2>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/ceo/analyze</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Analyze strategic objectives with CEO/CFO agent (legacy)
+          </p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/agent/execute/{agent_type}</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Execute specific specialized agent (branding, web_development,
+            legal, etc.)
+          </p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/api/agents/available</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Get list of available specialized agents
+          </p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/admin</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Access legacy admin dashboard
+          </p>
+        </div>
+
+        <h3 style="margin: 2rem 0 1rem 0">Reports API</h3>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/reports/strategic</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Generate strategic planning report
+          </p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/reports/financial</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Generate financial analysis report
+          </p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/api/reports/history</span>
+          </div>
+          <p style="color: var(--text-secondary)">Get all historical reports</p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/api/reports/{report_id}</span>
+          </div>
+          <p style="color: var(--text-secondary)">Get specific report by ID</p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/api/cfo/report</span>
+          </div>
+          <p style="color: var(--text-secondary)">Get CFO financial report</p>
+        </div>
+
+        <h3 style="margin: 2rem 0 1rem 0">Settings & Approvals</h3>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method get">GET</span>
+            <span class="path">/api/approvals/pending</span>
+          </div>
+          <p style="color: var(--text-secondary)">
+            Get pending approval requests
+          </p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/approval/{approval_id}/approve</span>
+          </div>
+          <p style="color: var(--text-secondary)">Approve a pending request</p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/approval/{approval_id}/reject</span>
+          </div>
+          <p style="color: var(--text-secondary)">Reject a pending request</p>
+        </div>
+
+        <div class="endpoint">
+          <div class="endpoint-header">
+            <span class="method post">POST</span>
+            <span class="path">/api/settings/update</span>
+          </div>
+          <p style="color: var(--text-secondary)">Update system settings</p>
+        </div>
+      </div>
+
+      <!-- Architecture Tab -->
+      <div id="architecture-tab" class="tab-content">
+        <h2 style="margin-bottom: 1.5rem">🏗️ System Architecture</h2>
+
+        <h3 style="margin: 2rem 0 1rem 0">Multi-Agent Hierarchy</h3>
+        <div
+          style="
+            background: var(--bg-secondary);
+            padding: 1.5rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 2rem;
+          "
+        >
+          <pre
+            style="background: none; padding: 0"
+          ><code>CEO Orchestrator (Master Graph)
+├── CFO Subgraph (Financial Analysis)
+│   ├── Entry Guard
+│   ├── Budget Analysis
+│   ├── Compliance Checks
+│   ├── Risk Assessment
+│   └── Financial Summary
+│
+├── Engineer Subgraph (Technical Implementation)
+│   ├── Entry Guard
+│   ├── Architecture Design
+│   ├── Code Generation
+│   ├── Testing
+│   ├── Deployment Planning
+│   └── Technical Summary
+│
+└── Researcher Subgraph (Market Research)
+    ├── Entry Guard
+    ├── Research Execution
+    ├── Document Analysis
+    ├── Finding Identification
+    ├── Risk Assessment
+    └── Research Summary</code></pre>
+        </div>
+
+        <h3 style="margin: 2rem 0 1rem 0">Agent Capabilities</h3>
+
+        <div class="endpoint">
+          <h4>👔 CEO - Master Orchestrator</h4>
+          <ul style="color: var(--text-secondary); line-height: 1.8">
+            <li>Strategic decision-making</li>
+            <li>Task decomposition and routing</li>
+            <li>Budget allocation</li>
+            <li>Subgraph coordination</li>
+            <li>Results consolidation</li>
+          </ul>
+        </div>
+
+        <div class="endpoint">
+          <h4>💰 CFO - Financial Analysis</h4>
+          <ul style="color: var(--text-secondary); line-height: 1.8">
+            <li>Budget planning and analysis</li>
+            <li>Cost projections</li>
+            <li>Compliance verification</li>
+            <li>Financial risk assessment</li>
+            <li>ROI calculations</li>
+          </ul>
+        </div>
+
+        <div class="endpoint">
+          <h4>🛠️ Engineer - Technical Implementation</h4>
+          <ul style="color: var(--text-secondary); line-height: 1.8">
+            <li>System architecture design</li>
+            <li>Technology stack selection</li>
+            <li>Code generation</li>
+            <li>Testing strategy</li>
+            <li>Deployment planning</li>
+          </ul>
+        </div>
+
+        <div class="endpoint">
+          <h4>🔍 Researcher - Market Research</h4>
+          <ul style="color: var(--text-secondary); line-height: 1.8">
+            <li>Competitive analysis</li>
+            <li>Market research</li>
+            <li>Document analysis</li>
+            <li>Opportunity identification</li>
+            <li>Risk assessment</li>
+          </ul>
+        </div>
+
+        <h3 style="margin: 2rem 0 1rem 0">Technical Stack</h3>
+        <div class="endpoint">
+          <div
+            class="grid"
+            style="grid-template-columns: repeat(2, 1fr); gap: 1rem"
+          >
+            <div>
+              <h5 style="color: var(--accent-blue); margin-bottom: 0.5rem">
+                Backend
+              </h5>
+              <ul
+                style="color: var(--text-secondary); font-size: var(--text-sm)"
+              >
+                <li>Flask + SocketIO</li>
+                <li>LangGraph 0.0.40+</li>
+                <li>Pydantic 2.0+</li>
+                <li>SQLite checkpointing</li>
+              </ul>
+            </div>
+            <div>
+              <h5 style="color: var(--accent-blue); margin-bottom: 0.5rem">
+                Frontend
+              </h5>
+              <ul
+                style="color: var(--text-secondary); font-size: var(--text-sm)"
+              >
+                <li>Vanilla JavaScript</li>
+                <li>Socket.io Client</li>
+                <li>Dark Theme CSS</li>
+                <li>Real-time WebSockets</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div
+        style="
+          margin-top: 4rem;
+          padding-top: 2rem;
+          border-top: 1px solid var(--border);
+          text-align: center;
+          color: var(--text-tertiary);
+          font-size: var(--text-sm);
+        "
+      >
+        <p>CEO Agent - Executive AI System · February 2026</p>
+        <p style="margin-top: 0.5rem">
+          <a
+            href="/graph"
+            style="color: var(--accent-blue); text-decoration: none"
+            >Graph Dashboard</a
+          >
+          ·
+          <a
+            href="/admin"
+            style="color: var(--accent-blue); text-decoration: none"
+            >Admin Panel</a
+          >
+          ·
+          <a
+            href="/logs"
+            style="color: var(--accent-blue); text-decoration: none"
+            >System Logs</a
+          >
+        </p>
+      </div>
+    </div>
+
+    <script>
+      function switchTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll(".tab-content").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+        document.querySelectorAll(".nav-tab").forEach((btn) => {
+          btn.classList.remove("active");
+        });
+
+        // Show selected tab
+        document.getElementById(tabName + "-tab").classList.add("active");
+        event.target.classList.add("active");
+      }
+    </script>
+  </body>
+</html>
