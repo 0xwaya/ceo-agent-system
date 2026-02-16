@@ -400,7 +400,12 @@ SCOPE_CONSTRAINTS = {
             "Approve recurring spend without CFO and user approval",
             "Create long-form whitepapers and blogs (that's Content)",
         ],
-        dependencies=[AgentDomain.BRANDING, AgentDomain.CONTENT, AgentDomain.MARTECH, AgentDomain.CFO],
+        dependencies=[
+            AgentDomain.BRANDING,
+            AgentDomain.CONTENT,
+            AgentDomain.MARTECH,
+            AgentDomain.CFO,
+        ],
     ),
     AgentDomain.SECURITY: ScopeConstraint(
         domain=AgentDomain.SECURITY,

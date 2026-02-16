@@ -134,11 +134,9 @@
               <div class="metric-content">
                 <span class="metric-label">Budget Remaining</span>
                 <span class="metric-value" id="metric-budget">
-                  {% if (scenario_defaults.budget | default(0))|float > 0 %}
-                    ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
-                  {% else %}
-                    -
-                  {% endif %}
+                  {% if (scenario_defaults.budget | default(0))|float > 0 %} ${{
+                  "{:,}".format((scenario_defaults.budget | default(0))|int) }}
+                  {% else %} - {% endif %}
                 </span>
                 <span class="metric-change">100% available</span>
               </div>
@@ -199,38 +197,87 @@
             <div class="activity-header">
               <h3>Active Scenario</h3>
             </div>
-            <div class="activity-feed" style="padding: 1rem;">
-              <div class="metric-card" style="margin-bottom: 0;">
-                <div class="metric-content" style="display: grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap: 0.75rem 1rem; width: 100%;">
+            <div class="activity-feed" style="padding: 1rem">
+              <div class="metric-card" style="margin-bottom: 0">
+                <div
+                  class="metric-content"
+                  style="
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(200px, 1fr));
+                    gap: 0.75rem 1rem;
+                    width: 100%;
+                  "
+                >
                   <div>
                     <span class="metric-label">Company</span>
-                    <span class="metric-value" id="scenario-company" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-company"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">DBA</span>
-                    <span class="metric-value" id="scenario-dba" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-dba"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Industry</span>
-                    <span class="metric-value" id="scenario-industry" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-industry"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Location</span>
-                    <span class="metric-value" id="scenario-location" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-location"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Budget</span>
-                    <span class="metric-value" id="scenario-budget" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-budget"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Timeline</span>
-                    <span class="metric-value" id="scenario-timeline" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-timeline"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
-                  <div style="grid-column: 1 / -1;">
+                  <div style="grid-column: 1 / -1">
                     <span class="metric-label">Objectives</span>
-                    <span class="metric-value" id="scenario-objectives" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-objectives"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
-                  <div style="grid-column: 1 / -1; color: var(--text-secondary); font-size: 0.85rem;">
+                  <div
+                    style="
+                      grid-column: 1 / -1;
+                      color: var(--text-secondary);
+                      font-size: 0.85rem;
+                    "
+                  >
                     Last synced: <span id="scenario-updated">-</span>
                   </div>
                 </div>
@@ -271,6 +318,19 @@
 
           <div class="agents-grid" id="agents-grid">
             <!-- Agents will be loaded dynamically -->
+          </div>
+
+          <div class="agent-workspace" id="agent-workspace" style="display: none">
+            <div class="agent-workspace-header">
+              <div>
+                <h3 id="agent-workspace-title">Agent Workspace</h3>
+                <p id="agent-workspace-subtitle">Execution output and recommendations</p>
+              </div>
+              <button class="agent-workspace-close" onclick="closeAgentWorkspace()">✕</button>
+            </div>
+            <div class="agent-workspace-content" id="agent-workspace-content">
+              <!-- Agent output loads here -->
+            </div>
           </div>
         </section>
 
@@ -493,42 +553,91 @@
             <p>Comprehensive insights and analytics</p>
           </div>
 
-          <div class="activity-section" style="margin-bottom: 1.25rem;">
+          <div class="activity-section" style="margin-bottom: 1.25rem">
             <div class="activity-header">
               <h3>Active Scenario</h3>
             </div>
-            <div class="activity-feed" style="padding: 1rem;">
-              <div class="metric-card" style="margin-bottom: 0;">
-                <div class="metric-content" style="display: grid; grid-template-columns: repeat(2, minmax(200px, 1fr)); gap: 0.75rem 1rem; width: 100%;">
+            <div class="activity-feed" style="padding: 1rem">
+              <div class="metric-card" style="margin-bottom: 0">
+                <div
+                  class="metric-content"
+                  style="
+                    display: grid;
+                    grid-template-columns: repeat(2, minmax(200px, 1fr));
+                    gap: 0.75rem 1rem;
+                    width: 100%;
+                  "
+                >
                   <div>
                     <span class="metric-label">Company</span>
-                    <span class="metric-value" id="scenario-company-reports" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-company-reports"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">DBA</span>
-                    <span class="metric-value" id="scenario-dba-reports" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-dba-reports"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Industry</span>
-                    <span class="metric-value" id="scenario-industry-reports" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-industry-reports"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Location</span>
-                    <span class="metric-value" id="scenario-location-reports" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-location-reports"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Budget</span>
-                    <span class="metric-value" id="scenario-budget-reports" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-budget-reports"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
                   <div>
                     <span class="metric-label">Timeline</span>
-                    <span class="metric-value" id="scenario-timeline-reports" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-timeline-reports"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
-                  <div style="grid-column: 1 / -1;">
+                  <div style="grid-column: 1 / -1">
                     <span class="metric-label">Objectives</span>
-                    <span class="metric-value" id="scenario-objectives-reports" style="font-size: 1rem;">-</span>
+                    <span
+                      class="metric-value"
+                      id="scenario-objectives-reports"
+                      style="font-size: 1rem"
+                      >-</span
+                    >
                   </div>
-                  <div style="grid-column: 1 / -1; color: var(--text-secondary); font-size: 0.85rem;">
+                  <div
+                    style="
+                      grid-column: 1 / -1;
+                      color: var(--text-secondary);
+                      font-size: 0.85rem;
+                    "
+                  >
                     Last synced: <span id="scenario-updated-reports">-</span>
                   </div>
                 </div>
@@ -537,6 +646,19 @@
           </div>
 
           <div class="reports-grid">
+            <div
+              class="report-card"
+              onclick="generateReport('designer-deliverables')"
+            >
+              <div class="report-icon">🎨</div>
+              <h3>Designer Deliverables</h3>
+              <p>
+                Execute the branding agent and return logo proposals, brand kit,
+                and rollout outputs
+              </p>
+              <button class="report-btn">Generate Deliverables</button>
+            </div>
+
             <div class="report-card" onclick="generateReport('ceo')">
               <div class="report-icon">👔</div>
               <h3>CEO Strategic Report</h3>

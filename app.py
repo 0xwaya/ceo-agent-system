@@ -1116,6 +1116,7 @@ def execute_graph():
 @app.route("/api/agent/execute/<agent_type>", methods=["POST"])
 def execute_agent(agent_type):
     """Execute a specific specialized agent"""
+    normalized_agent_type = "branding" if agent_type.lower() == "designer" else agent_type
     data = getattr(g, "sanitized_json", request.json or {})
     if UTILS_AVAILABLE:
         allowlist_validation = validate_payload_allowlist(
@@ -1132,7 +1133,7 @@ def execute_agent(agent_type):
             return _allowlist_violation_response(company_info_validation.errors, "agent_execute")
 
     try:
-        result = _execute_specialized_agent(agent_type, data)
+        result = _execute_specialized_agent(normalized_agent_type, data)
         return jsonify({"success": True, "result": result})
 
     except Exception as e:
@@ -1141,6 +1142,7 @@ def execute_agent(agent_type):
 
 def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
     """Execute a specialized agent and normalize result payload."""
+    agent_type = "branding" if str(agent_type).lower() == "designer" else agent_type
     factory = AgentFactory()
     agent = factory.create_agent(agent_type)
 
@@ -1175,7 +1177,13 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
             "timeline_days": 30,
         }
         concepts_result = agent.design_concepts(state)
+        result["status"] = concepts_result.get("status", result["status"])
+        result["timeline_days"] = concepts_result.get("timeline_days", 0)
         result["deliverables"] = concepts_result.get("deliverables", [])
+        result["design_concepts"] = concepts_result.get("design_concepts", [])
+        result["brand_kit_reference"] = concepts_result.get("brand_kit_reference", {})
+        result["recommendations"] = concepts_result.get("recommendations", [])
+        result["codex_tooling"] = concepts_result.get("codex_tooling", {})
         result["budget_used"] = concepts_result.get("budget_used", 0)
 
     elif agent_type == "web_development" and hasattr(agent, "analyze_requirements"):
@@ -1288,6 +1296,8 @@ def get_guard_rails(agent_type):
     try:
         print(f"🛡️ Guard rails request for: {agent_type}")
 
+        normalized_agent_type = "branding" if agent_type.lower() == "designer" else agent_type
+
         # Map agent_type to AgentDomain enum
         domain_map = {
             "branding": "BRANDING",
@@ -1298,13 +1308,13 @@ def get_guard_rails(agent_type):
             "campaigns": "CAMPAIGNS",
         }
 
-        domain_name = domain_map.get(agent_type.lower(), agent_type.upper())
+        domain_name = domain_map.get(normalized_agent_type.lower(), normalized_agent_type.upper())
         domain = AgentDomain[domain_name]
 
         summary = create_execution_summary(domain)
         guard_rail = AgentGuardRail(domain)
 
-        print(f"✅ Guard rails loaded for {agent_type}")
+        print(f"✅ Guard rails loaded for {normalized_agent_type}")
 
         return jsonify(
             {

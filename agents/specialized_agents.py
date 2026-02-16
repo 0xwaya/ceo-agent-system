@@ -189,7 +189,12 @@ class SpecializedAgent:
                 "reason": "Codex tooling not initialized",
             }
 
-        return self.codex_tooling.generate_assist(objective=objective, context=context)
+        force_enable = bool(context.get("codex_enabled", False))
+        return self.codex_tooling.generate_assist(
+            objective=objective,
+            context=context,
+            force_enable=force_enable,
+        )
 
 
 class BrandingAgent(SpecializedAgent):

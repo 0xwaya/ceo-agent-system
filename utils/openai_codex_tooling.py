@@ -40,21 +40,8 @@ class OpenAICodexTooling:
         self.agent_name = agent_name
         self.client = None
 
-        if not self.enabled:
-            return
-
-        if not self.api_key:
-            logger.info("OpenAI Codex tooling disabled: OPENAI_API_KEY not set")
-            return
-
-        if OpenAI is None:
-            logger.warning("OpenAI package unavailable; Codex tooling disabled")
-            return
-
-        try:
-            self.client = OpenAI(api_key=self.api_key, timeout=self.timeout_seconds)
-        except Exception as error:  # pragma: no cover - network/client initialization
-            logger.warning(f"OpenAI Codex client initialization failed: {error}")
+        if self.enabled:
+            self._initialize_client()
 
     @classmethod
     def from_env(cls, agent_name: str) -> "OpenAICodexTooling":
@@ -68,6 +55,24 @@ class OpenAICodexTooling:
 
     def is_available(self) -> bool:
         return bool(self.enabled and self.client)
+
+    def _initialize_client(self) -> None:
+        """Initialize OpenAI client when enabled or force-enabled."""
+        if self.client is not None:
+            return
+
+        if not self.api_key:
+            logger.info("OpenAI Codex tooling unavailable: OPENAI_API_KEY not set")
+            return
+
+        if OpenAI is None:
+            logger.warning("OpenAI package unavailable; Codex tooling disabled")
+            return
+
+        try:
+            self.client = OpenAI(api_key=self.api_key, timeout=self.timeout_seconds)
+        except Exception as error:  # pragma: no cover - network/client initialization
+            logger.warning(f"OpenAI Codex client initialization failed: {error}")
 
     def _sanitize_context(self, context: Any) -> Any:
         """Redact sensitive values and bound payload size before external calls."""
@@ -88,11 +93,17 @@ class OpenAICodexTooling:
 
         return context
 
-    def generate_assist(self, objective: str, context: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_assist(
+        self, objective: str, context: Dict[str, Any], force_enable: bool = False
+    ) -> Dict[str, Any]:
         """Generate optional Codex-assisted guidance for an agent task."""
-        if not self.is_available():
+        if force_enable and not self.client:
+            self._initialize_client()
+
+        if not self.client or (not self.enabled and not force_enable):
             return {
                 "enabled": self.enabled,
+                "force_enabled": force_enable,
                 "used": False,
                 "model": self.model,
                 "output": None,
@@ -123,7 +134,8 @@ class OpenAICodexTooling:
             content = response.choices[0].message.content if response.choices else None
 
             return {
-                "enabled": True,
+                "enabled": bool(self.enabled or force_enable),
+                "force_enabled": force_enable,
                 "used": bool(content),
                 "model": self.model,
                 "output": content,
@@ -131,7 +143,8 @@ class OpenAICodexTooling:
         except Exception as error:  # pragma: no cover - external API call
             logger.warning(f"OpenAI Codex tooling call failed: {error}")
             return {
-                "enabled": True,
+                "enabled": bool(self.enabled or force_enable),
+                "force_enabled": force_enable,
                 "used": False,
                 "model": self.model,
                 "output": None,

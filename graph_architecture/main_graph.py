@@ -31,6 +31,16 @@ from graph_architecture.subgraphs.researcher_subgraph import build_researcher_su
 logger = logging.getLogger(__name__)
 
 
+def _is_checkpoint_capacity_error(error: Exception) -> bool:
+    """Detect storage-capacity failures from checkpoint backends."""
+    message = str(error).lower()
+    return (
+        "database or disk is full" in message
+        or "disk full" in message
+        or "no space left on device" in message
+    )
+
+
 # ============================================================================
 # CEO ORCHESTRATOR NODES
 # ============================================================================
@@ -456,10 +466,20 @@ def execute_multi_agent_system(
     logger.info("\n🚀 STARTING MULTI-AGENT SYSTEM EXECUTION")
     logger.info("=" * 80)
 
-    if config:
-        result = graph.invoke(ceo_state, config=config)
-    else:
-        result = graph.invoke(ceo_state)
+    try:
+        if config:
+            result = graph.invoke(ceo_state, config=config)
+        else:
+            result = graph.invoke(ceo_state)
+    except Exception as exc:
+        if use_checkpointing and _is_checkpoint_capacity_error(exc):
+            logger.error(
+                "Checkpoint persistence failed due to storage limits; retrying without checkpointing for this run."
+            )
+            graph_no_checkpoint = build_master_graph(checkpointer=None)
+            result = graph_no_checkpoint.invoke(ceo_state)
+        else:
+            raise
 
     logger.info("\n✅ EXECUTION COMPLETE")
     logger.info("=" * 80)

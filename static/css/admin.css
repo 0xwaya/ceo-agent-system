@@ -745,6 +745,111 @@ body {
   border-color: var(--primary-color);
 }
 
+.agent-workspace {
+  margin-top: 24px;
+  background: var(--card-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.agent-workspace-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.agent-workspace-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.agent-workspace-header p {
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.agent-workspace-close {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.agent-workspace-close:hover {
+  border-color: var(--primary-color);
+  background: rgba(37, 99, 235, 0.12);
+}
+
+.agent-workspace-content {
+  display: grid;
+  gap: 14px;
+}
+
+.agent-workspace-loading {
+  padding: 12px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--text-secondary);
+}
+
+.agent-output-section {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-output-section h4 {
+  margin-bottom: 10px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.agent-output-section ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.agent-output-section li {
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.agent-output-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+}
+
+.agent-output-kv-item {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.agent-output-kv-item .label {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.agent-output-kv-item .value {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
 /* Training Container */
 .training-container {
   display: grid;

@@ -174,6 +174,68 @@ def identify_findings_node(state: SharedState) -> Dict[str, Any]:
     }
 
 
+def evaluate_video_tooling_node(state: SharedState) -> Dict[str, Any]:
+    """Evaluate AI video generators/editors and assign best option to content creator workflow."""
+    logger.info("\n🎬 RESEARCHER: AI VIDEO TOOL EVALUATION")
+
+    candidate_tools = [
+        {
+            "name": "Runway",
+            "strengths": ["best-in-class AI video generation", "native editing workflow"],
+            "limitations": ["higher pro-tier pricing"],
+            "score": 9.4,
+        },
+        {
+            "name": "Descript",
+            "strengths": ["excellent AI editing", "podcast + social workflow speed"],
+            "limitations": ["weaker cinematic generation than Runway"],
+            "score": 8.8,
+        },
+        {
+            "name": "CapCut",
+            "strengths": ["fast social edits", "strong short-form templates"],
+            "limitations": ["less premium brand-control depth"],
+            "score": 8.2,
+        },
+    ]
+
+    best_tool = max(candidate_tools, key=lambda tool: tool["score"])
+    assigned_tool = {
+        "assigned_to": "content_creator_agent",
+        "tool": best_tool["name"],
+        "reason": "Highest combined score for AI generation + editing quality",
+        "timestamp": datetime.now().isoformat(),
+        "usage_scope": [
+            "brand films",
+            "project showcase reels",
+            "social short-form campaigns",
+        ],
+    }
+
+    findings = state.get("key_findings", [])
+    findings.append(
+        f"Selected AI video tool for content creator workflow: {best_tool['name']} (score {best_tool['score']})"
+    )
+
+    assigned_tasks = dict(state.get("assigned_tasks", {}))
+    content_tasks = list(assigned_tasks.get("content_creator_agent", []))
+    content_tasks.append(f"use_tool:{best_tool['name']}")
+    assigned_tasks["content_creator_agent"] = content_tasks
+
+    logger.info(
+        f"✅ Best AI video tool selected: {best_tool['name']} | Assigned to content_creator_agent"
+    )
+
+    return {
+        "video_tool_candidates": candidate_tools,
+        "selected_video_tool": best_tool,
+        "video_tool_assignment": assigned_tool,
+        "assigned_tasks": assigned_tasks,
+        "key_findings": findings,
+        "current_node": "evaluate_video_tooling",
+    }
+
+
 def assess_risks_opportunities_node(state: SharedState) -> Dict[str, Any]:
     """
     Assess risks and opportunities from research
@@ -243,6 +305,8 @@ def generate_researcher_summary_node(state: SharedState) -> Dict[str, Any]:
     key_findings = state.get("key_findings", [])
     risks = state.get("risks", [])
     opportunities = state.get("opportunities", [])
+    selected_video_tool = state.get("selected_video_tool", {})
+    video_tool_assignment = state.get("video_tool_assignment", {})
     documents = state.get("documents_analyzed", [])
     citations = state.get("citations", [])
     assumptions = state.get("assumptions", [])
@@ -284,6 +348,18 @@ def generate_researcher_summary_node(state: SharedState) -> Dict[str, Any]:
     else:
         summary_parts.append("   • Analysis ongoing")
 
+    summary_parts.extend(["", "🎬 AI VIDEO TOOLING DECISION:"])
+    if selected_video_tool:
+        summary_parts.append(
+            f"   • Selected: {selected_video_tool.get('name')} (score {selected_video_tool.get('score')})"
+        )
+        summary_parts.append(
+            f"   • Assigned to: {video_tool_assignment.get('assigned_to', 'content_creator_agent')}"
+        )
+        summary_parts.append("   • Purpose: AI-powered video generation + editing for content pipeline")
+    else:
+        summary_parts.append("   • Pending selection")
+
     summary_parts.extend(["", "=" * 80])
 
     research_summary = "\n".join(summary_parts)
@@ -299,6 +375,11 @@ def generate_researcher_summary_node(state: SharedState) -> Dict[str, Any]:
 
     if opportunities:
         recommendations.append(f"Pursue identified opportunities ({len(opportunities)} total)")
+
+    if selected_video_tool:
+        recommendations.append(
+            f"Assign {selected_video_tool.get('name')} to content creator agent for video generation/editing"
+        )
 
     # Create summary message for parent agent (CEO)
     summary_message = SummaryMessage(
@@ -321,6 +402,8 @@ def generate_researcher_summary_node(state: SharedState) -> Dict[str, Any]:
     return {
         "research_summary": research_summary,
         "recommendations": recommendations,
+        "selected_video_tool": selected_video_tool,
+        "video_tool_assignment": video_tool_assignment,
         "agent_outputs": [
             {
                 "agent": "researcher",
@@ -351,6 +434,7 @@ def build_researcher_subgraph() -> StateGraph:
     subgraph.add_node("conduct_research", conduct_research_node)
     subgraph.add_node("analyze_documents", analyze_documents_node)
     subgraph.add_node("identify_findings", identify_findings_node)
+    subgraph.add_node("evaluate_video_tooling", evaluate_video_tooling_node)
     subgraph.add_node("assess_risks", assess_risks_opportunities_node)
     subgraph.add_node("generate_summary", generate_researcher_summary_node)
 
@@ -359,7 +443,8 @@ def build_researcher_subgraph() -> StateGraph:
     subgraph.add_edge("entry_guard", "conduct_research")
     subgraph.add_edge("conduct_research", "analyze_documents")
     subgraph.add_edge("analyze_documents", "identify_findings")
-    subgraph.add_edge("identify_findings", "assess_risks")
+    subgraph.add_edge("identify_findings", "evaluate_video_tooling")
+    subgraph.add_edge("evaluate_video_tooling", "assess_risks")
     subgraph.add_edge("assess_risks", "generate_summary")
     subgraph.add_edge("generate_summary", END)
 

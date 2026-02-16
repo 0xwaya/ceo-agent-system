@@ -167,6 +167,7 @@ class AgentExecutionService:
             state = {
                 "task_description": task_description,
                 "requirements": requirements or company_info,
+                "codex_enabled": bool(requirements.get("codex_enabled", False)),
                 "tech_stack": [],
                 "architecture_design": "",
                 "ar_features": [],
@@ -207,6 +208,7 @@ class AgentExecutionService:
         elif agent_type == "content" and hasattr(agent, "produce_content"):
             state = {
                 "task_description": task_description,
+                "codex_enabled": bool(requirements.get("codex_enabled", False)),
                 "content_types": [],
                 "production_schedule": [],
                 "assets_created": [],
@@ -241,6 +243,7 @@ class AgentExecutionService:
         elif agent_type == "social_media" and hasattr(agent, "execute_social_strategy"):
             state = {
                 "task_description": task_description,
+                "codex_enabled": bool(requirements.get("codex_enabled", False)),
                 "platforms": [],
                 "content_calendar": [],
                 "posting_workflows": [],
