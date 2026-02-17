@@ -18,9 +18,18 @@ START → privacy_scrub → prompt_expert → ceo_analyze → dispatch_orchestra
 from __future__ import annotations
 
 import logging
+import sys
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
+
+# Allow running this file directly: python3 graph_architecture/main_graph.py
+# Adds the project root (parent of graph_architecture/) to sys.path so that
+# package imports like `from graph_architecture.schemas import ...` resolve.
+_project_root = Path(__file__).resolve().parent.parent
+if str(_project_root) not in sys.path:
+    sys.path.insert(0, str(_project_root))
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.base import BaseCheckpointSaver
