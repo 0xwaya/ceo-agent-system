@@ -163,3 +163,8 @@ dump.rdb
 .env.key
 .env.local
 .env.*.local
+
+# Generated runtime artifacts (never commit)
+static/generated_outputs/**
+!static/generated_outputs/
+!static/generated_outputs/.gitkeep
