@@ -145,14 +145,25 @@ class ArtifactService:
         artifacts: List[Dict[str, Any]] = []
 
         if agent_type == "branding":
+            brand_kit_reference = result.get("brand_kit_reference") or {}
+            brand_name = (
+                brand_kit_reference.get("brand_name")
+                or brand_kit_reference.get("legacy_name")
+                or "Brand"
+            )
             concepts = result.get("design_concepts") or []
+            brand_initials = self._extract_monogram_from_concepts(
+                concepts
+            ) or self._derive_brand_initials(brand_name)
             for idx, concept in enumerate(concepts, start=1):
                 concept_name = concept.get("concept_name", f"Concept {idx}")
                 concept_description = concept.get("description", "No description provided")
                 svg_path = run_dir / f"logo_proposal_{idx:02d}.svg"
                 svg_markup = self._build_logo_preview_svg(
-                    title=concept_name,
+                    brand_name=brand_name,
+                    concept_label=concept_name,
                     subtitle=concept_description,
+                    brand_initials=brand_initials,
                     variant_index=idx,
                 )
                 self._write_text(svg_path, svg_markup)
@@ -163,7 +174,14 @@ class ArtifactService:
                 )
 
                 icon_path = run_dir / f"logo_avatar_{idx:02d}.svg"
-                self._write_text(icon_path, self._build_logo_avatar_svg(concept_name, idx))
+                self._write_text(
+                    icon_path,
+                    self._build_logo_avatar_svg(
+                        brand_name=brand_name,
+                        brand_initials=brand_initials,
+                        variant_index=idx,
+                    ),
+                )
                 artifacts.append(
                     self._artifact_entry(
                         icon_path, f"Social Avatar {idx:02d}", "image", "image/svg+xml"
@@ -328,10 +346,18 @@ class ArtifactService:
                 rendered_items.append(f"- {item}")
         return "\n".join([f"# {title}", "", *rendered_items])
 
-    def _build_logo_preview_svg(self, title: str, subtitle: str, variant_index: int = 1) -> str:
-        safe_title = self._xml_escape(title)
+    def _build_logo_preview_svg(
+        self,
+        brand_name: str,
+        concept_label: str,
+        subtitle: str,
+        brand_initials: str,
+        variant_index: int = 1,
+    ) -> str:
+        safe_brand_name = self._xml_escape(brand_name)
+        safe_concept_label = self._xml_escape(concept_label)
         safe_subtitle = self._xml_escape(subtitle)
-        monogram = ["SC", "SS", "AG", "LS"][max(0, (variant_index - 1) % 4)]
+        monogram = self._xml_escape(brand_initials)
         return (
             '<svg xmlns="http://www.w3.org/2000/svg" '
             'width="1200" height="800" viewBox="0 0 1200 800">'
@@ -343,17 +369,24 @@ class ArtifactService:
             '<circle cx="220" cy="220" r="84" fill="none" stroke="url(#gold)" stroke-width="12"/>'
             f'<text x="220" y="238" text-anchor="middle" '
             f'font-size="48" font-weight="700" fill="#111111">{monogram}</text>'
-            f'<text x="340" y="220" font-size="40" font-weight="700" '
-            f'fill="#111111">{safe_title}</text>'
-            f'<text x="340" y="276" font-size="24" fill="#333333">{safe_subtitle}</text>'
+            f'<text x="340" y="210" font-size="42" font-weight="700" '
+            f'fill="#111111">{safe_brand_name}</text>'
+            f'<text x="340" y="255" font-size="24" fill="#333333">{safe_concept_label}</text>'
+            f'<text x="340" y="294" font-size="20" fill="#444444">{safe_subtitle}</text>'
             '<text x="100" y="690" font-size="20" fill="#666666">'
             "AI-generated proposal preview artifact"
             "</text>"
             "</svg>"
         )
 
-    def _build_logo_avatar_svg(self, title: str, variant_index: int) -> str:
-        initials = "".join([part[:1].upper() for part in title.split()[:2]]) or "SC"
+    def _build_logo_avatar_svg(
+        self,
+        brand_name: str,
+        brand_initials: str,
+        variant_index: int,
+    ) -> str:
+        initials = self._xml_escape(brand_initials)
+        safe_brand_name = self._xml_escape(brand_name)
         ring_size = 10 + (variant_index % 3)
         return (
             '<svg xmlns="http://www.w3.org/2000/svg" '
@@ -362,9 +395,34 @@ class ArtifactService:
             f'<circle cx="256" cy="256" r="172" fill="none" '
             f'stroke="#D4AF37" stroke-width="{ring_size}"/>'
             f'<text x="256" y="286" text-anchor="middle" font-size="124" '
-            f'font-weight="700" fill="#F8F8F6">{self._xml_escape(initials)}</text>'
+            f'font-weight="700" fill="#F8F8F6">{initials}</text>'
+            f'<text x="256" y="442" text-anchor="middle" font-size="26" '
+            f'fill="#C9A53A">{safe_brand_name}</text>'
             "</svg>"
         )
+
+    def _derive_brand_initials(self, brand_name: str) -> str:
+        tokens = re.findall(r"[A-Za-z0-9]+", str(brand_name or ""))
+        if tokens:
+            first_token = tokens[0]
+            camel_parts = re.findall(r"[A-Z][a-z0-9]*", first_token)
+            if len(camel_parts) >= 2:
+                return f"{camel_parts[0][0]}{camel_parts[1][0]}".upper()
+        if len(tokens) >= 2:
+            return f"{tokens[0][0]}{tokens[1][0]}".upper()
+        if len(tokens) == 1 and len(tokens[0]) >= 2:
+            return tokens[0][:2].upper()
+        if len(tokens) == 1:
+            return tokens[0][0].upper()
+        return "SC"
+
+    def _extract_monogram_from_concepts(self, concepts: List[Dict[str, Any]]) -> str:
+        for concept in concepts:
+            description = str(concept.get("description", ""))
+            match = re.search(r"\b([A-Za-z])\s*/\s*([A-Za-z])\b", description)
+            if match:
+                return f"{match.group(1)}{match.group(2)}".upper()
+        return ""
 
     def _build_brand_moodboard_svg(self) -> str:
         return (
