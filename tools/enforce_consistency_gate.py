@@ -34,8 +34,8 @@ MAJOR_CODE_PATHS = (
 
 DOC_PATHS = (
     "README.md",
-    "CONTRIBUTING.md",
-    "SECURITY.md",
+    "docs/CONTRIBUTING.md",
+    "docs/SECURITY.md",
     "docs/",
 )
 

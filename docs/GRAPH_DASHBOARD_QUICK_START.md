@@ -219,16 +219,16 @@ And agent summaries:
 
 ## 🔗 Related Links
 
-- **Main README**: [README.md](README.md)
-- **Graph Architecture Docs**: [graph_architecture/README.md](graph_architecture/README.md)
-- **Full Implementation Details**: [GRAPH_UI_IMPLEMENTATION.md](docs/GRAPH_UI_IMPLEMENTATION.md)
+- **Main README**: [README.md](../README.md)
+- **Graph Architecture Docs**: [graph_architecture/README.md](../graph_architecture/README.md)
+- **Full Implementation Details**: [GRAPH_UI_IMPLEMENTATION.md](GRAPH_UI_IMPLEMENTATION.md)
 - **API Documentation**: `http://localhost:5001/docs`
 
 ---
 
 ## 💬 Need Help
 
-1. Check the [GRAPH_UI_IMPLEMENTATION.md](docs/GRAPH_UI_IMPLEMENTATION.md) for detailed docs
+1. Check the [GRAPH_UI_IMPLEMENTATION.md](GRAPH_UI_IMPLEMENTATION.md) for detailed docs
 2. View logs at `http://localhost:5001/api/logs`
 3. Review terminal output where Flask is running
 4. Check browser console for JavaScript errors (F12)

@@ -593,7 +593,7 @@ def prune_checkpoints(thread_id, keep_last=10):
 
 ## 🤝 Contributing
 
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](../docs/CONTRIBUTING.md) for guidelines.
 
 ---
 

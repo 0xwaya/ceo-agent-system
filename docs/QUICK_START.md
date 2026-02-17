@@ -289,7 +289,7 @@ gunicorn -w 4 -b 0.0.0.0:5001 app:app
    - [README.md](README.md) - Project overview
    - [ARCHITECTURE.md](ARCHITECTURE.md) - System architecture
    - [ENCRYPTED_ENV_TUTORIAL.md](ENCRYPTED_ENV_TUTORIAL.md) - API setup guide
-   - [REORGANIZATION_SUMMARY.md](docs/REORGANIZATION_SUMMARY.md) - Recent changes
+   - [REORGANIZATION_SUMMARY.md](REORGANIZATION_SUMMARY.md) - Recent changes
 
 2. **Check the code:**
    - Agent implementations: `agents/`

@@ -365,10 +365,10 @@ ENVIRONMENT=development  # or 'production'
 ## 📚 Documentation References
 
 ### Internal Docs
-- [Graph Architecture README](graph_architecture/README.md)
-- [CFO Subgraph](graph_architecture/subgraphs/cfo_subgraph.py)
-- [Engineer Subgraph](graph_architecture/subgraphs/engineer_subgraph.py)
-- [Researcher Subgraph](graph_architecture/subgraphs/researcher_subgraph.py)
+- [Graph Architecture README](../graph_architecture/README.md)
+- [CFO Subgraph](../graph_architecture/subgraphs/cfo_subgraph.py)
+- [Engineer Subgraph](../graph_architecture/subgraphs/engineer_subgraph.py)
+- [Researcher Subgraph](../graph_architecture/subgraphs/researcher_subgraph.py)
 - [Main README](README.md)
 
 ### External Dependencies

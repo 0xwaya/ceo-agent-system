@@ -126,7 +126,7 @@ git push origin v2.0.0
 
 ### Detailed Instructions
 
-📖 See [GITHUB_SETUP.md](../../GITHUB_SETUP.md) for complete step-by-step instructions.
+📖 See [GITHUB_SETUP.md](../GITHUB_SETUP.md) for complete step-by-step instructions.
 
 ## Recommended Repository Settings
 

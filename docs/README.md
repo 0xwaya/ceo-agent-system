@@ -3,16 +3,26 @@
 This folder contains non-core project documentation moved out of the repository root to keep the top-level workspace clean.
 
 ## Strategy and Architecture
+- `ARCHITECTURE.md`
 - `GRAPH_UI_IMPLEMENTATION.md`
 - `REAL_WORLD_EXECUTION_ROADMAP.md`
 - `IMPROVEMENT_PLAN.md`
 - `REORGANIZATION_SUMMARY.md`
 
 ## Security and Governance
+- `SECURITY.md`
 - `SECURITY_AUDIT_2026.md`
 - `SECURITY_AUDIT_2026_02_17.md`
 - `SECURITY_PATCH_FEB_2026.md`
 - `DOCS_KEEP_ARCHIVE_MANIFEST.md`
+
+## Setup and Operations
+- `QUICK_START.md`
+- `SETUP_INSTRUCTIONS.md`
+- `ENCRYPTED_ENV_TUTORIAL.md`
+- `GITHUB_SETUP.md`
+- `CONTRIBUTING.md`
+- `copilot-instructions.md`
 
 ## Voice and AI Research
 - `AI_AGENT_VOICE_RESEARCH.md`

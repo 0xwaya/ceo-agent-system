@@ -489,6 +489,6 @@ If you encounter issues:
 2. Check Flask logs for backend errors
 3. Verify Google Cloud API quotas
 4. Test with simple "Hello" query first
-5. Review [VOICE_INTEGRATION_ROADMAP.md](docs/VOICE_INTEGRATION_ROADMAP.md)
+5. Review [VOICE_INTEGRATION_ROADMAP.md](VOICE_INTEGRATION_ROADMAP.md)
 
 **Ready to integrate?** Follow steps 1-8 above to enable voice in your LangGraph CEO Agent System!

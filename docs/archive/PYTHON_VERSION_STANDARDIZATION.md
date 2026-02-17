@@ -17,9 +17,9 @@ All references to Python have been standardized to use **`python3`** explicitly.
 
 #### Documentation
 - ✅ [README.md](../../README.md) - All examples use `python3`
-- ✅ [CEO_AGENT_README.md](../../CEO_AGENT_README.md) - All commands use `python3`
+- ✅ [CEO_AGENT_README.md](../CEO_AGENT_README.md) - All commands use `python3`
 - ✅ [tests/README.md](../../tests/README.md) - Test commands use `python3`
-- ✅ [SECURITY.md](../../SECURITY.md) - Secret generation uses `python3`
+- ✅ [SECURITY.md](../SECURITY.md) - Secret generation uses `python3`
 - ✅ [CEO_AGENT_REBRAND_SUMMARY.md](CEO_AGENT_REBRAND_SUMMARY.md) - Uses `python3`
 
 #### Python Files with Shebangs

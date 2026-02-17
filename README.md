@@ -31,7 +31,7 @@ Open: http://localhost:5001/reports # Reports section (direct)
 - 🖼️ **Live Artifact Viewer** - Admin workspace now shows generated files with previews and open links
 - 👔 **Enhanced CEO Output UX** - CEO run now surfaces executive summary, top priorities, immediate actions, approvals, and risk snapshot
 
-> **First Push to Empty Repo:** If your GitHub repository exists but has no commits yet, use the quick upload commands in [GITHUB_SETUP.md → Fast Path (Your Current Status)](GITHUB_SETUP.md#fast-path-your-current-status).
+> **First Push to Empty Repo:** If your GitHub repository exists but has no commits yet, use the quick upload commands in [GITHUB_SETUP.md → Fast Path (Your Current Status)](docs/GITHUB_SETUP.md#fast-path-your-current-status).
 
 👉 **[Complete CEO Agent Documentation →](docs/CEO_AGENT_README.md)**
 👉 **[Rebrand Summary & Features →](docs/archive/CEO_AGENT_REBRAND_SUMMARY.md)**
@@ -91,7 +91,7 @@ Chat naturally with specialized agents:
 - 📸 **Content Agent** - Video, photography, SEO
 - 🚀 **Campaign Agent** - Ads, media, launch strategy
 
-**[📖 Quick usage & commands →](QUICK_START.md)**
+**[📖 Quick usage & commands →](docs/QUICK_START.md)**
 
 ### 2. 🎯 CFO Multi-Agent Orchestrator
 
@@ -185,8 +185,8 @@ langraph/
 ├── agent_knowledge_base.py      # 🎓 Master-level expertise database (NEW!)
 ├── agent.py                     # 📊 Marketing agent (upgraded)
 ├── chat_agent.py                # Original interactive agent
-├── QUICK_START.md               # 🚀 Main runbook and command guide
-├── CEO_CFO_QUICK_REFERENCE.md   # 🎯 CEO/CFO architecture quick reference
+├── docs/QUICK_START.md          # 🚀 Main runbook and command guide
+├── docs/CEO_CFO_QUICK_REFERENCE.md  # 🎯 CEO/CFO architecture quick reference
 └── README.md                    # This file
 ```
 
@@ -460,7 +460,7 @@ Media planning, ad campaigns, optimization.
 ## 📖 Documentation
 
 - **[README.md](README.md)** - Project overview and navigation
-- **[QUICK_START.md](QUICK_START.md)** - Day-to-day runbook and commands
+- **[QUICK_START.md](docs/QUICK_START.md)** - Day-to-day runbook and commands
 - **[CEO_AGENT_README.md](docs/CEO_AGENT_README.md)** - CEO-mode deep guide
 - **[CEO_CFO_QUICK_REFERENCE.md](docs/CEO_CFO_QUICK_REFERENCE.md)** - CEO/CFO operating model
 - **[DOCS_KEEP_ARCHIVE_MANIFEST.md](docs/DOCS_KEEP_ARCHIVE_MANIFEST.md)** - Doc lifecycle and archive candidates
@@ -634,7 +634,7 @@ langraph/
 ├── agent.py              # Main agent workflow (automated mode)
 ├── chat_agent.py         # Interactive chat interface
 ├── README.md             # This file
-└── .github/
+└── docs/
     └── copilot-instructions.md  # AI coding assistant guidelines
 ```
 
