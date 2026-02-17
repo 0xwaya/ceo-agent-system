@@ -10,6 +10,7 @@ This folder contains non-core project documentation moved out of the repository 
 
 ## Security and Governance
 - `SECURITY_AUDIT_2026.md`
+- `SECURITY_AUDIT_2026_02_17.md`
 - `SECURITY_PATCH_FEB_2026.md`
 - `DOCS_KEEP_ARCHIVE_MANIFEST.md`
 
