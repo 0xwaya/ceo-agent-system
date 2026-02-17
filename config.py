@@ -5,6 +5,7 @@ All configuration values, constants, and environment-based settings.
 """
 
 import os
+import warnings
 from enum import Enum
 from pathlib import Path
 
@@ -34,7 +35,27 @@ class Environment(Enum):
 
 APP_ENV = Environment(os.getenv("APP_ENV", "development"))
 DEBUG_MODE = os.getenv("DEBUG", "False").lower() == "true" and APP_ENV != Environment.PRODUCTION
-SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key-change-in-production")
+
+_SECRET_KEY_DEFAULT = "dev-secret-key-change-in-production"
+_loaded_key = os.getenv("SECRET_KEY", "")
+if not _loaded_key:
+    if APP_ENV == Environment.PRODUCTION:
+        raise EnvironmentError(
+            "FATAL: SECRET_KEY environment variable is not set. "
+            "Set a strong random key before running in production."
+        )
+    warnings.warn(
+        "SECRET_KEY is not set \u2014 using insecure development fallback. "
+        "Set the SECRET_KEY environment variable before deploying.",
+        stacklevel=1,
+    )
+    _loaded_key = _SECRET_KEY_DEFAULT
+elif _loaded_key == _SECRET_KEY_DEFAULT and APP_ENV == Environment.PRODUCTION:
+    raise EnvironmentError(
+        "FATAL: SECRET_KEY is still the default development value. "
+        "Generate a unique strong key for production."
+    )
+SECRET_KEY: str = _loaded_key
 
 
 # ============================================================================
@@ -51,6 +72,17 @@ FLASK_THREADED = True
 # ============================================================================
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+if not OPENAI_API_KEY:
+    if APP_ENV == Environment.PRODUCTION:
+        raise EnvironmentError(
+            "FATAL: OPENAI_API_KEY environment variable is not set. "
+            "A valid OpenAI API key is required for production."
+        )
+    warnings.warn(
+        "OPENAI_API_KEY is not set — LLM calls will fail at runtime. "
+        "Set the OPENAI_API_KEY environment variable.",
+        stacklevel=1,
+    )
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4-turbo-preview")
 OPENAI_CODEX_ENABLED = os.getenv("OPENAI_CODEX_ENABLED", "false").lower() == "true"
 OPENAI_CODEX_MODEL = os.getenv("OPENAI_CODEX_MODEL", "gpt-5-codex")

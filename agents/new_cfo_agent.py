@@ -1,9 +1,14 @@
 """
+[DEPRECATED — v0.3]
 CFO (Chief Financial Officer) Agent - Financial Oversight & Compliance
 
-The NEW CFO Agent focuses exclusively on:
-1. Financial monitoring and budget tracking
-2. API cost management (only budget available)
+This variant has been superseded by cfo_llm_summarize_node in
+graph_architecture/llm_nodes.py, which handles financial summary, budget
+tracking, and compliance checks within the Tier-2 CFO subgraph.
+
+This file is RETAINED for backward compatibility with app.py's
+  from agents.new_cfo_agent import CFOAgentState, generate_financial_report
+Do NOT add new CFO logic here — use graph_architecture/llm_nodes.py instead.
 3. Compliance with spending limits
 4. Financial risk identification
 5. Payment approval recommendations (actual approval is user's)

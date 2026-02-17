@@ -1,29 +1,43 @@
-# Hierarchical Graph-Based Multi-Agent Architecture
+# Hierarchical Graph-Based Multi-Agent Architecture — v0.3
+
+> **v0.3** introduces a full 3-tier LangGraph redesign: LLM-driven dispatch, a Prompt Expert agent, 6 Tier-2 domain directors, and 7 Tier-3 execution specialists.
 
 ## Overview
 
 This directory contains the implementation of a **hierarchical, graph-based multi-agent system** using LangGraph with:
 
-- **CEO Agent**: Root orchestrator managing global objectives
-- **CFO Subgraph**: Finance domain with budget analysis and compliance
-- **Engineer Subgraph**: Code generation, refactoring, and testing
-- **Researcher Subgraph**: Discovery and specification research
+- **Prompt Expert** (Node 0): Parses raw user input into structured routing signals before CEO sees it
+- **CEO Agent** (Tier 1): LLM-driven root orchestrator — builds a `dispatch_plan` and loops through it
+- **Domain Directors** (Tier 2): CFO · Engineer · Researcher · Legal · Martech · Security — each an LLM-backed subgraph
+- **Execution Specialists** (Tier 3): UX/UI · WebDev · SoftEng · Branding · Content · Campaign · SocialMedia — orchestrated inside their Tier-2 parent
 
 ## Architecture Principles
 
 ### 1. Hierarchical Structure
 ```
-CEO (Root Node)
-├── CFO Subgraph (Finance Domain)
-├── Engineer Subgraph (Code + Systems)
-└── Researcher Subgraph (Discovery & Specs)
+Prompt Expert (Node 0 — intent parser)
+    └─► CEO (Tier 1 — strategic orchestrator)
+            ├── CFO            (Tier 2 — Finance)
+            ├── Engineer       (Tier 2 — Engineering)
+            │       ├── UX/UI Design  (Tier 3)
+            │       ├── Web Dev       (Tier 3)
+            │       └── Software Eng  (Tier 3)
+            ├── Researcher     (Tier 2 — Research)
+            ├── Legal          (Tier 2 — Compliance)
+            ├── Martech        (Tier 2 — Marketing)
+            │       ├── Branding      (Tier 3)
+            │       ├── Content       (Tier 3)
+            │       ├── Campaign      (Tier 3)
+            │       └── Social Media  (Tier 3)
+            └── Security       (Tier 2 — Audit)
 ```
 
 ### 2. Communication Model
-- **Asynchronous message queues** between agents
-- **Summaries upstream**: Subordinates send executive summaries to CEO
-- **Raw data stays local**: CFO processes data internally, returns insights only
-- **Explicit routing**: No agent can bypass hierarchy
+- **LLM-driven dispatch**: CEO's `dispatch_plan` list is built from Prompt Expert output, not hard-coded
+- **Conditional dispatch loop**: `dispatch_orchestrator` iterates `dispatch_plan[current_dispatch_index]` — only required agents run
+- **Summaries upstream**: Tier-2/3 agents push executive summaries to `agent_outputs`; CEO never sees raw internals
+- **Tier-3 hints**: Prompt Expert sets `needs_ux_design`, `needs_branding`, etc. — Tier-2 subgraphs read these to activate specialists
+- **Explicit hierarchy**: No agent can bypass the chain
 
 ### 3. Persistence & Checkpointing
 - **Checkpoint at every node**: State saved at key graph transitions
@@ -48,22 +62,28 @@ CEO (Root Node)
 ```
 graph_architecture/
 ├── README.md                    # This file
-├── schemas.py                   # JSON schemas for state and messages
-├── shared_state.py              # Global shared state definition
-├── checkpointer.py              # Persistence layer implementation
-├── guards.py                    # Role-based guard rails
-├── nodes/
-│   ├── ceo_nodes.py            # CEO orchestrator nodes
-│   ├── cfo_nodes.py            # CFO subgraph nodes
-│   ├── engineer_nodes.py       # Engineer subgraph nodes
-│   └── researcher_nodes.py     # Researcher subgraph nodes
-├── subgraphs/
-│   ├── cfo_subgraph.py         # CFO workflow graph
-│   ├── engineer_subgraph.py    # Engineer workflow graph
-│   └── researcher_subgraph.py  # Researcher workflow graph
-├── routing.py                   # Conditional edge routing logic
+├── IMPLEMENTATION_GUIDE.md      # Implementation guide
+├── SUMMARY.md                   # Feature summary
+├── TUTORIAL.py                  # Interactive tutorials
+├── requirements.txt             # Dependencies
+│
+├── schemas.py                   # All Pydantic models, TypedDicts, enums (v0.3)
+├── prompt_expert.py             # Node 0 — intent parser + routing decision builder
+├── llm_nodes.py                 # All LLM-backed node functions (Tier 1–3)
+├── tools.py                     # Graph-wired tool registry with role enforcement
+├── checkpointer.py              # Persistence layer (SQLite / PostgreSQL)
+├── guards.py                    # RBAC: Domain enum, DOMAIN_PERMISSIONS, entry guards
 ├── approval_nodes.py            # Human-in-the-loop approval nodes
-└── main_graph.py               # Master graph composition
+├── main_graph.py                # Master orchestration graph (v0.3 dispatch loop)
+│
+└── subgraphs/
+    ├── cfo_subgraph.py          # CFO — Finance domain
+    ├── engineer_subgraph.py     # Engineer — with Tier-3 UX/WebDev/SoftEng routing
+    ├── researcher_subgraph.py   # Researcher — market & competitive analysis
+    ├── legal_subgraph.py        # Legal — compliance & regulatory  [NEW v0.3]
+    ├── martech_subgraph.py      # Martech — strategy + Tier-3 specialists [NEW v0.3]
+    └── security_subgraph.py     # Security — threat model & audit  [NEW v0.3]
+```
 
 ## Key Files
 
@@ -145,16 +165,31 @@ def cfo_entry_guard(state):
 
 ## Usage
 
-### Basic Execution
+### Basic Execution (v0.3)
+```python
+from graph_architecture.main_graph import execute_multi_agent_system
+
+result = execute_multi_agent_system(
+    company_name="Acme Corp",
+    industry="Software & Technology",
+    location="San Francisco, CA",
+    total_budget=100_000.0,
+    target_days=90,
+    objectives=["Launch SaaS platform", "Establish market presence"],
+    # Free-text command — drives Prompt Expert → CEO dispatch_plan
+    user_raw_input="Build a SaaS product with security audit and marketing strategy.",
+    use_checkpointing=True,
+)
+print(result["final_summary"])
+```
+
+### Build Graph Directly
 ```python
 from graph_architecture.main_graph import build_master_graph
 from graph_architecture.checkpointer import create_checkpointer
 
-# Create graph with checkpointing
 checkpointer = create_checkpointer("sqlite", "./checkpoints.db")
 graph = build_master_graph(checkpointer=checkpointer)
-
-# Execute with thread for resumability
 config = {"configurable": {"thread_id": "session-123"}}
 result = graph.invoke(initial_state, config=config)
 ```

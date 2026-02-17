@@ -1,77 +1,84 @@
-# Hierarchical Graph-Based Multi-Agent System
+# Hierarchical Graph-Based Multi-Agent System — v0.3
 
 ## ✅ Implementation Complete
 
-This directory contains a **production-ready implementation** of a hierarchical, graph-based multi-agent system using LangGraph.
+This directory contains the **v0.3** implementation of a 3-tier, LLM-driven hierarchical multi-agent system using LangGraph.
 
-## 📁 What's Inside
+### What changed in v0.3 vs v0.2
+
+| Area | v0.2 | v0.3 |
+|------|------|------|
+| Routing | Hard-coded CFO→Engineer→Researcher always | LLM-built `dispatch_plan` — only needed agents run |
+| Intent parsing | None — raw objectives to CEO | **Prompt Expert** (Node 0) enriches input first |
+| Agent coverage | 3 Tier-2 agents | **6 Tier-2 + 7 Tier-3** agents |
+| LLM nodes | Inline logic in subgraphs | Centralised `llm_nodes.py` with one node per role |
+| Tool calling | Ad-hoc | Role-gated `tools.py` registry |
+| Security/Legal/Martech | Not in graph | Full Tier-2 subgraphs added |
+
+## 📁 What’s Inside
 
 ```
 graph_architecture/
-├── README.md                    # Architecture overview
-├── IMPLEMENTATION_GUIDE.md      # Complete implementation guide
-├── TUTORIAL.py                  # Interactive tutorials
-├── requirements.txt             # Dependencies
+├── schemas.py              ✅ 3-tier Pydantic models, enums, TypedDicts
+├── prompt_expert.py        ✅ Node 0 — LLM intent parser + fallback keyword engine
+├── llm_nodes.py            ✅ All LLM-backed nodes (6 Tier-2, 7 Tier-3) + registries
+├── tools.py                ✅ Graph-wired tool registry with role enforcement
+├── checkpointer.py         ✅ SQLite / PostgreSQL persistence
+├── guards.py               ✅ RBAC — now includes SECURITY domain
+├── approval_nodes.py       ✅ Human-in-the-loop interrupt nodes
+├── main_graph.py           ✅ Dispatch loop master graph (v0.3)
 │
-├── schemas.py                   # JSON schemas for state and messages
-├── checkpointer.py              # Persistence and checkpoint management
-├── guards.py                    # Role-based access control
-├── approval_nodes.py            # Human-in-the-loop approvals
-│
-├── subgraphs/
-│   ├── cfo_subgraph.py         # ✅ CFO finance domain (implemented)
-│   ├── engineer_subgraph.py    # 🚧 Engineer implementation (TODO)
-│   └── researcher_subgraph.py  # 🚧 Researcher discovery (TODO)
-│
-└── main_graph.py               # Master orchestration graph
+└── subgraphs/
+    ├── cfo_subgraph.py         ✅ CFO finance domain
+    ├── engineer_subgraph.py    ✅ Engineer + Tier-3 hints (UX/WebDev/SoftEng)
+    ├── researcher_subgraph.py  ✅ Market & competitive analysis
+    ├── legal_subgraph.py       ✅ Compliance & regulatory [NEW]
+    ├── martech_subgraph.py     ✅ Strategy + Branding/Content/Campaign/Social [NEW]
+    └── security_subgraph.py    ✅ Threat model & audit [NEW]
 ```
 
-## 🎯 Key Features Implemented
+## 🎯 Key Features in v0.3
 
-### ✅ 1. Hierarchical Structure
-- CEO as root orchestrator
-- CFO implemented as complete subgraph
-- Strict parent-child relationships
-- Summaries flow upstream (not raw data)
+### ✅ 1. Prompt Expert Agent (NEW)
+- Node 0 — runs before the CEO
+- LLM-backed with deterministic keyword fallback
+- Outputs 6 Tier-2 routing flags + 7 Tier-3 hints + per-agent tailored prompts
+- No tool access, no business decisions — intent parsing only
 
-### ✅ 2. Shared State Management
-- Type-safe state schemas (Pydantic)
-- Immutable state with reducers
-- Message queue for inter-agent communication
-- Checkpoint metadata tracking
+### ✅ 2. LLM-Driven Conditional Dispatch (NEW)
+- CEO uses `dispatch_plan` list derived from `PromptExpertOutput`
+- `dispatch_orchestrator` loops through the plan — only required agents are invoked
+- No more hard-coded CFO→Engineer→Researcher chain
 
-### ✅ 3. Persistence Layer
-- SQLite checkpointer (development)
-- PostgreSQL support (production)
-- Resume from any checkpoint
-- Crash recovery
-- Export/import functionality
+### ✅ 3. Full 6+7 Agent Coverage (NEW)
+- Tier-2: CFO, Engineer, Researcher, Legal, Martech, Security
+- Tier-3: UX/UI, WebDev, SoftEng (under Engineer); Branding, Content, Campaign, SocialMedia (under Martech)
 
-### ✅ 4. Role-Based Guards
-- Entry guards for subgraphs
-- Authorization level hierarchy
-- Domain access validation
-- Violation logging
-- Approval chain enforcement
+### ✅ 4. Centralised LLM Nodes
+- `llm_nodes.py` owns all LLM calls — one function per role
+- `TIER2_NODE_MAP` and `TIER3_NODE_MAP` registries for dynamic dispatch
+- Each node returns only an executive summary to CEO
 
-### ✅ 5. Human-in-the-Loop
-- Interrupt-based approvals
-- Budget approval requests
-- Risk escalation
-- Batch approval handling
-- Auto-decline mechanism
+### ✅ 5. Role-Gated Tool Registry
+- `tools.py` — graph-wired pure functions dispatched by the graph, not the model
+- `dispatch_tool()` enforces role-permission before execution
 
-### ✅ 6. Multi-Tenant Support
-- Tenant-isolated execution
-- Namespace separation
-- Session management
-- Data deletion (GDPR)
+### ✅ 6. Shared State Management
+- Type-safe TypedDicts + Pydantic models
+- Immutable state with `operator.add` reducers
+- `dispatch_plan`, `current_dispatch_index`, `prompt_expert_output`, `llm_routing_decision` fields added
 
-### ✅ 7. Observability
-- Complete execution history
-- Checkpoint replay (time-travel)
-- Audit trail
-- Debug export
+### ✅ 7. Persistence & Checkpointing
+- SQLite (development) / PostgreSQL (production)
+- Resume from any checkpoint; crash recovery
+
+### ✅ 8. Role-Based Guards (Updated)
+- `Domain.SECURITY` + `AgentRole.SECURITY` added to `DOMAIN_PERMISSIONS`
+- Entry guards on all 6 Tier-2 subgraphs
+
+### ✅ 9. Human-in-the-Loop
+- `interrupt_before=["approval"]` gate after consolidation
+- Budget approval requests propagated through state
 
 ## 🚀 Quick Start
 

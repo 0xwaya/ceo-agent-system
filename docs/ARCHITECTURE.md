@@ -1,4 +1,4 @@
-# Architecture Documentation - Multi-Agent System v2.0
+# Architecture Documentation — Multi-Agent System v0.3
 
 ## Table of Contents
 
@@ -14,25 +14,28 @@
 
 ## Overview
 
-The Multi-Agent System is a professional-grade, enterprise-ready platform for orchestrating AI agents to execute complex business workflows. Version 2.0 represents a complete architectural overhaul focused on:
+The Multi-Agent System is a professional-grade, enterprise-ready platform for orchestrating AI agents to execute complex business workflows. **Version 0.3** introduces a full 3-tier LangGraph redesign:
 
-- **Scalability**: Support for thousands of concurrent users
-- **Maintainability**: Clean separation of concerns with service layers
-- **Security**: Production-ready authentication, authorization, and rate limiting
-- **Performance**: Caching, async operations, and optimized resource usage
-- **Reliability**: Comprehensive error handling and logging
+- **Prompt Expert Agent**: Parses raw user commands into structured routing signals before the CEO sees them
+- **LLM-driven dispatch**: CEO builds a `dispatch_plan` from Prompt Expert output — only required agents run
+- **6 Tier-2 domain directors**: CFO, Engineer, Researcher, Legal, Martech, Security
+- **7 Tier-3 execution specialists**: UX/UI, WebDev, SoftEng, Branding, Content, Campaign, SocialMedia
+- **Centralised LLM nodes**: `llm_nodes.py` owns all LLM calls with per-role prompts and fallbacks
+- **Role-gated tool registry**: `tools.py` enforces domain permissions before any tool executes
 
-### Key Improvements from v1.0
+### Key Improvements
 
-| Aspect | v1.0 | v2.0 |
-| --- | --- | --- |
-| State Management | Mutable dicts | Immutable Pydantic models |
-| Error Handling | Try/catch scattered | Centralized exception hierarchy |
-| Logging | print() statements | Professional logging with handlers |
-| Configuration | Hard-coded values | Environment-based config |
-| Architecture | Monolithic | Service-oriented with DI |
-| Security | None | Auth, rate limiting, input validation |
-| Testing | Manual only | Test-ready with >80% coverage goal |
+| Aspect | v0.1 | v0.2 | v0.3 |
+| --- | --- | --- | --- |
+| State Management | Mutable dicts | Immutable Pydantic models | TypedDicts + Pydantic + `dispatch_plan` |
+| Agent Coverage | 1 agent | CFO + Engineer + Researcher | 6 Tier-2 + 7 Tier-3 agents |
+| Routing | Hard-coded | Phase-based | LLM-driven `dispatch_plan` loop |
+| Intent Parsing | None | None | **Prompt Expert** (Node 0) |
+| LLM Architecture | Inline | Inline | Centralised `llm_nodes.py` |
+| Tool Calling | Ad-hoc | Ad-hoc | Role-gated `tools.py` registry |
+| Security Domain | None | None | Full Tier-2 subgraph |
+| Legal / Martech | Present as agents | Present as agents | Full Tier-2 subgraphs in graph |
+| Testing | Manual only | Test-ready | Test-ready (tests/ updated) |
 
 ---
 

@@ -1,32 +1,34 @@
-# 👔 CEO Agent - Executive AI System
+# 👔 CEO Agent — Executive AI System v0.3
 
-> **Production-Ready Multi-Agent AI System with Executive Governance, Financial Oversight, and Real-World Execution Capabilities**
+> **v0.3 — 3-Tier LangGraph Architecture**: Prompt Expert → CEO → 6 Domain Directors → 7 Execution Specialists
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Status: Training Mode](https://img.shields.io/badge/status-training%20mode-orange.svg)](docs/CEO_AGENT_README.md)
 
-![CEO Agent System](https://img.shields.io/badge/CEO_Agent-Executive_AI-667eea?style=for-the-badge&logo=openai)
+![CEO Agent System](https://img.shields.io/badge/CEO_Agent-v0.3_Executive_AI-667eea?style=for-the-badge&logo=openai)
 
 ---
 
-## 🌟 What is CEO Agent
+## 🌟 What is CEO Agent v0.3
 
-**CEO Agent** is an advanced multi-agent AI system featuring executive-level governance, financial oversight, and autonomous task execution. Built with LangGraph state machines, it orchestrates specialized AI agents to execute real-world business tasks while maintaining strict financial guard rails and requiring user approval for spending.
+**CEO Agent** is an advanced multi-agent AI system featuring a 3-tier LangGraph hierarchy, LLM-driven dispatch, and a Prompt Expert that converts raw user commands into structured agent routing before the CEO ever sees them. It orchestrates specialized AI agents to execute real-world business tasks while maintaining strict financial guard rails and requiring user approval for spending.
 
 ### 🎯 Key Features
 
-- **👔 CEO Agent**: Executive orchestrator making strategic decisions within defined guard rails
-- **💰 CFO Agent**: Financial oversight with budget management ($970 auto-approve limit)
-- **🤖 6 Specialized Agents**: Brand, Legal, MarTech, UX/UI, Content, Campaigns
+- **🧠 Prompt Expert (NEW)**: Node 0 — LLM parses raw user input into routing signals; keyword fallback when LLM unavailable
+- **👔 CEO Agent (Tier 1)**: LLM-driven orchestrator that builds a `dispatch_plan` — no more hard-coded sequential routing
+- **📊 Conditional Dispatch Loop (NEW)**: Only the agents required by the user’s request are invoked
+- **🌐 6 Domain Directors (Tier 2)**: CFO · Engineer · Researcher · Legal · Martech · Security — each LLM-backed with its own subgraph
+- **⚡ 7 Execution Specialists (Tier 3 NEW)**: UX/UI · WebDev · SoftEng · Branding · Content · Campaign · SocialMedia
+- **🛠️ Centralised LLM Nodes**: `llm_nodes.py` — one function per role, `TIER2_NODE_MAP` / `TIER3_NODE_MAP` registries
+- **🔒 Role-Gated Tools**: `tools.py` enforces domain permissions before any tool executes
 - **✅ Payment Approval Workflow**: 98% of budget ($49,030) requires user approval
 - **🎓 Interactive Training Interface**: Develop and refine agents before production
-- **🔬 Daily Research & Evolution**: Agents autonomously research latest tools and best practices
-- **📊 Executive Reports**: CEO strategic summaries, CFO financial reports, performance analytics
+- **📊 Executive Reports**: CEO strategic summaries, domain-level findings, performance analytics
 - **🛡️ Financial Guard Rails**: Prevents unauthorized spending and liability exposure
 - **⚡ Real-time Dashboard**: Professional admin interface for complete system control
 - **🗂️ Artifact Persistence**: Each execution writes structured output files to `static/generated_outputs/`
-- **🖼️ In-UI File Preview**: `Run & View Output` now includes a Generated Files section with previews/links
 
 ---
 

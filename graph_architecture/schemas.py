@@ -6,6 +6,8 @@ Defines the structure for:
 2. Message queue format for inter-agent communication
 3. Checkpoint format for persistence
 4. Agent communication protocol
+5. Prompt Expert agent I/O contract
+6. Strict typed AgentTask for deterministic routing
 """
 
 from typing import TypedDict, Annotated, List, Dict, Any, Optional, Literal
@@ -22,14 +24,52 @@ from pydantic import BaseModel, Field, ConfigDict
 
 
 class AgentRole(str, Enum):
-    """Agent role hierarchy"""
+    """
+    Agent role hierarchy.
 
+    Tier 1 — Orchestrator:
+        CEO          Top-level director; reads PromptExpertOutput, builds dispatch_plan
+
+    Tier 2 — Domain Directors (directly dispatched by CEO, own LLM node):
+        CFO          Finance analysis & budget oversight
+        ENGINEER     Technical architecture; orchestrates Tier-3 engineering sub-agents
+        RESEARCHER   Market & competitive research synthesis
+        LEGAL        Legal compliance; orchestrates jurisdictional sub-agents
+        MARTECH      Marketing execution; orchestrates Tier-3 creative sub-agents
+        SECURITY     Security audit & blockchain review (cross-cutting, CEO-dispatchable)
+
+    Tier 3 — Execution Specialists (sub-nodes within Tier-2 subgraphs, never
+             directly dispatched by CEO):
+        UX_DESIGN    UI/UX design within Engineer subgraph
+        WEBDEV       Web development within Engineer subgraph
+        SOFTWARE_ENG Software architecture review within Engineer subgraph
+        BRANDING     Brand identity within Martech subgraph
+        CONTENT      Content strategy within Martech subgraph
+        CAMPAIGN     Campaign execution within Martech subgraph
+        SOCIAL_MEDIA Social media within Martech subgraph
+    """
+
+    # Tier 1
     CEO = "ceo"
+
+    # Tier 2
     CFO = "cfo"
     ENGINEER = "engineer"
     RESEARCHER = "researcher"
     LEGAL = "legal"
     MARTECH = "martech"
+    SECURITY = "security"
+
+    # Tier 3 — Engineering cluster
+    UX_DESIGN = "ux_design"
+    WEBDEV = "webdev"
+    SOFTWARE_ENG = "software_eng"
+
+    # Tier 3 — Martech cluster
+    BRANDING = "branding"
+    CONTENT = "content"
+    CAMPAIGN = "campaign"
+    SOCIAL_MEDIA = "social_media"
 
 
 class MessageType(str, Enum):
@@ -71,6 +111,209 @@ class RiskLevel(str, Enum):
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
+
+class TaskDomain(str, Enum):
+    """
+    Deterministic domain routing targets.
+    Maps 1-to-1 to Tier-2 AgentRole (except UNKNOWN/STRATEGY).
+    """
+
+    FINANCE = "finance"  # → CFO
+    ENGINEERING = "engineering"  # → ENGINEER subgraph
+    RESEARCH = "research"  # → RESEARCHER subgraph
+    LEGAL = "legal"  # → LEGAL subgraph
+    MARKETING = "marketing"  # → MARTECH subgraph
+    SECURITY = "security"  # → SECURITY subgraph
+    DESIGN = "design"  # → ENGINEER subgraph (UX_DESIGN tier-3)
+    STRATEGY = "strategy"  # → CEO only (no sub-agent)
+    UNKNOWN = "unknown"
+
+
+# ============================================================================
+# PROMPT EXPERT SCHEMAS
+# ============================================================================
+
+
+class PromptExpertOutput(BaseModel):
+    """
+    Structured output from the Prompt Expert Agent.
+
+    The Prompt Expert transforms raw user input into a structured,
+    enriched task specification that drives deterministic routing and
+    gives each domain agent a precise, LLM-ready prompt.
+    """
+
+    original_input: str = Field(description="Raw user input, unmodified")
+    intent_summary: str = Field(description="One-sentence summary of user intent")
+    enriched_prompt: str = Field(description="Full enriched prompt sent to the CEO node")
+
+    # Routing signals — CEO reads these to build dispatch_plan
+    # Tier-2 dispatch flags
+    primary_domain: TaskDomain = Field(description="Main domain targeted by this request")
+    secondary_domains: List[TaskDomain] = Field(
+        default_factory=list,
+        description="Additional domains that may be involved",
+    )
+    requires_financial_analysis: bool = False  # → CFO
+    requires_engineering: bool = False  # → Engineer subgraph
+    requires_research: bool = False  # → Researcher subgraph
+    requires_legal: bool = False  # → Legal subgraph
+    requires_marketing: bool = False  # → Martech subgraph
+    requires_security_audit: bool = False  # → Security subgraph
+
+    # Tier-3 hints (passed INTO the Tier-2 subgraph, not used by CEO router)
+    # Engineer sub-agent hints
+    needs_ux_design: bool = False  # → UX/UI agent within Engineer
+    needs_web_development: bool = False  # → WebDev agent within Engineer
+    needs_software_review: bool = False  # → SoftwareEng agent within Engineer
+
+    # Martech sub-agent hints
+    needs_branding: bool = False  # → Branding agent within Martech
+    needs_content: bool = False  # → Content agent within Martech
+    needs_campaign: bool = False  # → Campaign agent within Martech
+    needs_social_media: bool = False  # → SocialMedia agent within Martech
+
+    # Per-agent enriched sub-prompts (constrained context for each Tier-2 node)
+    ceo_directive: str = Field(description="Strategic framing for CEO node")
+    cfo_task_prompt: Optional[str] = Field(
+        None, description="Constrained financial analysis prompt for CFO node"
+    )
+    engineer_task_prompt: Optional[str] = Field(
+        None, description="Technical specification prompt for Engineer node"
+    )
+    researcher_task_prompt: Optional[str] = Field(
+        None, description="Research focus prompt for Researcher node"
+    )
+    legal_task_prompt: Optional[str] = Field(
+        None, description="Compliance scope prompt for Legal node"
+    )
+    martech_task_prompt: Optional[str] = Field(
+        None, description="Marketing execution prompt for Martech node"
+    )
+    security_task_prompt: Optional[str] = Field(
+        None, description="Security audit scope prompt for Security node"
+    )
+
+    # Meta
+    priority: TaskPriority = TaskPriority.MEDIUM
+    confidence_score: float = Field(ge=0.0, le=1.0, description="LLM confidence in parsing")
+    ambiguities: List[str] = Field(
+        default_factory=list,
+        description="Detected ambiguities that may need clarification",
+    )
+    recommendations: List[str] = Field(
+        default_factory=list,
+        description="Strategic recommendations from Prompt Expert",
+    )
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "original_input": "I need a financial review and a product roadmap",
+                "intent_summary": "Financial review combined with technical product planning",
+                "enriched_prompt": "Conduct comprehensive financial analysis and develop a prioritised product roadmap aligned with budget constraints.",
+                "primary_domain": "finance",
+                "secondary_domains": ["engineering"],
+                "requires_financial_analysis": True,
+                "requires_engineering": True,
+                "ceo_directive": "Initiate CFO budget analysis first; use output to constrain engineering roadmap scope.",
+                "cfo_task_prompt": "Perform full budget analysis. Return: budget health, burn rate, and recommended engineering investment ceiling.",
+                "engineer_task_prompt": "Develop a product roadmap within the CFO-approved budget ceiling. Return: prioritised feature list, timeline, and tech stack recommendation.",
+                "priority": "high",
+                "confidence_score": 0.92,
+                "ambiguities": [],
+                "recommendations": ["Review Q1 actuals before engineering commitment"],
+            }
+        }
+    )
+
+
+class AgentTask(BaseModel):
+    """
+    Strict typed task specification passed to each subgraph node.
+
+    The graph — not the model — determines which task is dispatched.
+    """
+
+    task_id: str = Field(description="Unique task identifier")
+    task_name: str
+    description: str
+    domain: TaskDomain
+    assigned_to: AgentRole
+    priority: TaskPriority = TaskPriority.MEDIUM
+
+    # Financial constraints
+    estimated_budget: float = 0.0
+    max_budget: float = 0.0
+
+    # Time constraints
+    estimated_days: int = 0
+    deadline: Optional[str] = None
+
+    # Dependencies: list of task_ids this task depends on
+    depends_on: List[str] = Field(default_factory=list)
+
+    # Per-agent prompt (from Prompt Expert)
+    agent_prompt: Optional[str] = None
+
+    # Execution control
+    status: TaskStatus = TaskStatus.PENDING
+    retry_count: int = 0
+    max_retries: int = 3
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "task_id": "T001",
+                "task_name": "Budget Analysis",
+                "description": "Analyze current budget allocation and forecast Q2 spend",
+                "domain": "finance",
+                "assigned_to": "cfo",
+                "priority": "high",
+                "estimated_budget": 0,
+                "max_budget": 0,
+                "estimated_days": 2,
+                "agent_prompt": "Analyze the budget data and return structured CFOOutput.",
+                "status": "pending",
+            }
+        }
+    )
+
+
+class LLMRoutingDecision(BaseModel):
+    """
+    CEO's LLM-driven routing decision.
+
+    Produced by `ceo_router_node` after processing PromptExpertOutput.
+    Determines which subgraphs to invoke and in what order.
+    """
+
+    dispatch_plan: List[AgentRole] = Field(description="Ordered list of agent roles to invoke")
+    rationale: str = Field(description="CEO's reasoning for dispatch plan")
+    can_parallelize: bool = Field(
+        default=False,
+        description="True if subgraphs can run in parallel (no data dependencies)",
+    )
+    requires_approval_before: Optional[AgentRole] = Field(
+        None,
+        description="Pause for human approval before invoking this agent",
+    )
+    risk_assessment: RiskLevel = RiskLevel.LOW
+    estimated_total_cost: float = 0.0
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "dispatch_plan": ["cfo", "engineer"],
+                "rationale": "Financial analysis needed before engineering to set budget ceiling",
+                "can_parallelize": False,
+                "requires_approval_before": None,
+                "risk_assessment": "low",
+                "estimated_total_cost": 500.0,
+            }
+        }
+    )
 
 
 # ============================================================================
@@ -210,43 +453,52 @@ class SharedState(TypedDict):
     Uses LangGraph's reducer pattern for list fields (Annotated with operator.add)
     """
 
-    # Execution metadata
+    # ── Raw user input & Prompt Expert output ──────────────────────────────
+    user_raw_input: NotRequired[str]  # Raw user command (scrubbed of PII)
+    prompt_expert_output: NotRequired[Dict[str, Any]]  # Serialised PromptExpertOutput
+    llm_routing_decision: NotRequired[Dict[str, Any]]  # Serialised LLMRoutingDecision
+
+    # ── Privacy layer (set by privacy_scrub_node) ──────────────────────────
+    privacy_scrubbed: NotRequired[bool]  # True if PII scrubbing ran
+    pii_detections: NotRequired[List[str]]  # PII categories found & redacted
+
+    # ── Execution metadata ──────────────────────────────────────────────────
     thread_id: str
     session_start: str
     current_node: str
     execution_step: int
 
-    # Company information (immutable after init)
+    # ── Company information (immutable after init) ──────────────────────────
     company_name: str
     industry: str
     location: str
 
-    # Strategic objectives (set by CEO)
+    # ── Strategic objectives (set by CEO) ──────────────────────────────────
     strategic_objectives: Annotated[List[str], operator.add]
     business_goals: Annotated[List[Dict[str, Any]], operator.add]
 
-    # Budget management (CEO oversees, CFO manages)
+    # ── Budget management (CEO oversees, CFO manages) ──────────────────────
     total_budget: float
     budget_allocated: Dict[str, float]
     budget_spent: Dict[str, float]
     budget_remaining: float
 
-    # Timeline tracking
+    # ── Timeline tracking ──────────────────────────────────────────────────
     target_completion_days: int
     current_day: int
     milestones: Annotated[List[Dict[str, Any]], operator.add]
 
-    # Task management
+    # ── Task management (typed AgentTask dicts) ────────────────────────────
     identified_tasks: Annotated[List[Dict[str, Any]], operator.add]
     assigned_tasks: Dict[str, List[str]]  # agent_role -> [task_ids]
     completed_tasks: Annotated[List[str], operator.add]
     blocked_tasks: Annotated[List[Dict[str, Any]], operator.add]
 
-    # Inter-agent communication
+    # ── Inter-agent communication ──────────────────────────────────────────
     pending_messages: Annotated[List[Message], operator.add]
     message_history: Annotated[List[Message], operator.add]
 
-    # Agent status tracking
+    # ── Agent status tracking ──────────────────────────────────────────────
     active_agents: Annotated[List[str], operator.add]
     agent_outputs: Annotated[List[Dict[str, Any]], operator.add]
     agent_status: Dict[str, str]  # agent_role -> status
@@ -307,6 +559,11 @@ class CEOState(SharedState):
     executive_decisions: Annotated[List[Dict[str, Any]], operator.add]
     delegation_log: Annotated[List[Dict[str, Any]], operator.add]
     subgraph_summaries: Annotated[List[SummaryMessage], operator.add]
+
+    # LLM-driven routing plan (set after CEO analyses PromptExpertOutput)
+    dispatch_plan: NotRequired[List[str]]  # ordered list of agent roles
+    current_dispatch_index: NotRequired[int]  # which agent is next in plan
+    can_parallelize: NotRequired[bool]
 
 
 class CFOSubgraphState(TypedDict):
@@ -459,11 +716,19 @@ def create_initial_shared_state(
     total_budget: float,
     target_days: int,
     objectives: List[str],
+    user_raw_input: str = "",
 ) -> SharedState:
     """Create initial shared state"""
     import uuid
 
     return SharedState(
+        # Privacy layer (set by privacy_scrub_node — always first)
+        privacy_scrubbed=False,
+        pii_detections=[],
+        # Prompt Expert
+        user_raw_input=user_raw_input,
+        prompt_expert_output={},
+        llm_routing_decision={},
         # Execution metadata
         thread_id=f"thread-{uuid.uuid4().hex[:8]}",
         session_start=datetime.now().isoformat(),

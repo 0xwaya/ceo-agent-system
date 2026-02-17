@@ -1,9 +1,12 @@
 """
+[DEPRECATED — v0.3]
 CFO (Chief Financial Officer) Agent - Multi-Agent Orchestrator
 
-This is the main orchestration agent that:
-1. Analyzes strategic objectives and breaks them into specialized tasks
-2. Creates and manages specialized agents for each domain
+The class-based CFOAgent orchestrator has been superseded by
+cfo_llm_summarize_node in graph_architecture/llm_nodes.py.
+
+This file is RETAINED for backward compatibility only.
+Do NOT add new CFO logic here — use graph_architecture/llm_nodes.py instead.
 3. Coordinates execution across multiple agents
 4. Tracks budgets, timelines, and deliverables
 5. Synthesizes results into comprehensive strategic reports

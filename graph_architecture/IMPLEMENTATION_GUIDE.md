@@ -1,16 +1,19 @@
-# Hierarchical Graph-Based Multi-Agent System - Implementation Guide
+# Hierarchical Graph-Based Multi-Agent System — v0.3 Implementation Guide
 
 ## 🎯 Overview
 
-This system implements a **production-ready, hierarchical multi-agent architecture** using LangGraph with:
+This system implements a **3-tier LLM-driven hierarchical multi-agent architecture** using LangGraph with:
 
-- ✅ **CEO as root orchestrator** - Central decision-maker
-- ✅ **Specialized subgraphs** - CFO (finance), Engineer (code), Researcher (discovery)
-- ✅ **Strict role boundaries** - Role-based guards prevent unauthorized access
-- ✅ **Checkpoint persistence** - Resume from any point, crash recovery
-- ✅ **Human-in-the-loop** - Approval nodes for critical decisions
-- ✅ **Multi-tenant support** - Isolated execution per customer
-- ✅ **Audit trail** - Complete observability and debugging
+- ✅ **Prompt Expert Agent** — Node 0, LLM-backed intent parser converts raw user input to structured routing signals
+- ✅ **CEO as LLM orchestrator** — Builds `dispatch_plan` from Prompt Expert output; never hard-codes agents
+- ✅ **Conditional dispatch loop** — `dispatch_orchestrator` iterates plan, only required Tier-2 agents run
+- ✅ **6 Tier-2 domain directors** — CFO, Engineer, Researcher, Legal, Martech, Security (each LLM-backed)
+- ✅ **7 Tier-3 execution specialists** — UX/UI, WebDev, SoftEng, Branding, Content, Campaign, SocialMedia
+- ✅ **Centralised LLM nodes** — `llm_nodes.py` owns all LLM calls; `TIER2_NODE_MAP` / `TIER3_NODE_MAP` registries
+- ✅ **Role-gated tool registry** — `tools.py` enforces domain permissions before any tool executes
+- ✅ **Strict role boundaries** — Role-based guards, RBAC domain permissions
+- ✅ **Checkpoint persistence** — Resume from any point, crash recovery
+- ✅ **Human-in-the-loop** — Approval gate after consolidation
 
 ---
 
@@ -20,19 +23,25 @@ This system implements a **production-ready, hierarchical multi-agent architectu
 graph_architecture/
 ├── README.md                  # Architecture overview
 ├── IMPLEMENTATION_GUIDE.md    # This file
+├── SUMMARY.md                 # Feature summary & changelog
 ├── TUTORIAL.py                # Interactive tutorials
 │
-├── schemas.py                 # State and message schemas
+├── schemas.py                 # All Pydantic models, TypedDicts, enums
+├── prompt_expert.py           # Node 0 — LLM intent parser + keyword fallback
+├── llm_nodes.py               # All LLM node functions + TIER2/TIER3_NODE_MAP
+├── tools.py                   # Role-gated tool registry
 ├── checkpointer.py            # Persistence layer
-├── guards.py                  # Role-based access control
-├── approval_nodes.py          # Human approval workflows
+├── guards.py                  # RBAC guards + domain permissions
+├── approval_nodes.py          # Human-in-the-loop workflow
+├── main_graph.py              # Master dispatch-loop graph
 │
-├── subgraphs/
-│   ├── cfo_subgraph.py       # CFO finance domain
-│   ├── engineer_subgraph.py  # Engineer implementation (TODO)
-│   └── researcher_subgraph.py # Researcher discovery (TODO)
-│
-└── main_graph.py             # Master orchestration graph
+└── subgraphs/
+    ├── cfo_subgraph.py          # Finance domain
+    ├── engineer_subgraph.py     # Engineering + Tier-3 hints
+    ├── researcher_subgraph.py   # Research & analysis
+    ├── legal_subgraph.py        # Compliance & regulatory [NEW v0.3]
+    ├── martech_subgraph.py      # Marketing + Branding/Content/Campaign/Social [NEW v0.3]
+    └── security_subgraph.py     # Security audit & threat model [NEW v0.3]
 ```
 
 ---
@@ -45,7 +54,7 @@ graph_architecture/
 pip install langgraph langgraph-checkpoint-sqlite pydantic
 ```
 
-### 2. Basic Execution
+### 2. Basic Execution (v0.3)
 
 ```python
 from graph_architecture.main_graph import execute_multi_agent_system
@@ -61,6 +70,8 @@ result = execute_multi_agent_system(
         "Establish market presence",
         "Build sales pipeline"
     ],
+    # Natural-language command — Prompt Expert parses this into routing signals
+    user_raw_input="Build a SaaS product with focus on security and a full marketing launch.",
     use_checkpointing=True
 )
 
@@ -132,14 +143,24 @@ cfo_guard = SubgraphEntryGuard(
 state = cfo_guard.validate_entry(state, requester_role=AgentRole.CEO)
 ```
 
-### Authorization Levels
+### Authorization Levels (Updated v0.3)
 
-| Role       | Level        | Can Do                                   |
-|------------|--------------|------------------------------------------|
-| CEO        | EXECUTIVE    | All strategic decisions, delegate tasks  |
-| CFO        | SUPERVISORY  | Budget analysis, compliance, reporting   |
-| Engineer   | OPERATIONAL  | Code generation, testing, deployment     |
-| Researcher | OPERATIONAL  | Research, document analysis, specs       |
+| Role       | Tier | Level        | Can Do |
+|------------|------|--------------|--------|
+| CEO        | 1    | EXECUTIVE    | Strategic decisions, build dispatch_plan, delegate to all Tier-2 |
+| CFO        | 2    | SUPERVISORY  | Budget analysis, compliance, financial reporting |
+| Security   | 2    | SUPERVISORY  | Threat modelling, audit, compliance gap analysis |
+| Engineer   | 2    | OPERATIONAL  | Technical architecture, delegates to UX/WebDev/SoftEng |
+| Researcher | 2    | OPERATIONAL  | Market research, competitor analysis |
+| Legal      | 2    | OPERATIONAL  | Regulatory compliance, contract review |
+| Martech    | 2    | OPERATIONAL  | Marketing strategy, delegates to Branding/Content/Campaign/Social |
+| UX/UI      | 3    | OPERATIONAL  | Design systems, wireframes, accessibility |
+| WebDev     | 3    | OPERATIONAL  | Frontend, React, landing pages |
+| SoftEng    | 3    | OPERATIONAL  | Code review, software architecture |
+| Branding   | 3    | OPERATIONAL  | Brand identity, visual guidelines |
+| Content    | 3    | OPERATIONAL  | Blog, copy, editorial |
+| Campaign   | 3    | OPERATIONAL  | Paid campaigns, funnels |
+| SocialMedia| 3    | OPERATIONAL  | Social channels, engagement |
 
 ### Guard Rail Violations
 

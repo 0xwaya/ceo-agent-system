@@ -48,6 +48,7 @@ ROLE_AUTHORIZATION = {
     AgentRole.RESEARCHER: AuthorizationLevel.OPERATIONAL,
     AgentRole.LEGAL: AuthorizationLevel.OPERATIONAL,
     AgentRole.MARTECH: AuthorizationLevel.OPERATIONAL,
+    AgentRole.SECURITY: AuthorizationLevel.SUPERVISORY,  # Security has audit authority
 }
 
 
@@ -64,6 +65,7 @@ class Domain(str, Enum):
     RESEARCH = "research"
     LEGAL = "legal"
     MARKETING = "marketing"
+    SECURITY = "security"
     STRATEGY = "strategy"
 
 
@@ -74,6 +76,7 @@ DOMAIN_PERMISSIONS: Dict[Domain, Set[AgentRole]] = {
     Domain.RESEARCH: {AgentRole.CEO, AgentRole.RESEARCHER},
     Domain.LEGAL: {AgentRole.CEO, AgentRole.LEGAL},
     Domain.MARKETING: {AgentRole.CEO, AgentRole.MARTECH},
+    Domain.SECURITY: {AgentRole.CEO, AgentRole.SECURITY},  # Security audit domain
     Domain.STRATEGY: {AgentRole.CEO},  # CEO only
 }
 

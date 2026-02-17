@@ -1,15 +1,38 @@
 """
+[DEPRECATED — v0.3]
 Specialized Agent Templates - Expert agents for specific domains
 
-Each agent is designed with master-level knowledge from top universities
-and industry best practices in their respective fields.
+These class-based agents (BrandingAgent, WebDevelopmentAgent, LegalComplianceAgent,
+MartechAgent, ContentAgent, CampaignAgent) have been superseded by the Tier-3
+LLM nodes defined in graph_architecture/llm_nodes.py:
 
-🛡️ GUARD RAILS ENFORCED:
-- Agents EXECUTE work (do not recommend external vendors)
-- Budget constraints enforced (tools/platforms only)
-- Scope validation (agents stay in their domain)
-- Quality standards from top universities
+  branding_llm_node       → replaces BrandingAgent
+  webdev_llm_node         → replaces WebDevelopmentAgent
+  legal_llm_compliance_node → replaces LegalComplianceAgent
+  martech_llm_strategy_node → replaces MartechAgent
+  content_llm_node        → replaces ContentAgent
+  campaign_llm_node       → replaces CampaignAgent
+
+This file is RETAINED for backward compatibility with app.py's AgentFactory.
+Do NOT add new agent logic here — use graph_architecture/llm_nodes.py instead.
 """
+# Legacy specialised agents — kept for app.py/AgentFactory compatibility only.
+# See graph_architecture/llm_nodes.py for the active v0.3 implementations.
+
+import warnings
+
+warnings.warn(
+    "agents/specialized_agents.py is deprecated. "
+    "Use graph_architecture/llm_nodes.py Tier-3 nodes instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
+
+# Legacy guard-rail notes (originally from docstring):
+# - Agents EXECUTE work (do not recommend external vendors)
+# - Budget constraints enforced (tools/platforms only)
+# - Scope validation (agents stay in their domain)
+# - Quality standards from top universities
 
 from typing import Dict, List, Any
 from typing_extensions import TypedDict

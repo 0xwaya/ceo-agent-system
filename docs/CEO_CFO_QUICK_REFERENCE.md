@@ -1,23 +1,23 @@
-# 🎯 CEO/CFO Quick Reference Guide
+# 🎯 CEO Agent v0.3 — Quick Reference
 
-## TL;DR - What Changed
+## TL;DR — What’s New in v0.3
 
-**Old:** CFO does everything (strategy + finance)
-**New:** CEO leads, CFO oversees finances, USER approves spending
+**Old (v0.2):** CEO always runs CFO → Engineer → Researcher in sequence.
+**New (v0.3):** Prompt Expert parses intent → CEO builds `dispatch_plan` → only required agents run.
 
 ---
 
 ## Quick Commands
 
 ```bash
-# Run CEO agent (strategic analysis)
+# Run the graph system (recommended — v0.3 dispatch loop)
+python3 graph_architecture/main_graph.py
+
+# Run CEO agent (legacy entry point)
 python3 ceo_agent.py
 
-# Run CFO agent (financial oversight)
+# Run CFO agent (legacy entry point)
 python3 agents/new_cfo_agent.py
-
-# Run old CFO (deprecated, for comparison)
-python3 cfo_agent.py
 
 # Start web app
 python3 app.py
@@ -25,25 +25,54 @@ python3 app.py
 
 ---
 
-## 3 Key Changes
+## 3-Tier Hierarchy
 
-### 1. CEO Agent Now Leads
-- Strategic planning
-- Task breakdown
-- Agent orchestration
+### Tier 1 — CEO (Orchestrator)
+- Receives enriched prompt from Prompt Expert
+- Calls `ceo_llm_analyze_node` → derives `dispatch_plan`
 - **CANNOT** approve payments
+- Consolidates summaries from all domain directors
 
-### 2. CFO Agent = Finance Only
-- Budget tracking
-- API cost monitoring
-- Can approve: API fees <$100, legal fees <$500
-- **CANNOT** approve: Services, subscriptions, ad spend
+### Tier 2 — Domain Directors (6 agents)
 
-### 3. User Approval Required
-- All payments >$100
-- All service orders
-- All subscriptions
-- All advertising spend
+| Agent | Domain | Notes |
+|-------|--------|-------|
+| CFO | Finance | Budget gate — always runs first when finance needed |
+| Engineer | Engineering | Delegates UX/WebDev/SoftEng via Tier-3 hints |
+| Researcher | Research | Market & competitive analysis |
+| Legal | Legal | Compliance, contracts, regulatory |
+| Martech | Marketing | Delegates Branding/Content/Campaign/Social |
+| Security | Security | Threat model, audit, compliance gaps |
+
+### Tier 3 — Execution Specialists (7 agents)
+Activated by Tier-3 hint flags set by Prompt Expert:
+`needs_ux_design` · `needs_web_development` · `needs_software_review`
+`needs_branding` · `needs_content` · `needs_campaign` · `needs_social_media`
+
+---
+
+## Dispatch Flow (v0.3)
+
+```
+User types raw command
+       ↓
+Prompt Expert (Node 0)
+  → detects: finance, engineering, marketing, security, etc.
+  → sets Tier-2 flags + Tier-3 hints
+       ↓
+CEO LLM Analysis
+  → builds dispatch_plan = ["cfo", "martech", "security"]
+       ↓
+dispatch_orchestrator (loop)
+  → idx=0 → cfo_subgraph
+  → idx=1 → martech_subgraph (+ Branding/Content/Campaign/Social Tier-3)
+  → idx=2 → security_subgraph
+  → all done → consolidate
+       ↓
+[approval gate if pending_approvals]
+       ↓
+CEO Final Report
+```
 
 ---
 
@@ -62,42 +91,30 @@ Agent needs $$ → CEO analyzes → CFO reviews → YOU approve
 ### Requires Your Approval
 ⚠️ Website: $35,000
 ⚠️ Marketing: $3,000
-⚠️ Software: Varies
-
----
-
-## Guard Rails
-
-### Forbidden
-❌ Hiring contractors (agents must do work)
-❌ External agencies
-❌ Freelancers
-❌ Consultants
-
-### Allowed
-✅ Software subscriptions (with approval)
-✅ API services
-✅ Government filing fees
-✅ Platform fees
-
----
-
-## Budget Breakdown
-
-```yaml
-Total: $50,000
-
-CFO Manages ($970):
-  - API fees: $470
-  - Legal fees: $500
-
-Requires User Approval ($49,030):
-  - Website: $35,000
-  - Marketing: $3,000
-  - Software: $11,030
-```
+⚠️ Software: varies
 
 **Protection:** 98% of budget requires your explicit approval
+
+---
+
+## Guard Rails (Updated v0.3)
+
+### Domains & Permissions
+
+| Domain | Allowed Roles |
+|--------|---------------|
+| FINANCE | CEO, CFO |
+| ENGINEERING | CEO, Engineer |
+| RESEARCH | CEO, Researcher |
+| LEGAL | CEO, Legal |
+| MARKETING | CEO, Martech |
+| SECURITY | CEO, Security |
+| STRATEGY | CEO only |
+
+### Forbidden
+❌ Tier-2 agents bypassing CEO
+❌ Tier-3 agents calling the CEO directly
+❌ Any agent accessing a domain outside its permission set
 
 ---
 

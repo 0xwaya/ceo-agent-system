@@ -98,7 +98,12 @@ except ImportError:
     print("⚠️ Warning: Utils modules not available, using basic logging")
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "ceo-agent-executive-ai-2026")
+# SECRET_KEY is loaded and validated at import time in config.py
+try:
+    from config import SECRET_KEY as _APP_SECRET_KEY
+except Exception:
+    _APP_SECRET_KEY = os.getenv("SECRET_KEY", "")
+app.config["SECRET_KEY"] = _APP_SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB max request size
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 

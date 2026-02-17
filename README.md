@@ -1,12 +1,12 @@
-# 👔 CEO Agent - Executive AI System
+# 👔 CEO Agent — Executive AI System v0.3
 
-**🆕 REBRANDED & REDESIGNED** - Professional multi-agent system with executive governance
+**🆕 v0.3 — 3-Tier LangGraph Architecture** — Prompt Expert → CEO → 6 Domain Directors → 7 Execution Specialists
 
-> **Production-ready AI with CEO decision-making, CFO oversight, and interactive admin dashboard**
+> **LLM-driven dispatch, conditional agent routing, full 13-agent hierarchy**
 
 ---
 
-## 🚀 Quick Start - New CEO Agent System
+## 🚀 Quick Start
 
 ```bash
 # One-command startup
@@ -18,18 +18,17 @@ Open: http://localhost:5001/admin   # Admin dashboard
 Open: http://localhost:5001/reports # Reports section (direct)
 ```
 
-**✨ What's New:**
+**✨ What’s New in v0.3:**
 
-- 👔 **Executive Admin Dashboard** - Professional interface for complete system control
-- 🎓 **Interactive Training** - Train agents before production deployment
-- 🔬 **Daily Research** - Agents discover new tools and best practices
-- ✅ **Payment Approvals** - Visual workflow for spending authorization
-- 📊 **Executive Reports** - CEO/CFO reports in easy-to-read format
-- 🛡️ **Financial Guard Rails** - 98% of budget requires user approval
-- 🔄 **Scenario Sync to Admin** - Main dashboard scenario (company/industry/location/objectives/budget/timeline) is reused in `/admin` reports and analysis
-- 🗂️ **Real Artifact Pipeline** - Every agent run now persists reviewable output files in `static/generated_outputs/`
-- 🖼️ **Live Artifact Viewer** - Admin workspace now shows generated files with previews and open links
-- 👔 **Enhanced CEO Output UX** - CEO run now surfaces executive summary, top priorities, immediate actions, approvals, and risk snapshot
+- 🧠 **Prompt Expert Agent** — Node 0 converts raw user commands into structured routing signals (LLM-backed, keyword fallback)
+- 🔄 **Conditional Dispatch Loop** — CEO builds a `dispatch_plan`; only required agents run — no more hard-coded sequences
+- 🌐 **6 Tier-2 Domain Directors** — CFO · Engineer · Researcher · Legal · Martech · Security (each a full LLM subgraph)
+- ⚡ **7 Tier-3 Execution Specialists** — UX/UI · WebDev · SoftEng · Branding · Content · Campaign · SocialMedia
+- 🛠️ **Centralised `llm_nodes.py`** — One LLM function per role; `TIER2_NODE_MAP` / `TIER3_NODE_MAP` registries
+- 🔒 **Role-Gated `tools.py`** — Domain permission enforcement before any tool executes
+- 🛡️ **Security Tier-2 Subgraph** — Threat modelling, audit, compliance gap analysis now in the graph
+- 📊 **Executive Reports** — CEO/domain-level summaries, risk snapshots, and budget analysis
+- 🗂️ **Artifact Pipeline** — Every agent run persists reviewable output files in `static/generated_outputs/`
 
 > **First Push to Empty Repo:** If your GitHub repository exists but has no commits yet, use the quick upload commands in [GITHUB_SETUP.md → Fast Path (Your Current Status)](docs/GITHUB_SETUP.md#fast-path-your-current-status).
 
@@ -38,32 +37,32 @@ Open: http://localhost:5001/reports # Reports section (direct)
 
 ---
 
-## 🎨 **NEW: Graph Architecture Dashboard**
+## 🎨 **Graph Architecture — v0.3 (3-Tier LangGraph)**
 
-### Modern dark-themed interface for LangGraph multi-agent orchestration
+### LLM-driven dispatch, Prompt Expert, 13-agent hierarchy
 
 ```bash
-# Access the graph dashboard
+# Run the v0.3 graph system directly
+python3 graph_architecture/main_graph.py
+
+# Or via the web dashboard
 Open: http://localhost:5001/graph
 ```
 
-**✨ Features:**
+**Architecture overview:**
 
-- 🌙 **Dark/Night Mode Theme** - Consistent gray scale design for professional look
-- 📊 **Real-time Agent Monitoring** - Watch CEO, CFO, Engineer, Researcher agents execute
-- 📈 **Live Progress Tracking** - Visual progress bars and phase indicators
-- 💻 **Terminal-style Output** - Color-coded execution logs
-- 📤 **Results Dashboard** - Metrics, summaries, key findings, recommendations
-- 🔄 **Checkpoint Resumption** - Continue previous executions with thread IDs
-
-**6 Specialized Agents:**
-
-- 👔 **CEO** - Master orchestrator, strategic decision-making
-- 💰 **CFO** - Financial analysis, budget planning, compliance
-- 🛠️ **Engineer** - Architecture design, code generation, testing
-- 🔍 **Researcher** - Market research, competitive analysis, opportunities
-- ⚖️ **Legal** - Compliance and regulations (Coming Soon)
-- 📱 **MarTech** - Marketing technology stack (Coming Soon)
+| Tier | Agent | Role |
+|------|-------|------|
+| Node 0 | Prompt Expert | Parses raw user input into routing signals |
+| Tier 1 | CEO | LLM orchestrator, builds `dispatch_plan` |
+| Tier 2 | CFO | Finance, budget analysis |
+| Tier 2 | Engineer | Architecture, delegates Tier-3 |
+| Tier 2 | Researcher | Market & competitive analysis |
+| Tier 2 | Legal | Compliance & regulatory |
+| Tier 2 | Martech | Marketing strategy, delegates Tier-3 |
+| Tier 2 | Security | Threat model & audit |
+| Tier 3 | UX/UI, WebDev, SoftEng | Under Engineer |
+| Tier 3 | Branding, Content, Campaign, SocialMedia | Under Martech |
 
 👉 **[Graph Dashboard Quick Start →](docs/GRAPH_DASHBOARD_QUICK_START.md)**
 👉 **[Full Implementation Details →](docs/GRAPH_UI_IMPLEMENTATION.md)**

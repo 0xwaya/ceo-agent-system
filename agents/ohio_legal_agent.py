@@ -1,9 +1,14 @@
 """
+[DEPRECATED — v0.3]
 Ohio LLC Legal Compliance & Certification Agent
-Specialized in:
-- Ohio Revised Code Title XVII (Corporations - Partnerships)
-- Woman-Owned Business Certification (WBENC, SBA)
-- Minority-Owned Business Certification (NMSDC)
+
+Ohio-specific legal logic (ORC Title XVII, WBENC/SBA/NMSDC certifications,
+minority/woman-owned business compliance) has been absorbed into the
+legal_llm_compliance_node system prompt in graph_architecture/llm_nodes.py
+and the full legal subgraph in graph_architecture/subgraphs/legal_subgraph.py.
+
+This file is no longer wired into any active graph nodes.
+Do NOT add new legal logic here — use the legal_subgraph instead.
 """
 
 from typing import Dict, List

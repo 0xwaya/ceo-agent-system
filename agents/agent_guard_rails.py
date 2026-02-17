@@ -1,9 +1,24 @@
 """
+[DEPRECATED — v0.3]
 Agent Guard Rails and Execution Framework
 
-Defines constraints and validation rules to keep AI agents focused
-on their specific tasks and ensure they execute (not just recommend).
+The guard-rail logic (AgentDomain, AuthorizationLevel, DOMAIN_PERMISSIONS,
+validate_agent_role) has been superseded by graph_architecture/guards.py.
+
+This file is RETAINED for backward compatibility with app.py's
+AgentGuardRail/create_execution_summary usage.
+Do NOT add new guard-rail logic here — use graph_architecture/guards.py instead.
 """
+# Legacy guard rails — kept for app.py backward compatibility only.
+# See graph_architecture/guards.py for the active v0.3 implementation.
+
+import warnings
+
+warnings.warn(
+    "agents/agent_guard_rails.py is deprecated. " "Use graph_architecture/guards.py instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass

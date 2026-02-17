@@ -1,9 +1,14 @@
 """
+[DEPRECATED — v0.3]
 CEO (Chief Executive Officer) Agent - Executive Orchestrator
 
-The CEO Agent is the highest authority in the multi-agent system with:
-1. Executive decision-making within defined guard rails
-2. Strategic planning and business direction
+The class-based CEOAgent has been superseded by the LangGraph node
+ceo_llm_analyze_node in graph_architecture/llm_nodes.py and the full
+orchestration graph in graph_architecture/main_graph.py.
+
+This file is RETAINED for backward compatibility with app.py's
+  from agents.ceo_agent import CEOAgentState, analyze_strategic_objectives
+Do NOT add new CEO logic here — use graph_architecture/main_graph.py instead.
 3. Multi-agent orchestration and delegation
 4. Risk assessment and mitigation authority
 5. Final approval for all financial commitments
