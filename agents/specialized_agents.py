@@ -338,6 +338,73 @@ class BrandingAgent(SpecializedAgent):
             },
         )
 
+        # ── Resolved colour tokens ──────────────────────────────────────────
+        palette_hex = {
+            "Marble White": "#F5F0EA",
+            "Brushed Gold": "#C9A84C",
+            "Charcoal Black": "#1C1C1E",
+            "Slate Gray": "#6B7280",
+            "Midnight Navy": "#0F1B2D",
+            "Off White": "#FAF8F5",
+        }
+
+        # ── SVG logo previews (inline, production-quality) ──────────────
+        svg_logos = {
+            "proposal_01_monogram": (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
+                '<rect width="200" height="200" fill="#1C1C1E"/>'
+                # Outer gold ring
+                '<circle cx="100" cy="100" r="88" fill="none" stroke="#C9A84C" stroke-width="2.5"/>'
+                # Stylised S/C monogram in gold
+                '<text x="100" y="118" font-family="Georgia,serif" font-size="72" font-weight="700" '
+                'fill="#C9A84C" text-anchor="middle" letter-spacing="-4">SC</text>'
+                # Brand name below
+                '<text x="100" y="158" font-family="Georgia,serif" font-size="11" font-weight="400" '
+                'fill="#F5F0EA" text-anchor="middle" letter-spacing="4">SURFACECRAFT</text>'
+                "</svg>"
+            ),
+            "proposal_02_serif_wordmark": (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
+                '<rect width="360" height="120" fill="#F5F0EA"/>'
+                # Wordmark
+                '<text x="180" y="62" font-family="Georgia,serif" font-size="38" font-weight="700" '
+                'fill="#1C1C1E" text-anchor="middle" letter-spacing="2">SurfaceCraft</text>'
+                # Gold rule
+                '<rect x="40" y="72" width="280" height="1.5" fill="#C9A84C"/>'
+                # Tagline
+                '<text x="180" y="94" font-family="Georgia,serif" font-size="12" font-weight="400" '
+                'fill="#6B7280" text-anchor="middle" letter-spacing="5">STUDIO</text>'
+                "</svg>"
+            ),
+            "proposal_03_sans_prestige": (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
+                '<rect width="360" height="120" fill="#1C1C1E"/>'
+                # Icon mark — geometric diamond
+                '<polygon points="50,20 80,60 50,100 20,60" fill="none" stroke="#C9A84C" stroke-width="2"/>'
+                '<polygon points="50,32 68,60 50,88 32,60" fill="#C9A84C"/>'
+                # Wordmark
+                '<text x="200" y="55" font-family="Arial,Helvetica,sans-serif" font-size="28" '
+                'font-weight="700" fill="#F5F0EA" text-anchor="middle" letter-spacing="3">SURFACECRAFT</text>'
+                '<text x="200" y="82" font-family="Arial,Helvetica,sans-serif" font-size="12" '
+                'font-weight="300" fill="#C9A84C" text-anchor="middle" letter-spacing="8">STUDIO</text>'
+                "</svg>"
+            ),
+            "proposal_04_monoline_emblem": (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
+                '<rect width="200" height="200" fill="#F5F0EA"/>'
+                # Outer emblem ring
+                '<circle cx="100" cy="100" r="88" fill="none" stroke="#1C1C1E" stroke-width="1.5"/>'
+                '<circle cx="100" cy="100" r="80" fill="none" stroke="#C9A84C" stroke-width="0.8"/>'
+                # Monoline S mark
+                '<path d="M76,80 Q76,65 100,65 Q124,65 124,80 Q124,95 100,100 Q76,105 76,120 Q76,135 100,135 Q124,135 124,120"'
+                ' fill="none" stroke="#1C1C1E" stroke-width="4" stroke-linecap="round"/>'
+                # Studio text arc (simplified as bottom text)
+                '<text x="100" y="170" font-family="Arial,sans-serif" font-size="9" '
+                'fill="#6B7280" text-anchor="middle" letter-spacing="5">ESTABLISHED 2024</text>'
+                "</svg>"
+            ),
+        }
+
         brand_kit_reference = {
             "brand_name": brand_name,
             "legacy_name": "Amazon Granite LLC",
@@ -347,64 +414,102 @@ class BrandingAgent(SpecializedAgent):
             "color_palette": {
                 "primary": ["Marble White", "Brushed Gold", "Charcoal Black"],
                 "supporting": ["Slate Gray", "Midnight Navy"],
+                "hex": palette_hex,
             },
-            "typography_note": "Primary font undecided; evaluate elegant serif + modern sans pairings",
+            "typography": {
+                "primary_serif": {
+                    "family": "Georgia / EB Garamond",
+                    "use": "Logo wordmarks, headlines, proposal covers",
+                    "weight": "Regular 400, Bold 700",
+                    "google_font": "https://fonts.google.com/specimen/EB+Garamond",
+                },
+                "primary_sans": {
+                    "family": "Inter / DM Sans",
+                    "use": "Body copy, UI labels, digital navigation",
+                    "weight": "Light 300, Regular 400, SemiBold 600",
+                    "google_font": "https://fonts.google.com/specimen/DM+Sans",
+                },
+                "monospace": {
+                    "family": "JetBrains Mono",
+                    "use": "Price tags, spec labels, technical callouts",
+                    "google_font": "https://fonts.google.com/specimen/JetBrains+Mono",
+                },
+                "scale": "Perfect Fourth (1.333): 12 / 16 / 21 / 28 / 37 / 50 / 67px",
+            },
+            "logo_svgs": svg_logos,
+            "typography_note": "Serif for luxury weight; sans for digital clarity; pair tested at all scales",
         }
 
         concepts = [
             {
-                "concept_name": "Polished Proposal 01 - Signature Monogram Luxe",
-                "description": f"{brand_name} with sculpted S/C monogram and couture-style spacing",
+                "concept_name": "Polished Proposal 01 — Signature Monogram Luxe",
+                "description": f"{brand_name} sculpted S/C monogram with couture-style spacing",
+                "svg_key": "proposal_01_monogram",
+                "colors": ["#1C1C1E", "#C9A84C", "#F5F0EA"],
+                "color_names": ["Charcoal Black", "Brushed Gold", "Marble White"],
                 "design_principles": [
                     "Golden-ratio monogram geometry inspired by premium stone inlays",
                     "Brushed Gold accent strokes over Charcoal Black structure",
-                    "Marble White negative space to preserve luxury breathing room",
+                    "Marble White negative space preserves luxury breathing room",
                     "Balanced lockup for signage, social avatar, and favicon use",
                 ],
                 "applications": "Hero website mark, storefront signage, proposal cover",
                 "scalability": "Optimized from 24px icon to 12ft exterior sign",
+                "best_for": "Primary Brand Mark",
                 "ai_execution": "AI-developed vector system with production-ready lockups",
                 "tools_budget": "$60 (font licensing + export templates)",
             },
             {
-                "concept_name": "Polished Proposal 02 - Heritage Serif Signature",
+                "concept_name": "Polished Proposal 02 — Heritage Serif Signature",
                 "description": "High-contrast serif wordmark with understated stone-cut ligatures",
+                "svg_key": "proposal_02_serif_wordmark",
+                "colors": ["#F5F0EA", "#1C1C1E", "#C9A84C"],
+                "color_names": ["Marble White", "Charcoal Black", "Brushed Gold"],
                 "design_principles": [
-                    "Elegant serif axis for luxury positioning and premium trust",
-                    "Charcoal Black wordmark with Brushed Gold micro-accents",
-                    "Marble White base panels for print and digital consistency",
-                    "Subtle material-finishing cues to reflect crafted surfaces",
+                    "Elegant serif axis for luxury positioning and premium trust signal",
+                    "Charcoal Black wordmark with Brushed Gold rule accent",
+                    "Marble White base for print and digital hero consistency",
+                    "Subtle material-finishing cues reflect crafted surfaces",
                 ],
                 "applications": "Brand book, business cards, showroom collateral",
                 "scalability": "Exceptional in editorial and premium print contexts",
+                "best_for": "Print & Collateral",
                 "ai_execution": "AI-generated typographic refinements with kerning variants",
                 "tools_budget": "$45 (serif family trial/license)",
             },
             {
-                "concept_name": "Polished Proposal 03 - Modern Sans Prestige",
-                "description": "Refined sans-serif wordmark with architectural geometry and icon pair",
+                "concept_name": "Polished Proposal 03 — Modern Sans Prestige",
+                "description": "Refined sans-serif wordmark with architectural geometry and icon mark",
+                "svg_key": "proposal_03_sans_prestige",
+                "colors": ["#1C1C1E", "#F5F0EA", "#C9A84C"],
+                "color_names": ["Charcoal Black", "Marble White", "Brushed Gold"],
                 "design_principles": [
-                    "Contemporary sans system for web-first legibility",
+                    "Contemporary sans system for web-first legibility at all viewports",
                     "Charcoal Black foundation + selective Brushed Gold detail lines",
-                    "Marble White negative canvas for elegant high-contrast delivery",
+                    "Diamond icon mark references precision stone fabrication craft",
                     "Responsive lockups for desktop header, mobile nav, and socials",
                 ],
                 "applications": "Website navigation, social profile suite, ad creatives",
                 "scalability": "Built for digital responsiveness and motion-ready variants",
+                "best_for": "Digital & Social",
                 "ai_execution": "AI-produced responsive logo system + social asset pack",
                 "tools_budget": "$35 (motion export presets)",
             },
             {
-                "concept_name": "Polished Proposal 04 - Monoline Emblem Elegance",
-                "description": "Minimal emblem seal with monoline mark and premium typography lockup",
+                "concept_name": "Polished Proposal 04 — Monoline Emblem Elegance",
+                "description": "Minimal emblem seal with monoline mark and premium wordmark lockup",
+                "svg_key": "proposal_04_monoline_emblem",
+                "colors": ["#F5F0EA", "#C9A84C", "#1C1C1E"],
+                "color_names": ["Marble White", "Brushed Gold", "Charcoal Black"],
                 "design_principles": [
-                    "Monoline icon architecture referencing precision fabrication",
-                    "Brushed Gold ring + Charcoal Black central mark for premium contrast",
+                    "Monoline icon architecture referencing precision stone fabrication",
+                    "Brushed Gold ring + Charcoal Black central S mark for contrast",
                     "Marble White applications for luxury packaging and proposal decks",
-                    "Designed to feel timeless, restrained, and collectible",
+                    "Timeless, restrained, collectible — designed to emboss and foil-stamp",
                 ],
                 "applications": "Luxury labels, stamp marks, uniforms, premium merchandise",
                 "scalability": "Excellent for physical materials and embossed applications",
+                "best_for": "Premium Merchandise & Packaging",
                 "ai_execution": "AI-generated monoline kit with monochrome fallback suite",
                 "tools_budget": "$30 (mockup + print proof templates)",
             },

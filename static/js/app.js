@@ -1188,34 +1188,87 @@ function displayAgentReport(agentType, resultData, companyInfo) {
     // Brand kit reference (branding agent)
     const _brandKit = resultData.brand_kit_reference;
     const brandKitHTML = _brandKit && _brandKit.brand_name
-        ? `<div class="report-section">
-        <h4>🎨 Brand Kit Reference</h4>
-        <div style="padding:12px;background:rgba(37,99,235,0.08);border-radius:8px;border-left:3px solid #2563eb;">
-            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Brand:</strong> ${_brandKit.brand_name}</p>
-            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Direction:</strong> ${_brandKit.direction || ''}</p>
-            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Logo approach:</strong> ${_brandKit.logo_reference || ''}</p>
-            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Core palette:</strong> ${(_brandKit.color_palette && _brandKit.color_palette.primary ? _brandKit.color_palette.primary : []).join(' · ')}</p>
-            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Typography:</strong> ${_brandKit.typography_note || ''}</p>
-        </div></div>`
+        ? (() => {
+            const hexPalette = (_brandKit.color_palette && _brandKit.color_palette.hex) || {};
+            const primaryNames = (_brandKit.color_palette && _brandKit.color_palette.primary) || [];
+            const supportingNames = (_brandKit.color_palette && _brandKit.color_palette.supporting) || [];
+            const allSwatches = [...primaryNames, ...supportingNames];
+            const swatchesHTML = allSwatches.map(name => {
+                const hex = hexPalette[name] || '#888';
+                const isDark = name.toLowerCase().includes('black') || name.toLowerCase().includes('navy') || name.toLowerCase().includes('charcoal');
+                return `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;min-width:80px;">
+                    <div style="width:72px;height:72px;border-radius:10px;background:${hex};border:2px solid rgba(255,255,255,0.12);box-shadow:0 4px 12px rgba(0,0,0,0.3);"></div>
+                    <span style="font-size:11px;color:#e2e8f0;text-align:center;font-weight:600;">${name}</span>
+                    <span style="font-size:10px;color:#64748b;font-family:monospace;">${hex}</span>
+                </div>`;
+            }).join('');
+
+            const typo = _brandKit.typography || {};
+            const typoHTML = typo.primary_serif ? `
+                <div style="margin-top:16px;padding:14px;background:rgba(255,255,255,0.04);border-radius:8px;">
+                    <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Typography System</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div style="padding:10px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                            <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#e2e8f0;font-family:Georgia,serif;">${typo.primary_serif.family}</p>
+                            <p style="margin:0 0 4px;font-size:11px;color:#94a3b8;">Serif — ${typo.primary_serif.use}</p>
+                            <p style="margin:0;font-size:10px;color:#64748b;">${typo.primary_serif.weight}</p>
+                        </div>
+                        <div style="padding:10px;background:rgba(255,255,255,0.04);border-radius:6px;">
+                            <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#e2e8f0;">${typo.primary_sans.family}</p>
+                            <p style="margin:0 0 4px;font-size:11px;color:#94a3b8;">Sans — ${typo.primary_sans.use}</p>
+                            <p style="margin:0;font-size:10px;color:#64748b;">${typo.primary_sans.weight}</p>
+                        </div>
+                    </div>
+                    ${typo.scale ? `<p style="margin:8px 0 0;font-size:11px;color:#64748b;">Scale: ${typo.scale}</p>` : ''}
+                </div>` : `<p style="margin:8px 0 0;font-size:13px;color:#94a3b8;">${_brandKit.typography_note || ''}</p>`;
+
+            return `<div class="report-section">
+                <h4 style="color:#c9a84c;border-bottom:2px solid rgba(201,168,76,0.3);padding-bottom:8px;margin-bottom:16px;">🎨 Brand Identity Kit — ${_brandKit.brand_name}</h4>
+                <div style="padding:14px;background:rgba(201,168,76,0.06);border-radius:10px;border:1px solid rgba(201,168,76,0.2);margin-bottom:16px;">
+                    <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;"><strong style="color:#c9a84c;">Direction:</strong> ${_brandKit.direction || ''}</p>
+                    <p style="margin:0 0 4px;font-size:12px;color:#94a3b8;"><strong style="color:#c9a84c;">Logo Approach:</strong> ${_brandKit.logo_reference || ''}</p>
+                    ${_brandKit.legacy_name ? `<p style="margin:0;font-size:12px;color:#94a3b8;"><strong style="color:#c9a84c;">Rebranding From:</strong> ${_brandKit.legacy_name}</p>` : ''}
+                </div>
+                <p style="margin:0 0 10px;font-size:12px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:1px;">Colour Palette</p>
+                <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">${swatchesHTML}</div>
+                ${typoHTML}
+            </div>`;
+        })()
         : '';
 
-    // Design concept proposals (branding agent)
+    // Design concept proposals with visual SVG logo previews
     const _concepts = resultData.design_concepts;
+    const _logoSVGs = (resultData.brand_kit_reference && resultData.brand_kit_reference.logo_svgs) || {};
     const designConceptsHTML = _concepts && _concepts.length > 0
         ? `<div class="report-section">
-        <h4>🖼️ Logo Proposals (${_concepts.length})</h4>
-        ${_concepts.map((c, idx) => `
-            <div style="margin-bottom:12px;padding:14px;background:rgba(37,99,235,0.08);border-radius:8px;border-left:3px solid #2563eb;">
-                <p style="margin:0 0 4px;font-weight:700;font-size:14px;color:#60a5fa;">0${idx + 1} — ${c.concept_name}</p>
-                <p style="margin:0 0 6px;font-size:13px;color:#cbd5e1;">${c.description}</p>
-                <div style="font-size:11px;color:#64748b;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
-                    <span>📱 ${c.applications}</span><span>⚡ ${c.scalability}</span><span>💰 ${c.tools_budget}</span>
-                </div>
-                <ul style="margin:0;padding-left:16px;font-size:12px;color:#94a3b8;">
-                    ${(c.design_principles || []).map(p => `<li style="margin-bottom:2px;">${p}</li>`).join('')}
-                </ul>
-            </div>`).join('')}
-       </div>`
+            <h4 style="color:#c9a84c;border-bottom:2px solid rgba(201,168,76,0.3);padding-bottom:8px;margin-bottom:16px;">🖼️ Logo Proposals — ${_concepts.length} Directions</h4>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
+            ${_concepts.map((c, idx) => {
+                const svgContent = _logoSVGs[c.svg_key] || '';
+                const swatches = (c.colors || []).map((hex, i) => `<div title="${(c.color_names||[])[i]||hex}" style="width:22px;height:22px;border-radius:4px;background:${hex};border:1.5px solid rgba(255,255,255,0.15);cursor:pointer;"></div>`).join('');
+                return `<div style="background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(201,168,76,0.2);overflow:hidden;">
+                    ${svgContent
+                        ? `<div style="background:#0f1117;padding:20px;display:flex;justify-content:center;align-items:center;min-height:120px;">${svgContent}</div>`
+                        : `<div style="background:#0f1117;padding:20px;display:flex;justify-content:center;align-items:center;min-height:120px;color:#64748b;font-size:12px;">Preview not available</div>`}
+                    <div style="padding:14px;">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                            <p style="margin:0;font-weight:700;font-size:13px;color:#e2e8f0;">0${idx+1} — ${c.concept_name.replace(/Polished Proposal \d+ — /,'')}</p>
+                            ${c.best_for ? `<span style="padding:2px 8px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);border-radius:20px;font-size:10px;color:#c9a84c;white-space:nowrap;">${c.best_for}</span>` : ''}
+                        </div>
+                        <p style="margin:0 0 10px;font-size:12px;color:#94a3b8;line-height:1.5;">${c.description}</p>
+                        <div style="display:flex;gap:6px;margin-bottom:10px;">${swatches}</div>
+                        <div style="font-size:11px;color:#64748b;display:flex;gap:10px;flex-wrap:wrap;">
+                            <span>📱 ${c.applications}</span>
+                            <span>💰 ${c.tools_budget}</span>
+                        </div>
+                        <ul style="margin:8px 0 0;padding-left:16px;font-size:11px;color:#64748b;line-height:1.6;">
+                            ${(c.design_principles || []).slice(0,2).map(p => `<li>${p}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>`;
+            }).join('')}
+            </div>
+        </div>`
         : '';
 
     // 30/60/90 day action plan
