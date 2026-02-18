@@ -517,6 +517,40 @@ function setupSocketListeners() {
         hideProgressBar();
     });
 
+    // ── LLM Agent Chat reply ─────────────────────────────────────────────
+    socket.on('ai_chat_response', function (data) {
+        setChatStatus('');
+        if (data && data.message) addChatMessage(data.message, 'assistant');
+    });
+
+    // ── Agent lifecycle → live feed cards ───────────────────────────────
+    socket.on('agent_deploying', function (data) {
+        const name = (data.agent || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        addFeedCard('running', '🔄 ' + name + ' Agent Deploying',
+            'Task: ' + (data.task || 'executing'), null, null, null);
+    });
+
+    socket.on('agent_deployed', function (data) {
+        const name = (data.agent || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        addFeedCard('success', '✅ ' + name + ' Agent Ready', 'Deployed successfully',
+            null, null, [{ label: 'View Details', onclick: "viewAgentDetails('" + data.agent + "')" }]);
+    });
+
+    socket.on('orchestration_complete', function (data) {
+        addFeedCard(
+            'success',
+            '🎯 Orchestration Complete',
+            (data.completed_tasks || 0) + ' of ' + (data.total_tasks || 0) + ' tasks',
+            null,
+            [
+                { val: data.completed_tasks || 0, lbl: 'Done' },
+                { val: '$' + (data.budget_used || 0), lbl: 'Used' },
+                { val: data.total_tasks      || 0, lbl: 'Total' },
+            ],
+            [{ label: '📄 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
+        );
+    });
+
     console.log('✅ Socket listeners configured');
 }
 
@@ -2321,44 +2355,9 @@ window.sendChatMessage = function () {
   }
 };
 
-// ── SocketIO event handlers ───────────────────────────────────────────────────
-(function attachV4SocketHandlers() {
-  if (typeof socket === 'undefined' || !socket) return;
-
-  // LLM chat reply
-  socket.on('ai_chat_response', function (data) {
-    setChatStatus('');
-    if (data && data.message) addChatMessage(data.message, 'assistant');
-  });
-
-  // Agent lifecycle → live feed cards
-  socket.on('agent_deploying', function (data) {
-    const name = (data.agent || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    addFeedCard('running', '🔄 ' + name + ' Agent Deploying',
-      'Task: ' + (data.task || 'executing'), null, null, null);
-  });
-
-  socket.on('agent_deployed', function (data) {
-    const name = (data.agent || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    addFeedCard('success', '✅ ' + name + ' Agent Ready', 'Deployed successfully',
-      null, null, [{ label: 'View Details', onclick: "viewAgentDetails('" + data.agent + "')" }]);
-  });
-
-  socket.on('orchestration_complete', function (data) {
-    addFeedCard(
-      'success',
-      '🎯 Orchestration Complete',
-      (data.completed_tasks || 0) + ' of ' + (data.total_tasks || 0) + ' tasks',
-      null,
-      [
-        { val: data.completed_tasks || 0, lbl: 'Done' },
-        { val: '$' + (data.budget_used || 0), lbl: 'Used' },
-        { val: data.total_tasks      || 0, lbl: 'Total' },
-      ],
-      [{ label: '📄 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
-    );
-  });
-})();
+// ── SocketIO event handlers (registered in setupSocketListeners above) ───────
+// Note: ai_chat_response, agent_deploying, agent_deployed, orchestration_complete
+// listeners are registered inside setupSocketListeners() to ensure socket is ready.
 
 // ── Intercept displayAgentReport to also add a feed card ─────────────────────
 (function patchDisplayAgentReport() {
