@@ -55,8 +55,14 @@ bootstrap_environment()
 
 # Import agent systems - CEO Agent (new architecture)
 try:
-    from agents.ceo_agent import CEOAgentState, analyze_strategic_objectives as ceo_analyze
-    from agents.new_cfo_agent import CFOAgentState as NewCFOState, generate_financial_report
+    from agents.ceo_agent import (
+        CEOAgentState,
+        analyze_strategic_objectives as ceo_analyze,
+    )
+    from agents.new_cfo_agent import (
+        CFOAgentState as NewCFOState,
+        generate_financial_report,
+    )
 
     CEO_AGENT_AVAILABLE = True
 except ImportError:
@@ -75,7 +81,11 @@ except ImportError as e:
     print(f"⚠️ Graph architecture not available: {e}")
 
 from agents.specialized_agents import AgentFactory
-from agents.agent_guard_rails import AgentGuardRail, AgentDomain, create_execution_summary
+from agents.agent_guard_rails import (
+    AgentGuardRail,
+    AgentDomain,
+    create_execution_summary,
+)
 from services.artifact_service import artifact_service
 
 # Import utilities
@@ -983,7 +993,10 @@ def analyze_objectives():
 def execute_graph():
     """Execute the LangGraph multi-agent system"""
     if not GRAPH_ARCHITECTURE_AVAILABLE:
-        return jsonify({"success": False, "error": "Graph architecture not available"}), 503
+        return (
+            jsonify({"success": False, "error": "Graph architecture not available"}),
+            503,
+        )
 
     try:
         data = getattr(g, "sanitized_json", request.json or {})
@@ -1032,7 +1045,10 @@ def execute_graph():
             )
 
         if not objectives or len(objectives) == 0:
-            return jsonify({"success": False, "error": "At least one objective is required"}), 400
+            return (
+                jsonify({"success": False, "error": "At least one objective is required"}),
+                400,
+            )
 
         normalized_scenario = _normalize_scenario_context(
             {
@@ -1505,7 +1521,11 @@ def get_guard_rails(agent_type):
 def get_pending_approvals():
     """Get all pending payment approvals"""
     return jsonify(
-        {"success": True, "approvals": pending_approvals, "count": len(pending_approvals)}
+        {
+            "success": True,
+            "approvals": pending_approvals,
+            "count": len(pending_approvals),
+        }
     )
 
 
@@ -1524,7 +1544,11 @@ def approve_payment(approval_id):
     # Emit update via SocketIO
     socketio.emit(
         "approval_approved",
-        {"id": approval_id, "approval": approval, "timestamp": datetime.now().isoformat()},
+        {
+            "id": approval_id,
+            "approval": approval,
+            "timestamp": datetime.now().isoformat(),
+        },
     )
 
     if UTILS_AVAILABLE:
@@ -1548,7 +1572,11 @@ def reject_payment(approval_id):
     # Emit update via SocketIO
     socketio.emit(
         "approval_rejected",
-        {"id": approval_id, "approval": approval, "timestamp": datetime.now().isoformat()},
+        {
+            "id": approval_id,
+            "approval": approval,
+            "timestamp": datetime.now().isoformat(),
+        },
     )
 
     if UTILS_AVAILABLE:
@@ -2039,7 +2067,10 @@ def handle_chat_message(data):
             if not validation.valid:
                 emit(
                     "chat_error",
-                    {"errors": validation.errors, "timestamp": datetime.now().isoformat()},
+                    {
+                        "errors": validation.errors,
+                        "timestamp": datetime.now().isoformat(),
+                    },
                 )
                 return
 
@@ -2050,7 +2081,11 @@ def handle_chat_message(data):
         # Echo message back to all clients
         emit(
             "chat_message",
-            {"message": message, "sender": sender, "timestamp": datetime.now().isoformat()},
+            {
+                "message": message,
+                "sender": sender,
+                "timestamp": datetime.now().isoformat(),
+            },
             broadcast=True,
         )
 
@@ -2138,7 +2173,10 @@ def _get_llm_for_chat(temperature: float = 0.5):
         if not OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY not set")
         return ChatOpenAI(
-            model=OPENAI_MODEL, temperature=temperature, max_tokens=600, api_key=OPENAI_API_KEY
+            model=OPENAI_MODEL,
+            temperature=temperature,
+            max_tokens=600,
+            api_key=OPENAI_API_KEY,
         )
     except Exception as exc:
         if UTILS_AVAILABLE:
@@ -2360,7 +2398,11 @@ def handle_agent_status(data):
 
         emit(
             "agent_status_update",
-            {"agent_type": agent_type, "status": status, "timestamp": datetime.now().isoformat()},
+            {
+                "agent_type": agent_type,
+                "status": status,
+                "timestamp": datetime.now().isoformat(),
+            },
             broadcast=True,
         )
 
@@ -2418,7 +2460,9 @@ def handle_full_orchestration(data):
         try:
             print("📡 Emitting orchestration_started")
             socketio.emit(
-                "orchestration_started", {"timestamp": datetime.now().isoformat()}, to=None
+                "orchestration_started",
+                {"timestamp": datetime.now().isoformat()},
+                to=None,
             )
 
             if not CEO_AGENT_AVAILABLE:
@@ -2562,7 +2606,9 @@ def handle_full_orchestration(data):
                     state.setdefault("agent_status", {})[agent_type] = "success"
 
                     socketio.emit(
-                        "agent_deployed", {"agent": agent_type, "status": "success"}, to=None
+                        "agent_deployed",
+                        {"agent": agent_type, "status": "success"},
+                        to=None,
                     )
                 except Exception as agent_error:
                     state.setdefault("agent_status", {})[agent_type] = "failed"
@@ -2574,7 +2620,9 @@ def handle_full_orchestration(data):
                         }
                     )
                     socketio.emit(
-                        "agent_deployed", {"agent": agent_type, "status": "failed"}, to=None
+                        "agent_deployed",
+                        {"agent": agent_type, "status": "failed"},
+                        to=None,
                     )
 
             print("✅ Orchestration complete")
