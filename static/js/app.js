@@ -623,17 +623,30 @@ async function analyzeObjectives() {
         updateStatus('Analyzing strategic objectives...', 'running');
         addLogEntry('CFO Agent: Starting strategic analysis', 'warning');
 
-        const companyInfo = persistScenarioToStorage();
+        const scenario = persistScenarioToStorage();
 
-        console.log('Company Info:', companyInfo);
+        // Explicitly pick only the fields the backend allowlist accepts
+        // to avoid accidental rejection if the scenario object grows extra keys
+        const analyzePayload = {
+            company_name: scenario.company_name,
+            dba_name: scenario.dba_name,
+            industry: scenario.industry,
+            location: scenario.location,
+            budget: scenario.budget,
+            timeline: scenario.timeline,
+            objectives: scenario.objectives,
+            updated_at: scenario.updated_at
+        };
+
+        console.log('Analyze payload:', analyzePayload);
 
         // Chat notification - analysis starting
-        addChatMessage(`🔍 Starting strategic analysis for ${companyInfo.company_name}...`, 'system');
+        addChatMessage(`🔍 Starting strategic analysis for ${scenario.company_name}...`, 'system');
 
         const response = await fetch('/api/cfo/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(companyInfo)
+            body: JSON.stringify(analyzePayload)
         });
 
         console.log('Response status:', response.status);
@@ -647,7 +660,7 @@ async function analyzeObjectives() {
             addLogEntry(`Identified ${data.tasks.length} tasks across ${Object.keys(data.budget_allocation).length} domains`, 'success');
 
             // Display analysis report in execution report section
-            displayAnalysisReport(companyInfo, data);
+            displayAnalysisReport(scenario, data);
 
             // Chat notification - analysis complete
             addChatMessage(`✅ Analysis complete! Identified ${data.tasks.length} tasks across ${Object.keys(data.budget_allocation).length} domains. Budget allocated accordingly.`, 'assistant');

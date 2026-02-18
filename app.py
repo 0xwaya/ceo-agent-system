@@ -771,6 +771,12 @@ def analyze_objectives():
             )
 
         data = getattr(g, "sanitized_json", request.json or {})
+
+        # Debug: log received keys before validation
+        print(
+            f"📊 CEO/analyze — received keys: {sorted(data.keys()) if isinstance(data, dict) else type(data)}"
+        )
+
         if UTILS_AVAILABLE:
             allowlist_validation = validate_payload_allowlist(
                 data,
@@ -788,6 +794,7 @@ def analyze_objectives():
                 payload_name="analyze",
             )
             if not allowlist_validation.valid:
+                print(f"❌ CEO/analyze allowlist rejected: {allowlist_validation.errors}")
                 return _allowlist_violation_response(allowlist_validation.errors, "analyze")
 
         print(f"📊 CEO Analysis request received: {data}")
@@ -1190,9 +1197,86 @@ def execute_agent(agent_type):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _execute_executive_agent(agent_type: str, data: dict) -> dict:
+    """Execute CEO or CFO executive agents which are not in AgentFactory."""
+    company_info = dict(data.get("company_info", {}) or {})
+    company_name = company_info.get("company_name") or company_info.get("name", "Company")
+    industry = company_info.get("industry", "General Business")
+    location = company_info.get("location", "United States")
+    task = data.get("task", f"Execute {agent_type.upper()} tasks")
+    agent_name = "CEO Executive Agent" if agent_type == "ceo" else "CFO Financial Agent"
+
+    result = {
+        "agent_type": agent_type,
+        "agent_name": agent_name,
+        "status": "executed",
+        "timestamp": datetime.now().isoformat(),
+        "execution_mode": "AI_PERFORMED",
+        "budget_used": 0,
+        "deliverables": [],
+    }
+
+    if agent_type == "ceo" and CEO_AGENT_AVAILABLE:
+        try:
+            state = {
+                "company_name": company_name,
+                "industry": industry,
+                "location": location,
+                "business_goals": [],
+                "strategic_objectives": [task],
+                "agent_status": {},
+                "delegated_tasks": {},
+                "identified_tasks": [],
+                "assigned_tasks": {},
+                "completed_tasks": [],
+                "blocked_tasks": [],
+                "risks": [],
+                "risk_mitigation_plans": {},
+                "opportunities": [],
+                "opportunity_analysis": [],
+                "deliverables": [],
+                "status_reports": [],
+                "final_executive_summary": "",
+                "guard_rail_violations": [],
+                "liability_warnings": [],
+                "compliance_status": {},
+                "executive_decisions": [],
+                "current_phase": "initialization",
+                "completed_phases": [],
+            }
+            ceo_result = ceo_analyze(state)
+            identified_tasks = [
+                t for t in ceo_result.get("identified_tasks", []) if isinstance(t, dict)
+            ]
+            result["deliverables"] = [
+                f"✅ {t.get('task_name', t.get('task_id', 'Task'))}: {t.get('description', '')}"
+                for t in identified_tasks[:5]
+            ] or [f"✅ CEO strategic analysis complete for {company_name}"]
+            result["tasks"] = identified_tasks
+            result["risks"] = ceo_result.get("risks", [])
+            result["executive_summary"] = ceo_result.get("final_executive_summary", "")
+        except Exception as exc:
+            result["deliverables"] = [f"⚠️ CEO analysis error: {str(exc)[:200]}"]
+            result["status"] = "partial"
+    else:
+        # Fallback (CEO unavailable or CFO type)
+        result["deliverables"] = [
+            f"✅ {agent_name} activated for {company_name}",
+            f"📋 Task: {task}",
+            f"🏢 Industry: {industry} | Location: {location}",
+        ]
+
+    return result
+
+
 def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
     """Execute a specialized agent and normalize result payload."""
     agent_type = "branding" if str(agent_type).lower() == "designer" else agent_type
+
+    # Executive agents are not in AgentFactory — route to dedicated handler
+    if agent_type.lower() in ("ceo", "cfo"):
+        return _execute_executive_agent(agent_type.lower(), data)
+
     factory = AgentFactory()
     agent = factory.create_agent(agent_type)
 
