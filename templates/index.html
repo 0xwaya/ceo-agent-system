@@ -3,68 +3,95 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>CEO Executive Agent - AI Orchestration System</title>
+    <title>Executive AI System v0.4</title>
     <link rel="stylesheet" href="/static/css/style.css" />
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   </head>
-  <body>
-    <!-- Header -->
-    <header class="main-header">
-      <div class="container">
-        <div class="logo">
-          <h1><span class="logo-icon">👔</span> CEO Executive Agent</h1>
-          <p>AI-Powered Executive Orchestration System</p>
+  <body class="v4-layout">
+
+    <!-- ===== STICKY HEADER ===== -->
+    <header class="v4-header">
+      <div class="v4-logo">
+        <span class="v4-logo-icon">⚙️</span>
+        <span class="v4-logo-name">Executive AI</span>
+        <span class="v4-version-badge">v0.4</span>
+      </div>
+
+      <!-- Agent status pills (click to jump to chat) -->
+      <div class="v4-header-agents" id="headerAgentPills">
+        <button class="v4-ha-chip v4-chip-active" data-agent="ceo" onclick="selectChatAgent('ceo')">
+          <span class="v4-ha-dot v4-dot-green"></span>CEO
+        </button>
+        <button class="v4-ha-chip" data-agent="cfo" onclick="selectChatAgent('cfo')">
+          <span class="v4-ha-dot v4-dot-amber"></span>CFO
+        </button>
+        <button class="v4-ha-chip" data-agent="cto" onclick="selectChatAgent('cto')">
+          <span class="v4-ha-dot v4-dot-green"></span>CTO
+        </button>
+        <button class="v4-ha-chip" data-agent="legal" onclick="selectChatAgent('legal')">
+          <span class="v4-ha-dot v4-dot-gray"></span>Legal
+        </button>
+        <button class="v4-ha-chip" data-agent="branding" onclick="selectChatAgent('branding')">
+          <span class="v4-ha-dot v4-dot-gray"></span>Branding
+        </button>
+        <button class="v4-ha-chip" data-agent="web_development" onclick="selectChatAgent('web_development')">
+          <span class="v4-ha-dot v4-dot-gray"></span>Web Dev
+        </button>
+        <button class="v4-ha-chip" data-agent="martech" onclick="selectChatAgent('martech')">
+          <span class="v4-ha-dot v4-dot-gray"></span>MarTech
+        </button>
+      </div>
+
+      <!-- Budget summary -->
+      <div class="v4-header-budget">
+        <div class="v4-hb-item">
+          <span class="v4-hb-label">Total</span>
+          <span class="v4-hb-val" id="totalBudget">
+            {% if (scenario_defaults.budget | default(0))|float > 0 %}
+              ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
+            {% else %}-{% endif %}
+          </span>
         </div>
-        <div class="budget-display">
-          <div class="budget-item">
-            <span class="label">Total Budget:</span>
-            <span class="value" id="totalBudget">
-              {% if (scenario_defaults.budget | default(0))|float > 0 %}
-                ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
-              {% else %}
-                -
-              {% endif %}
-            </span>
-          </div>
-          <div class="budget-item">
-            <span class="label">Remaining:</span>
-            <span class="value success" id="remainingBudget">
-              {% if (scenario_defaults.budget | default(0))|float > 0 %}
-                ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
-              {% else %}
-                -
-              {% endif %}
-            </span>
-          </div>
+        <div class="v4-hb-item">
+          <span class="v4-hb-label">Remaining</span>
+          <span class="v4-hb-val v4-val-ok" id="remainingBudget">
+            {% if (scenario_defaults.budget | default(0))|float > 0 %}
+              ${{ "{:,}".format((scenario_defaults.budget | default(0))|int) }}
+            {% else %}-{% endif %}
+          </span>
         </div>
       </div>
+
+      <button class="v4-run-btn" id="launchOrchestration" type="button">
+        🚀 Run All Agents
+      </button>
     </header>
 
-    <!-- Main Dashboard -->
-    <main class="dashboard">
-      <div class="container">
-        <!-- Control Panel -->
-        <section class="control-panel">
-          <h2>🎯 Strategic Objectives</h2>
-          <div class="objectives-form">
-            <div class="form-group">
-              <label>Company Name:</label>
-              <input
-                type="text"
-                id="companyName"
-                value="{{ scenario_defaults.company_name | default('Amazon Granite LLC') }}"
-              />
+    <!-- ===== 3-PANEL BODY ===== -->
+    <div class="v4-body">
+
+      <!-- ==================== LEFT SIDEBAR ==================== -->
+      <aside class="v4-sidebar">
+
+        <!-- Config Accordion -->
+        <div class="v4-sidebar-section">
+          <div class="v4-sidebar-title">Configuration</div>
+          <button class="v4-cfg-toggle" id="cfgToggleBtn" onclick="toggleConfig()">
+            🏢 Company Setup <span id="cfgToggleArrow">▲</span>
+          </button>
+          <div class="v4-cfg-body" id="cfgBody">
+            <div class="v4-cfg-field">
+              <label>Company Name</label>
+              <input type="text" id="companyName"
+                value="{{ scenario_defaults.company_name | default('Amazon Granite LLC') }}" />
             </div>
-            <div class="form-group">
-              <label>DBA Name:</label>
-              <input
-                type="text"
-                id="dbaName"
-                value="{{ scenario_defaults.dba_name | default('SurfaceCraft Studio') }}"
-              />
+            <div class="v4-cfg-field">
+              <label>DBA / Brand</label>
+              <input type="text" id="dbaName"
+                value="{{ scenario_defaults.dba_name | default('SurfaceCraft Studio') }}" />
             </div>
-            <div class="form-group">
-              <label>Industry:</label>
+            <div class="v4-cfg-field">
+              <label>Industry</label>
               <select id="industry">
                 <option value="">Select industry</option>
                 <option value="Technology">Technology</option>
@@ -75,180 +102,259 @@
                 <option value="Construction">Construction</option>
                 <option value="Real Estate">Real Estate</option>
                 <option value="Education">Education</option>
-                <option value="Transportation & Logistics">Transportation & Logistics</option>
-                <option value="Hospitality & Tourism">Hospitality & Tourism</option>
+                <option value="Transportation &amp; Logistics">Transportation &amp; Logistics</option>
+                <option value="Hospitality &amp; Tourism">Hospitality &amp; Tourism</option>
                 <option value="Other">Other</option>
               </select>
             </div>
-            <div class="form-group" id="industryOtherGroup" style="display: none">
-              <label>Other Industry:</label>
-              <input
-                type="text"
-                id="industryOther"
+            <div class="v4-cfg-field" id="industryOtherGroup" style="display:none">
+              <label>Other Industry</label>
+              <input type="text" id="industryOther"
                 value="{{ scenario_defaults.industry_other | default('Construction, Custom Countertops') }}"
-                placeholder="Enter your industry"
-              />
+                placeholder="Enter your industry" />
             </div>
-            <div class="form-group">
-              <label>Location:</label>
-              <input
-                type="text"
-                id="location"
-                value="{{ scenario_defaults.location | default('Cincinnati, OH') }}"
-              />
+            <div class="v4-cfg-field">
+              <label>Location</label>
+              <input type="text" id="location"
+                value="{{ scenario_defaults.location | default('Cincinnati, OH') }}" />
             </div>
-            <div class="form-group">
-              <label>Total Budget ($):</label>
-              <input
-                type="number"
-                id="budget"
-                value="{{ scenario_defaults.budget | default(1000) }}"
-                min="1000"
-                max="100000"
-              />
+            <div class="v4-cfg-field">
+              <label>Budget ($)</label>
+              <input type="number" id="budget"
+                value="{{ scenario_defaults.budget | default(1000) }}" min="1000" max="100000" />
             </div>
-            <div class="form-group">
-              <label>Timeline (days):</label>
-              <input
-                type="number"
-                id="timeline"
-                value="{{ scenario_defaults.timeline | default(30) }}"
-                min="30"
-                max="365"
-              />
+            <div class="v4-cfg-field">
+              <label>Timeline (days)</label>
+              <input type="number" id="timeline"
+                value="{{ scenario_defaults.timeline | default(30) }}" min="30" max="365" />
             </div>
-            <button
-              class="btn btn-primary"
-              id="launchOrchestration"
-              onclick="runFullOrchestration()"
-              type="button"
-            >
-              🚀 Launch Full Orchestration
-            </button>
-            <button
-              class="btn btn-secondary"
-              id="analyzeBtn"
-              onclick="analyzeObjectives()"
-              type="button"
-            >
-              🔍 Analyze Only
-            </button>
+            <div class="v4-cfg-actions">
+              <button class="btn btn-secondary btn-small" id="analyzeBtn" type="button">
+                🔍 Analyze
+              </button>
+            </div>
           </div>
-        </section>
+        </div>
 
-        <!-- Execution Report -->
-        <section class="execution-report">
-          <h2>📊 Execution Report</h2>
-          <div id="reportDisplay" class="report-display">
-            <div class="report-placeholder">
-              <p>
-                🎯 Ready to execute. Configure objectives above and click
-                "Execute" on any agent card or "Launch Full Orchestration"
+        <!-- Agent Roster -->
+        <div class="v4-sidebar-section v4-roster-section">
+          <div class="v4-sidebar-title">Agent Roster</div>
+          <div class="v4-agent-rows">
+            <div class="v4-agent-row" data-agent="cto" onclick="selectChatAgent('cto')">
+              <span class="v4-ar-icon">🔧</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">CTO Agent</div>
+                <div class="v4-ar-role">Architecture &amp; Tech</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-green"></span>
+            </div>
+            <div class="v4-agent-row" data-agent="ceo" onclick="selectChatAgent('ceo')">
+              <span class="v4-ar-icon">👔</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">CEO Agent</div>
+                <div class="v4-ar-role">Strategy &amp; Orchestration</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-green"></span>
+            </div>
+            <div class="v4-agent-row" data-agent="cfo" onclick="selectChatAgent('cfo')">
+              <span class="v4-ar-icon">💰</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">CFO Agent</div>
+                <div class="v4-ar-role">Finance &amp; Analysis</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-amber"></span>
+            </div>
+            <div class="v4-agent-row" data-agent="legal" onclick="selectChatAgent('legal')">
+              <span class="v4-ar-icon">⚖️</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">Legal Agent</div>
+                <div class="v4-ar-role">Ohio Compliance</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-gray"></span>
+            </div>
+            <div class="v4-agent-row" data-agent="branding">
+              <span class="v4-ar-icon">🎨</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">Branding Agent</div>
+                <div class="v4-ar-role">Visual Identity</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-gray"></span>
+            </div>
+            <div class="v4-agent-row" data-agent="web_development">
+              <span class="v4-ar-icon">💻</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">Web Dev Agent</div>
+                <div class="v4-ar-role">Next.js + AR Stack</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-gray"></span>
+            </div>
+            <div class="v4-agent-row" data-agent="martech">
+              <span class="v4-ar-icon">📊</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">MarTech Agent</div>
+                <div class="v4-ar-role">Analytics &amp; Automation</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-gray"></span>
+            </div>
+            <div class="v4-agent-row" data-agent="content">
+              <span class="v4-ar-icon">📸</span>
+              <div class="v4-ar-info">
+                <div class="v4-ar-name">Content Agent</div>
+                <div class="v4-ar-role">Photography &amp; Copy</div>
+              </div>
+              <span class="v4-ar-dot v4-dot-gray"></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="v4-sidebar-footer">
+          <div id="statusDisplay" class="v4-status-area">
+            <p class="status-idle">System ready</p>
+          </div>
+        </div>
+      </aside>
+
+      <!-- ==================== CENTER PANEL ==================== -->
+      <main class="v4-center">
+        <div class="v4-center-toolbar">
+          <h2 class="v4-feed-title">📡 Activity Feed</h2>
+          <div class="v4-tab-pills">
+            <button class="v4-tab v4-tab-active" data-tab="feed"    onclick="switchTab('feed', this)">Live</button>
+            <button class="v4-tab"               data-tab="agents"  onclick="switchTab('agents', this)">Agents</button>
+            <button class="v4-tab"               data-tab="reports" onclick="switchTab('reports', this)">Reports</button>
+            <button class="v4-tab"               data-tab="tasks"   onclick="switchTab('tasks', this)">Tasks</button>
+            <button class="v4-tab"               data-tab="log"     onclick="switchTab('log', this)">Log</button>
+          </div>
+        </div>
+
+        <!-- TAB: Live Feed -->
+        <div class="v4-tab-panel" id="tab-feed">
+          <div id="liveFeedContainer" class="v4-feed-container">
+            <div class="v4-feed-card v4-card-info">
+              <div class="v4-fc-header">
+                <div class="v4-fc-title">
+                  ⚙️ Executive AI System v0.4
+                  <span class="v4-fc-badge v4-badge-info">Ready</span>
+                </div>
+                <span class="v4-fc-time">Just now</span>
+              </div>
+              <div class="v4-fc-meta">CTO + CEO + CFO + Legal + 4 specialist agents loaded</div>
+              <p class="v4-fc-text">
+                Configure your company in the sidebar, then click
+                <strong>Analyze</strong> to plan or <strong>Run All Agents</strong> to execute.
+                Use the chat panel to converse with any agent.
               </p>
-              <p style="margin-top: 1rem; opacity: 0.7; font-size: 0.9rem">
-                Agent execution reports will appear here with detailed
-                deliverables, budget breakdown, and recommendations.
-              </p>
             </div>
           </div>
-          <div id="progressBar" class="progress-bar" style="display: none">
-            <div class="progress-fill" id="progressFill"></div>
-            <span class="progress-text" id="progressText">0%</span>
-          </div>
-        </section>
+        </div>
 
-        <!-- Available Agents -->
-        <section class="agents-grid">
-          <h2>🤖 Available AI Agents</h2>
-          <div id="agentsContainer" class="agents-container">
-            <!-- Agents will be loaded here dynamically -->
-          </div>
-        </section>
-
-        <!-- Tasks Breakdown -->
-        <section class="tasks-section">
-          <h2>📋 Task Decomposition</h2>
-          <div id="tasksContainer" class="tasks-container">
-            <p class="empty-state">
-              Run strategic analysis to see task breakdown
-            </p>
-          </div>
-        </section>
-
-        <!-- Agent Execution Log -->
-        <section class="execution-log">
-          <h2>📝 Execution Log</h2>
-          <div id="executionLog" class="log-container">
-            <div class="log-entry">
-              <span class="timestamp">[System]</span>
-              <span class="message"
-                >Multi-Agent System initialized and ready</span
-              >
+        <!-- TAB: Available Agents -->
+        <div class="v4-tab-panel v4-hidden" id="tab-agents">
+          <div class="v4-tab-body">
+            <div id="agentsContainer" class="agents-container">
+              <!-- Agents loaded dynamically by app.js -->
             </div>
           </div>
-        </section>
-      </div>
-    </main>
+        </div>
 
-    <!-- Agent Details Modal -->
+        <!-- TAB: Reports -->
+        <div class="v4-tab-panel v4-hidden" id="tab-reports">
+          <div class="v4-tab-body" style="padding:1rem">
+            <div id="reportDisplay" class="report-display">
+              <div class="report-placeholder">
+                <p>🎯 Ready to execute. Use an agent card or Run All Agents.</p>
+                <p style="margin-top:1rem;opacity:.7;font-size:.9rem">
+                  Reports appear here with deliverables, budget breakdown, and recommendations.
+                </p>
+              </div>
+            </div>
+            <div id="progressBar" class="progress-bar" style="display:none;margin-top:1rem">
+              <div class="progress-fill" id="progressFill"></div>
+              <span class="progress-text" id="progressText">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: Task Decomposition -->
+        <div class="v4-tab-panel v4-hidden" id="tab-tasks">
+          <div class="v4-tab-body" style="padding:1rem">
+            <div id="tasksContainer" class="tasks-container">
+              <p class="empty-state">Run strategic analysis to see task breakdown</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB: Execution Log -->
+        <div class="v4-tab-panel v4-hidden" id="tab-log">
+          <div class="v4-tab-body" style="padding:1rem">
+            <div id="executionLog" class="log-container">
+              <div class="log-entry">
+                <span class="timestamp">[System]</span>
+                <span class="message">Executive AI System v0.4 initialized and ready</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- ==================== RIGHT CHAT PANEL ==================== -->
+      <aside class="v4-chat-panel">
+
+        <!-- Agent selector -->
+        <div class="v4-chat-topbar">
+          <div class="v4-chat-topbar-title">Talk to an Agent</div>
+          <div class="v4-agent-selector" id="chatAgentSelector">
+            <button class="v4-agt-btn v4-agt-active" data-agent="ceo"   onclick="selectChatAgent('ceo')">👔 CEO</button>
+            <button class="v4-agt-btn"               data-agent="cfo"   onclick="selectChatAgent('cfo')">💰 CFO</button>
+            <button class="v4-agt-btn"               data-agent="cto"   onclick="selectChatAgent('cto')">🔧 CTO</button>
+            <button class="v4-agt-btn"               data-agent="legal" onclick="selectChatAgent('legal')">⚖️ Legal</button>
+          </div>
+        </div>
+
+        <!-- Messages area (reuses #chatMessages so existing addChatMessage() works) -->
+        <div id="chatMessages" class="v4-chat-messages chat-messages">
+          <div class="chat-message system">
+            <div class="chat-message-content">
+              Connected · Talking to <strong id="activeAgentLabel">CEO Agent</strong> · LLM-backed
+            </div>
+            <div class="chat-message-time">Just now</div>
+          </div>
+        </div>
+
+        <!-- Input bar -->
+        <div class="v4-chat-input-bar">
+          <div style="display:flex;gap:.5rem;width:100%">
+            <input
+              type="text"
+              id="chatInput"
+              class="v4-chat-input"
+              placeholder="Ask the CEO anything…"
+              maxlength="5000"
+            />
+            <button id="sendChat" class="v4-chat-send-btn" title="Send">▶</button>
+          </div>
+          <button id="debateModeBtn" class="v4-debate-btn" onclick="toggleDebateMode()">
+            ⚡ Strategic Debate Mode
+          </button>
+        </div>
+        <div class="v4-chat-status" id="chatStatus"></div>
+      </aside>
+
+    </div><!-- /.v4-body -->
+
+    <!-- ==================== MODALS (unchanged) ==================== -->
     <div id="agentModal" class="modal">
       <div class="modal-content">
         <span class="modal-close" onclick="closeModal()">&times;</span>
-        <div id="modalContent">
-          <!-- Agent details will be loaded here -->
-        </div>
+        <div id="modalContent"></div>
       </div>
     </div>
 
-    <!-- Agent Results Modal -->
     <div id="resultsModal" class="modal">
       <div class="modal-content modal-large">
         <span class="modal-close" onclick="closeResultsModal()">&times;</span>
-        <div id="resultsContent">
-          <!-- Agent execution results will be loaded here -->
-        </div>
+        <div id="resultsContent"></div>
       </div>
-    </div>
-
-    <!-- Interactive Chat Interface -->
-    <div id="chatInterface" class="chat-interface">
-      <div class="chat-header">
-        <div class="chat-title">
-          <span class="chat-icon">💬</span>
-          <span>CEO Executive Chat</span>
-        </div>
-        <div class="chat-controls">
-          <button id="clearChat" class="chat-btn-clear" title="Clear chat">
-            🗑️
-          </button>
-          <button id="toggleChat" class="chat-btn-toggle" title="Minimize">
-            −
-          </button>
-        </div>
-      </div>
-      <div id="chatMessages" class="chat-messages">
-        <div class="chat-message system">
-          <div class="chat-message-content">
-            <strong>System:</strong> Welcome to CEO Executive Agent! I can help
-            you configure and execute AI agents for strategic business
-            orchestration. Ask me anything!
-          </div>
-          <div class="chat-message-time">Just now</div>
-        </div>
-      </div>
-      <div class="chat-input-container">
-        <input
-          type="text"
-          id="chatInput"
-          class="chat-input"
-          placeholder="Type your message... (e.g., 'Execute branding agent' or 'Show me agent status')"
-          maxlength="5000"
-        />
-        <button id="sendChat" class="chat-btn-send" title="Send message">
-          <span>📤</span>
-        </button>
-      </div>
-      <div class="chat-status" id="chatStatus"></div>
     </div>
 
     <script>
@@ -256,6 +362,20 @@
         isProduction: {{ is_production | default(false) | tojson }},
         defaults: {{ scenario_defaults | default({}) | tojson }}
       };
+      // Pre-select tab from server (e.g. /?tab=reports  →  /reports route)
+      (function () {
+        var tab = {{ initial_tab | default('') | tojson }};
+        if (!tab) {
+          var m = location.search.match(/[?&]tab=([^&]+)/);
+          if (m) tab = decodeURIComponent(m[1]);
+        }
+        if (tab) {
+          window.addEventListener('DOMContentLoaded', function () {
+            var btn = document.querySelector('[data-tab="' + tab + '"]');
+            if (typeof switchTab === 'function') switchTab(tab, btn);
+          });
+        }
+      })();
     </script>
     <script src="/static/js/app.js"></script>
   </body>

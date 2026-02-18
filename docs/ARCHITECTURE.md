@@ -1,4 +1,4 @@
-# Architecture Documentation — Multi-Agent System v0.3
+# Architecture Documentation — Multi-Agent System v0.4
 
 ## Table of Contents
 
@@ -14,28 +14,32 @@
 
 ## Overview
 
-The Multi-Agent System is a professional-grade, enterprise-ready platform for orchestrating AI agents to execute complex business workflows. **Version 0.3** introduces a full 3-tier LangGraph redesign:
+The Multi-Agent System is a professional-grade, enterprise-ready platform for orchestrating AI agents to execute complex business workflows. **Version 0.4** extends the 3-tier LangGraph with a CTO node, real-time LLM chat, and 3-panel dashboard redesign:
 
 - **Prompt Expert Agent**: Parses raw user commands into structured routing signals before the CEO sees them
+- **CTO Agent (Tier 1)**: `cto_llm_architecture_node` — architecture review, tech-stack decisions, `TIER1_NODE_MAP` registry
 - **LLM-driven dispatch**: CEO builds a `dispatch_plan` from Prompt Expert output — only required agents run
 - **6 Tier-2 domain directors**: CFO, Engineer, Researcher, Legal, Martech, Security
 - **7 Tier-3 execution specialists**: UX/UI, WebDev, SoftEng, Branding, Content, Campaign, SocialMedia
 - **Centralised LLM nodes**: `llm_nodes.py` owns all LLM calls with per-role prompts and fallbacks
 - **Role-gated tool registry**: `tools.py` enforces domain permissions before any tool executes
+- **Real-time LLM chat**: Per-agent conversational memory, SocketIO `ai_chat_request/response`, REST `/api/chat/message`
+- **3-Panel dashboard**: Fixed header · 240 px sidebar · flex centre · 340 px chat panel
 
 ### Key Improvements
 
-| Aspect | v0.1 | v0.2 | v0.3 |
-| --- | --- | --- | --- |
-| State Management | Mutable dicts | Immutable Pydantic models | TypedDicts + Pydantic + `dispatch_plan` |
-| Agent Coverage | 1 agent | CFO + Engineer + Researcher | 6 Tier-2 + 7 Tier-3 agents |
-| Routing | Hard-coded | Phase-based | LLM-driven `dispatch_plan` loop |
-| Intent Parsing | None | None | **Prompt Expert** (Node 0) |
-| LLM Architecture | Inline | Inline | Centralised `llm_nodes.py` |
-| Tool Calling | Ad-hoc | Ad-hoc | Role-gated `tools.py` registry |
-| Security Domain | None | None | Full Tier-2 subgraph |
-| Legal / Martech | Present as agents | Present as agents | Full Tier-2 subgraphs in graph |
-| Testing | Manual only | Test-ready | Test-ready (tests/ updated) |
+| Aspect | v0.1 | v0.2 | v0.3 | v0.4 |
+| --- | --- | --- | --- | --- |
+| State Management | Mutable dicts | Immutable Pydantic models | TypedDicts + Pydantic + `dispatch_plan` | Same + `chat_history`, `cto_*` fields |
+| Agent Coverage | 1 agent | CFO + Engineer + Researcher | 6 Tier-2 + 7 Tier-3 agents | + CTO (Tier 1), `TIER1_NODE_MAP` |
+| Routing | Hard-coded | Phase-based | LLM-driven `dispatch_plan` loop | Same + tab-driven UI |
+| Intent Parsing | None | None | **Prompt Expert** (Node 0) | Same |
+| LLM Architecture | Inline | Inline | Centralised `llm_nodes.py` | + `cto_llm_architecture_node` |
+| Tool Calling | Ad-hoc | Ad-hoc | Role-gated `tools.py` registry | Same |
+| Security Domain | None | None | Full Tier-2 subgraph | Same + security audit (2026-02-17) |
+| Chat | None | None | Keyword fallback only | **LLM chat** — per-agent memory, SocketIO, REST |
+| UI Layout | Single scroll | Single scroll | Single scroll | **3-panel** — sidebar · centre · chat |
+| Testing | Manual only | Test-ready | 33 tests | 33 + v0.4 feature tests |
 
 ---
 

@@ -51,6 +51,7 @@ class AgentRole(str, Enum):
 
     # Tier 1
     CEO = "ceo"
+    CTO = "cto"  # Chief Technology Officer — architecture & tech decisions
 
     # Tier 2
     CFO = "cfo"
@@ -550,6 +551,13 @@ class SharedState(TypedDict):
     confidence_scores: NotRequired[Dict[str, float]]
     research_summary: NotRequired[str]
     recommendations: NotRequired[Annotated[List[str], operator.add]]
+
+    # CTO fields (set by cto_llm_architecture_node)
+    cto_architecture_output: NotRequired[Dict[str, Any]]
+    cto_tech_decisions: NotRequired[Annotated[List[str], operator.add]]
+
+    # Chat history (per-agent conversational memory, populated by Flask chat backend)
+    chat_history: NotRequired[Annotated[List[Dict[str, Any]], operator.add]]
 
 
 class CEOState(SharedState):

@@ -184,3 +184,56 @@ Coverage gaps:
 ## Final Assessment
 
 The system has improved materially in **input sanitization** and **security headers**, and now has better foundations for secure operations. However, until **authentication** and **rate limiting** are actively enforced on Flask routes, risk remains elevated for abuse and unauthorized use. This refresh recommends prioritizing those controls before production exposure.
+
+---
+
+## v0.4 Addendum — February 17, 2026 (End-of-Day)
+
+**Scope:** New v0.4 surface — CTO agent, LLM chat endpoints, 3-panel UI refactor.
+**Tools:** bandit 1.9.3, safety 3.7.0 (dep check), manual code review.
+
+### Bandit Static Analysis Results
+
+| ID | Severity | File | Line | Finding | Action |
+|----|----------|------|------|---------|--------|
+| B104 | Medium | `app.py` | 2611 | `host="0.0.0.0"` binding | Acceptable for dev; env-guard via `FLASK_HOST` |
+| B104 | Medium | `config.py` | 65 | `FLASK_HOST` default `0.0.0.0` | Already env-overridable; no change needed |
+| B105 | Low | `config.py` | 39, 370 | `'dev-secret-key-change-in-production'` | Dev-only fallback; validated at startup (config.py:370 check rejects it in production) |
+| B110 | Low | `services/artifact_service.py` | 118 | `try/except/pass` | Intentional; acceptable for artifact cleanup path |
+
+**High findings: 0 · Medium: 2 (unchanged from prior audit) · Low: 3**
+
+### Safety Dependency Scan
+
+| Package | Pinned | CVE | Status |
+|---------|--------|-----|--------|
+| werkzeug | `3.0.1 → 3.1.5` | CVE-2026-21860 (High) + 9 others | ✅ **Fixed** — `requirements.txt` updated |
+
+### New v0.4 Chat Endpoint Findings & Fixes
+
+| # | Finding | Severity | Fix Applied |
+|---|---------|----------|------------|
+| V4-1 | `message` field in `/api/chat/message` and `ai_chat_request` had no length cap → potential DoS / runaway LLM cost | Medium | ✅ Capped at **2000 chars** (`[:2000]`) in both handler and REST endpoint |
+| V4-2 | `chat_error` SocketIO event emitted raw `str(exc)` → internal stack details exposed to client | Low | ✅ Replaced with generic `"An internal error occurred. Please try again."` |
+| V4-3 | `session_id` from POST body was passed unbounded into dict key | Low | ✅ Capped at **128 chars** (`[:128]`) |
+
+### Confirmed Controls Still Active
+
+- ✅ `enforce_request_security()` — `@app.before_request` scans all POST/PUT/PATCH JSON for threat patterns (injections, XSS probes).
+- ✅ `set_security_headers()` — `@app.after_request` adds CSP, `X-Content-Type-Options`, `X-XSS-Protection`, `Referrer-Policy`, HSTS (prod).
+- ✅ `MAX_CONTENT_LENGTH = 10 MB` remains in place; 413 handler returns JSON.
+- ✅ No hardcoded API keys or production secrets found in source.
+- ✅ `.gitignore` continues to exclude `.env*`, `*.key` files.
+
+### Open Items Carried Forward (unchanged from prior audit)
+
+1. ❌ **No authentication on `/api/*` endpoints** — highest risk before production exposure.
+2. ❌ **No rate limiting** on any endpoint including new `/api/chat/message`.
+3. ⚠️ `secret_key` dev default still present in `config.py` — must be overridden in all deployments.
+
+### v0.4 Security Rating Delta
+
+Prior audit: **B (84% app security)** → v0.4 addendum: **B+ (86%)**
+- +1% for Werkzeug CVE patched
+- +1% for v0.4 chat endpoint hardening (length caps, error sanitization)
+- Auth and rate-limiting gaps remain unchanged; overall band stays B+

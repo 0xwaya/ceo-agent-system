@@ -11,10 +11,15 @@ class TestAPIEndpoints:
     """Test class for API endpoints"""
 
     def test_index_route(self, test_client):
-        """Test index route returns HTML"""
+        """Test index route returns v0.4 HTML"""
         response = test_client.get("/")
         assert response.status_code == 200
-        assert b"CEO Executive Agent" in response.data or b"index" in response.data.lower()
+        # v0.4 unified dashboard — title changed from 'CEO Executive Agent'
+        assert (
+            b"Executive AI" in response.data
+            or b"v0.4" in response.data
+            or b"v4-layout" in response.data
+        )
 
     def test_get_available_agents(self, test_client):
         """Test /api/agents/available endpoint"""

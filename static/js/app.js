@@ -547,12 +547,12 @@ function displayAgents(agents) {
     container.innerHTML = '';
 
     const colors = [
-        'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-        'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-        'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-        'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-        'linear-gradient(135deg, #30cfd0 0%, #330867 100%)'
+        'linear-gradient(160deg, #1e3a5f 0%, #1d4ed8 100%)',
+        'linear-gradient(160deg, #1e293b 0%, #0f4060 100%)',
+        'linear-gradient(160deg, #164e63 0%, #0369a1 100%)',
+        'linear-gradient(160deg, #14532d 0%, #166534 100%)',
+        'linear-gradient(160deg, #1c1917 0%, #44403c 100%)',
+        'linear-gradient(160deg, #1e1b4b 0%, #312e81 100%)'
     ];
 
     agents.forEach((agent, index) => {
@@ -1957,3 +1957,248 @@ window.clearChat = clearChat;
 window.toggleChatMinimize = toggleChatMinimize;
 
 console.log('✅ All functions attached to window object');
+
+// =============================================================================
+// v0.4  THREE-PANEL LAYOUT  &  LLM CHAT
+// All identifiers are prefixed v4 to avoid collisions with legacy code.
+// =============================================================================
+
+let _v4ActiveAgent  = 'ceo';
+let _v4DebateMode   = false;
+let _v4ConfigOpen   = true;
+
+// ── Tab switching ─────────────────────────────────────────────────────────────
+function switchTab(tabName, btn) {
+  document.querySelectorAll('.v4-tab-panel').forEach(p => p.classList.add('v4-hidden'));
+  document.querySelectorAll('.v4-tab').forEach(t => t.classList.remove('v4-tab-active'));
+  const panel = document.getElementById('tab-' + tabName);
+  if (panel) panel.classList.remove('v4-hidden');
+  if (btn) btn.classList.add('v4-tab-active');
+}
+
+// ── Sidebar config accordion ──────────────────────────────────────────────────
+function toggleConfig() {
+  const body  = document.getElementById('cfgBody');
+  const arrow = document.getElementById('cfgToggleArrow');
+  if (!body) return;
+  _v4ConfigOpen = !_v4ConfigOpen;
+  body.style.display = _v4ConfigOpen ? 'flex' : 'none';
+  if (arrow) arrow.textContent = _v4ConfigOpen ? '▲' : '▼';
+}
+
+// ── Agent selection (chat panel + roster + header pills) ─────────────────────
+const _V4_AGENT_LABELS = {
+  ceo:             '👔 CEO Agent',
+  cfo:             '💰 CFO Agent',
+  cto:             '🔧 CTO Agent',
+  legal:           '⚖️ Legal Agent',
+  branding:        '🎨 Branding Agent',
+  web_development: '💻 Web Dev Agent',
+  martech:         '📊 MarTech Agent',
+  content:         '✍️ Content Agent',
+};
+
+function selectChatAgent(agentKey) {
+  _v4ActiveAgent = agentKey;
+
+  // Chat-panel selector buttons
+  document.querySelectorAll('.v4-agt-btn').forEach(b =>
+    b.classList.toggle('v4-agt-active', b.dataset.agent === agentKey));
+
+  // Header agent pills
+  document.querySelectorAll('.v4-ha-chip').forEach(c =>
+    c.classList.toggle('v4-chip-active', c.dataset.agent === agentKey));
+
+  // Sidebar roster rows
+  document.querySelectorAll('.v4-agent-row').forEach(r =>
+    r.classList.toggle('v4-row-active', r.dataset.agent === agentKey));
+
+  // Update placeholder
+  const input      = document.getElementById('chatInput');
+  const agentLabel = (_V4_AGENT_LABELS[agentKey] || agentKey).replace(/^\S+\s/, ''); // strip emoji
+  if (input) input.placeholder = 'Ask the ' + agentLabel + ' anything…';
+
+  addChatMessage('Now talking to ' + (_V4_AGENT_LABELS[agentKey] || agentKey), 'system');
+}
+
+// ── Strategic Debate Mode toggle ──────────────────────────────────────────────
+function toggleDebateMode() {
+  _v4DebateMode = !_v4DebateMode;
+  const btn = document.getElementById('debateModeBtn');
+  if (btn) {
+    btn.classList.toggle('v4-debate-active', _v4DebateMode);
+    btn.textContent = _v4DebateMode
+      ? '⚡ Debate Mode: ON — agent will push back'
+      : '⚡ Strategic Debate Mode';
+  }
+  addChatMessage(
+    _v4DebateMode
+      ? '⚡ Debate Mode activated — the agent will challenge your ideas and defend its recommendations.'
+      : '✓ Debate Mode off — returning to advisory mode.',
+    'system'
+  );
+}
+
+// ── Live feed cards ───────────────────────────────────────────────────────────
+/**
+ * addFeedCard(type, title, meta, body, metrics, actions)
+ *
+ * type    : 'success' | 'running' | 'info' | 'error'
+ * metrics : [{val, lbl}, …]   (optional)
+ * actions : [{label, onclick, primary}, …]  (optional)
+ */
+function addFeedCard(type, title, meta, body, metrics, actions) {
+  const container = document.getElementById('liveFeedContainer');
+  if (!container) return;
+
+  const TYPE_CLASS  = { success:'v4-card-success', running:'v4-card-running', info:'v4-card-info', error:'v4-card-error' };
+  const BADGE_CLASS = { success:'v4-badge-success', running:'v4-badge-running', info:'v4-badge-info', error:'v4-badge-error' };
+
+  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  const metricsHtml = (metrics && metrics.length)
+    ? '<div class="v4-fc-metrics">' +
+        metrics.map(m =>
+          '<div class="v4-fc-metric"><div class="v4-m-val">' + m.val + '</div><div class="v4-m-lbl">' + m.lbl + '</div></div>'
+        ).join('') +
+      '</div>'
+    : '';
+
+  const actionsHtml = (actions && actions.length)
+    ? '<div class="v4-fc-actions">' +
+        actions.map(a =>
+          '<button class="' + (a.primary ? 'v4-btn-accent' : 'v4-btn-outline') + '"' +
+          (a.onclick ? ' onclick="' + a.onclick + '"' : '') + '>' + a.label + '</button>'
+        ).join('') +
+      '</div>'
+    : '';
+
+  const card = document.createElement('div');
+  card.className = 'v4-feed-card ' + (TYPE_CLASS[type] || 'v4-card-info');
+  card.innerHTML =
+    '<div class="v4-fc-header">' +
+      '<div class="v4-fc-title">' + title +
+        ' <span class="v4-fc-badge ' + (BADGE_CLASS[type] || 'v4-badge-info') + '">' +
+          type.charAt(0).toUpperCase() + type.slice(1) +
+        '</span>' +
+      '</div>' +
+      '<span class="v4-fc-time">' + now + '</span>' +
+    '</div>' +
+    '<div class="v4-fc-meta">' + (meta || '') + '</div>' +
+    (body ? '<p class="v4-fc-text">' + body + '</p>' : '') +
+    metricsHtml + actionsHtml;
+
+  // Prepend so newest is at top
+  container.insertBefore(card, container.firstChild);
+
+  // Auto-switch to Live tab if another tab is active
+  const feedPanel = document.getElementById('tab-feed');
+  if (feedPanel && feedPanel.classList.contains('v4-hidden')) {
+    switchTab('feed', document.querySelector('[data-tab="feed"]'));
+  }
+}
+
+// ── Override sendChatMessage to use LLM backend via SocketIO ─────────────────
+window.sendChatMessage = function () {
+  const chatInput = document.getElementById('chatInput');
+  const message   = chatInput ? chatInput.value.trim() : '';
+  if (!message) return;
+
+  addChatMessage(message, 'user');
+  if (chatInput) chatInput.value = '';
+  setChatStatus('typing…');
+
+  // Build scenario context from sidebar form fields
+  const scenario = {
+    company_name: document.getElementById('companyName')?.value  || '',
+    industry:     document.getElementById('industry')?.value     || '',
+    location:     document.getElementById('location')?.value     || '',
+    budget:       parseFloat(document.getElementById('budget')?.value)   || 5000,
+    timeline:     parseInt(document.getElementById('timeline')?.value, 10) || 30,
+  };
+
+  if (typeof socket !== 'undefined' && socket && socket.connected) {
+    socket.emit('ai_chat_request', {
+      message,
+      agent:       _v4ActiveAgent,
+      debate_mode: _v4DebateMode,
+      scenario,
+    });
+  } else {
+    // Fallback: REST endpoint
+    fetch('/api/chat/message', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ message, agent: _v4ActiveAgent, debate_mode: _v4DebateMode, scenario }),
+    })
+      .then(r  => r.json())
+      .then(d  => { addChatMessage(d.response || 'No response received.', 'assistant'); setChatStatus(''); })
+      .catch(e => { addChatMessage('Error: ' + e.message, 'error'); setChatStatus(''); });
+  }
+};
+
+// ── SocketIO event handlers ───────────────────────────────────────────────────
+(function attachV4SocketHandlers() {
+  if (typeof socket === 'undefined' || !socket) return;
+
+  // LLM chat reply
+  socket.on('ai_chat_response', function (data) {
+    setChatStatus('');
+    if (data && data.message) addChatMessage(data.message, 'assistant');
+  });
+
+  // Agent lifecycle → live feed cards
+  socket.on('agent_deploying', function (data) {
+    const name = (data.agent || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    addFeedCard('running', '🔄 ' + name + ' Agent Deploying',
+      'Task: ' + (data.task || 'executing'), null, null, null);
+  });
+
+  socket.on('agent_deployed', function (data) {
+    const name = (data.agent || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    addFeedCard('success', '✅ ' + name + ' Agent Ready', 'Deployed successfully',
+      null, null, [{ label: 'View Details', onclick: "viewAgentDetails('" + data.agent + "')" }]);
+  });
+
+  socket.on('orchestration_complete', function (data) {
+    addFeedCard(
+      'success',
+      '🎯 Orchestration Complete',
+      (data.completed_tasks || 0) + ' of ' + (data.total_tasks || 0) + ' tasks',
+      null,
+      [
+        { val: data.completed_tasks || 0, lbl: 'Done' },
+        { val: '$' + (data.budget_used || 0), lbl: 'Used' },
+        { val: data.total_tasks      || 0, lbl: 'Total' },
+      ],
+      [{ label: '📄 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
+    );
+  });
+})();
+
+// ── Intercept displayAgentReport to also add a feed card ─────────────────────
+(function patchDisplayAgentReport() {
+  const _orig = window.displayAgentReport;
+  if (typeof _orig !== 'function') return;
+  window.displayAgentReport = function (agentType, resultData, companyInfo) {
+    _orig(agentType, resultData, companyInfo);
+    const name = (agentType || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    addFeedCard(
+      'success',
+      '✅ ' + name + ' Report Ready',
+      (resultData.deliverables ? resultData.deliverables.length : 0) + ' deliverable(s) · $' + (resultData.budget_used || 0),
+      null, null,
+      [{ label: '📋 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
+    );
+    switchTab('reports', document.querySelector('[data-tab="reports"]'));
+  };
+})();
+
+// ── Expose new v0.4 functions on window ──────────────────────────────────────
+window.switchTab      = switchTab;
+window.toggleConfig   = toggleConfig;
+window.selectChatAgent = selectChatAgent;
+window.toggleDebateMode = toggleDebateMode;
+window.addFeedCard    = addFeedCard;
+
+console.log('✅ v0.4 three-panel layout and LLM chat initialized');

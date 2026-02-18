@@ -611,52 +611,30 @@ def _get_graph_template_defaults() -> Dict[str, Any]:
 
 
 @app.route("/")
-def index():
-    """Default landing page now points to graph dashboard."""
-    if UTILS_AVAILABLE:
-        logger.info("Graph dashboard accessed via root route")
-    return render_template(
-        "graph_dashboard.html",
-        is_production=_is_production_environment(),
-        scenario_defaults=_get_graph_template_defaults(),
-    )
-
-
+@app.route("/graph")
 @app.route("/admin")
-def admin_dashboard():
-    """CEO Agent Admin Dashboard - Primary interface"""
-    if UTILS_AVAILABLE:
-        logger.info("Admin dashboard accessed")
-    return render_template(
-        "admin_dashboard.html",
-        is_production=_is_production_environment(),
-        scenario_defaults=_get_graph_template_defaults(),
-    )
-
-
 @app.route("/reports")
-def reports_page():
-    """Dedicated reports page route (opens admin reports section)."""
-    if UTILS_AVAILABLE:
-        logger.info("Reports page accessed")
-    return render_template(
-        "admin_dashboard.html",
-        initial_section="reports",
-        is_production=_is_production_environment(),
-        scenario_defaults=_get_graph_template_defaults(),
-    )
-
-
 @app.route("/admin/reports")
-def admin_reports_page():
-    """Alias route to open reports directly from navigation/landing pages."""
+def index():
+    """
+    v0.4 — Single unified entry point for all dashboard routes.
+
+    Legacy aliases (/graph, /admin, /reports, /admin/reports) all resolve
+    here so bookmarks and external links continue to work.
+
+    The active tab can be pre-selected via ?tab=<name>
+    (live | agents | reports | tasks | log).
+    """
+    from flask import request as _req
+
+    tab = _req.args.get("tab", "")
     if UTILS_AVAILABLE:
-        logger.info("Admin reports alias route accessed")
+        logger.info(f"v0.4 dashboard accessed — path={_req.path} tab={tab or 'default'}")
     return render_template(
-        "admin_dashboard.html",
-        initial_section="reports",
+        "index.html",
         is_production=_is_production_environment(),
         scenario_defaults=_get_graph_template_defaults(),
+        initial_tab=tab,
     )
 
 
@@ -664,18 +642,6 @@ def admin_reports_page():
 def debug():
     """Debug console page"""
     return render_template("debug.html")
-
-
-@app.route("/graph")
-def graph_dashboard():
-    """LangGraph Multi-Agent System Dashboard"""
-    if UTILS_AVAILABLE:
-        logger.info("Graph dashboard accessed")
-    return render_template(
-        "graph_dashboard.html",
-        is_production=_is_production_environment(),
-        scenario_defaults=_get_graph_template_defaults(),
-    )
 
 
 @app.route("/docs")
@@ -765,6 +731,7 @@ def scenario_current():
                     "budget",
                     "timeline",
                     "objectives",
+                    "updated_at",
                 },
                 required_fields=set(),
                 payload_name="scenario",
@@ -809,11 +776,13 @@ def analyze_objectives():
                 data,
                 allowed_fields={
                     "company_name",
+                    "dba_name",
                     "industry",
                     "location",
                     "objectives",
                     "budget",
                     "timeline",
+                    "updated_at",
                 },
                 required_fields={"company_name", "industry", "location"},
                 payload_name="analyze",
@@ -2021,8 +1990,253 @@ def handle_chat_message(data):
         emit("chat_error", {"error": str(e), "timestamp": datetime.now().isoformat()})
 
 
+# ============================================================================
+# LLM-BACKED AGENT CHAT  (v0.4)
+# Per-session, per-agent conversational memory powered by LangChain ChatOpenAI
+# ============================================================================
+
+# In-memory conversation history: {(flask_request_sid, agent_role): [messages]}
+_CHAT_SESSIONS: dict = {}
+
+_AGENT_PERSONAS: dict = {
+    "ceo": (
+        "You are the CEO Agent for {company_name}, a {industry} company in {location}.\n"
+        "You are the top-level strategic orchestrator. You set company direction, coordinate "
+        "agents, allocate budget, and make executive decisions.\n"
+        "Current context: Total budget ${budget}, Timeline: {timeline} days.\n"
+        "Speak with executive authority. Tie every decision back to business objectives. "
+        "When challenged, defend your position with business reasoning. Keep responses to "
+        "2-4 paragraphs."
+    ),
+    "cfo": (
+        "You are the CFO Agent for {company_name}, a {industry} company in {location}.\n"
+        "You own financial oversight: budget management, ROI analysis, cost structures, "
+        "and financial risk. You speak in numbers and financial metrics.\n"
+        "Current context: Total budget ${budget}, Timeline: {timeline} days.\n"
+        "Be skeptical of overspending. Always demand financial justification for proposals. "
+        "Keep responses concise with clear financial framing."
+    ),
+    "cto": (
+        "You are the CTO Agent for {company_name}, a {industry} company in {location}.\n"
+        "You own all technical architecture decisions. You reviewed the Web Development "
+        "agent's artifact recommending Next.js 15 App Router + React Three Fiber + "
+        "8th Wall WebAR + Sanity CMS for the SurfaceCraft Studio countertop visualizer.\n"
+        "Current context: Total budget ${budget}, Timeline: {timeline} days.\n"
+        "Speak about tech stacks, scalability, engineering timelines, and technical risk. "
+        "Be pragmatic about budget constraints. Defend sound technical choices with reasoning. "
+        "Keep responses to 2-4 paragraphs."
+    ),
+    "legal": (
+        "You are the Legal Agent for {company_name}, a {industry} company in {location}.\n"
+        "You specialise in Ohio commercial law, business compliance, contracts, IP, "
+        "and regulatory requirements for the {industry} sector.\n"
+        "Current context: Budget ${budget}.\n"
+        "Speak precisely and always flag risks. Frame everything as considerations to "
+        "discuss with licensed counsel — never give definitive legal advice. "
+        "Keep responses clear and structured."
+    ),
+}
+
+_DEBATE_SUFFIX = (
+    "\n\nIMPORTANT: The user has activated STRATEGIC DEBATE MODE. They will challenge your "
+    "recommendations. You MUST defend your position with specific data, analogies, and "
+    "industry evidence. Do not capitulate easily — push back constructively and ask "
+    "clarifying questions to expose flaws in the user's argument."
+)
+
+
+def _get_llm_for_chat(temperature: float = 0.5):
+    """Return a ChatOpenAI instance for conversational use."""
+    try:
+        from config import OPENAI_API_KEY, OPENAI_MODEL
+        from langchain_openai import ChatOpenAI
+
+        if not OPENAI_API_KEY:
+            raise ValueError("OPENAI_API_KEY not set")
+        return ChatOpenAI(
+            model=OPENAI_MODEL, temperature=temperature, max_tokens=600, api_key=OPENAI_API_KEY
+        )
+    except Exception as exc:
+        if UTILS_AVAILABLE:
+            logger.warning(f"Chat LLM factory failed: {exc}")
+        return None
+
+
+def _build_chat_system_prompt(agent: str, scenario: dict, debate_mode: bool = False) -> str:
+    """Build a per-agent system prompt with current scenario context."""
+    template = _AGENT_PERSONAS.get(agent, _AGENT_PERSONAS["ceo"])
+    prompt = template.format(
+        company_name=scenario.get("company_name", "your company"),
+        industry=scenario.get("industry", "general business"),
+        location=scenario.get("location", "the US"),
+        budget=f'{scenario.get("budget", 5000):,.0f}',
+        timeline=scenario.get("timeline", 30),
+    )
+    if debate_mode:
+        prompt += _DEBATE_SUFFIX
+    return prompt
+
+
+def llm_chat_response(
+    session_key: tuple,
+    agent: str,
+    user_message: str,
+    scenario: dict,
+    debate_mode: bool = False,
+) -> str:
+    """
+    Call the LLM with per-session memory and return the agent's response.
+    Falls back to process_chat_command if LLM is unavailable.
+    """
+    llm = _get_llm_for_chat()
+    if llm is None:
+        fallback = process_chat_command(user_message)
+        return (
+            fallback
+            or f"[{agent.upper()} Agent] {user_message} — (LLM unavailable, key not configured)"
+        )
+
+    history = _CHAT_SESSIONS.setdefault(session_key, [])
+
+    # Trim history to last 20 exchanges to stay within context window
+    if len(history) > 40:
+        history[:] = history[-40:]
+
+    history.append({"role": "user", "content": user_message})
+
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage, AIMessage
+
+        system_prompt = _build_chat_system_prompt(agent, scenario, debate_mode)
+        lc_messages = [SystemMessage(content=system_prompt)]
+        for msg in history[:-1]:  # exclude the message we just appended
+            if msg["role"] == "user":
+                lc_messages.append(HumanMessage(content=msg["content"]))
+            else:
+                lc_messages.append(AIMessage(content=msg["content"]))
+        lc_messages.append(HumanMessage(content=user_message))
+
+        response = llm.invoke(lc_messages)
+        assistant_text: str = response.content.strip()
+        history.append({"role": "assistant", "content": assistant_text})
+        return assistant_text
+
+    except Exception as exc:
+        if UTILS_AVAILABLE:
+            logger.error(f"LLM chat error: {exc}", exc_info=True)
+        fallback = process_chat_command(user_message)
+        return fallback or f"[{agent.upper()} Agent] I'm temporarily unavailable. Please try again."
+
+
+@socketio.on("ai_chat_request")
+def handle_ai_chat_request(data):
+    """
+    v0.4 LLM-backed agent chat via SocketIO.
+    Client emits: {message, agent, debate_mode, scenario}
+    Server emits: ai_chat_response {message, agent, timestamp}
+    """
+    try:
+        message = str(data.get("message", "")).strip()[:2000]  # cap at 2000 chars
+        agent = str(data.get("agent", "ceo")).lower()
+        debate_mode = bool(data.get("debate_mode", False))
+        scenario = data.get("scenario", {}) or {}
+
+        if not message:
+            return
+
+        if agent not in _AGENT_PERSONAS:
+            agent = "ceo"
+
+        # Use request.sid as session identifier
+        try:
+            from flask import request as flask_request
+
+            sid = flask_request.sid
+        except Exception:
+            sid = "anon"
+
+        session_key = (sid, agent)
+        response_text = llm_chat_response(session_key, agent, message, scenario, debate_mode)
+
+        emit(
+            "ai_chat_response",
+            {
+                "message": response_text,
+                "agent": agent,
+                "timestamp": datetime.now().isoformat(),
+                "debate_mode": debate_mode,
+            },
+        )
+    except Exception as exc:
+        if UTILS_AVAILABLE:
+            logger.error(f"ai_chat_request error: {exc}", exc_info=True)
+        # Always emit ai_chat_response so the client gets feedback
+        _fallback = "I'm temporarily unable to process that request. Please try again in a moment."
+        emit(
+            "ai_chat_response",
+            {
+                "message": _fallback,
+                "agent": "system",
+                "timestamp": datetime.now().isoformat(),
+                "debate_mode": False,
+                "error": True,
+            },
+        )
+
+
+@app.route("/api/chat/message", methods=["POST"])
+def api_chat_message():
+    """
+    REST endpoint for LLM-backed agent chat (alternative to SocketIO).
+    Body: {message, agent, debate_mode, scenario, session_id}
+    Returns: {response, agent, timestamp}
+    """
+    try:
+        body = request.get_json(silent=True) or {}
+        message = str(body.get("message", "")).strip()[:2000]  # cap at 2000 chars
+        agent = str(body.get("agent", "ceo")).lower()
+        debate_mode = bool(body.get("debate_mode", False))
+        scenario = body.get("scenario", {}) or {}
+        session_id = str(body.get("session_id", session.get("_id", "anon")))[
+            :128
+        ]  # cap session_id length
+
+        if not message:
+            return jsonify({"error": "message is required"}), 400
+
+        if agent not in _AGENT_PERSONAS:
+            agent = "ceo"
+
+        session_key = (session_id, agent)
+        response_text = llm_chat_response(session_key, agent, message, scenario, debate_mode)
+
+        return jsonify(
+            {
+                "response": response_text,
+                "agent": agent,
+                "timestamp": datetime.now().isoformat(),
+                "debate_mode": debate_mode,
+            }
+        )
+    except Exception as exc:
+        if UTILS_AVAILABLE:
+            logger.error(f"api_chat_message error: {exc}", exc_info=True)
+        return jsonify({"error": str(exc)}), 500
+
+
+@app.route("/api/chat/clear", methods=["POST"])
+def api_chat_clear():
+    """Clear conversation history for a session+agent pair."""
+    body = request.get_json(silent=True) or {}
+    agent = str(body.get("agent", "ceo")).lower()
+    session_id = str(body.get("session_id", session.get("_id", "anon")))
+    session_key = (session_id, agent)
+    _CHAT_SESSIONS.pop(session_key, None)
+    return jsonify({"cleared": True, "agent": agent})
+
+
 def process_chat_command(message: str) -> str:
-    """Process chat commands and return response"""
+    """Process chat commands and return response (legacy keyword fallback)"""
     lower_msg = message.lower()
 
     # Status query

@@ -1,8 +1,8 @@
-# 👔 CEO Agent — Executive AI System v0.3
+# 👔 CEO Agent — Executive AI System v0.4
 
-**🆕 v0.3 — 3-Tier LangGraph Architecture** — Prompt Expert → CEO → 6 Domain Directors → 7 Execution Specialists
+**🆕 v0.4 — CTO Agent · LLM Chat · 3-Panel UX** — Prompt Expert → CEO+CTO → 6 Domain Directors → 7 Execution Specialists
 
-> **LLM-driven dispatch, conditional agent routing, full 13-agent hierarchy**
+> **LLM-driven dispatch, real-time per-agent chat, 3-panel dashboard redesign**
 
 ---
 
@@ -18,7 +18,16 @@ Open: http://localhost:5001/admin   # Admin dashboard
 Open: http://localhost:5001/reports # Reports section (direct)
 ```
 
-**✨ What’s New in v0.3:**
+**✨ What's New in v0.4:**
+
+- 🔧 **CTO Agent (Tier 1)** — New `cto_llm_architecture_node`, `AgentRole.CTO`, `TIER1_NODE_MAP`; architecture review, tech-stack decisions, budget-aware planning
+- 💬 **Real-Time LLM Chat** — Per-agent conversational memory (`_CHAT_SESSIONS`), SocketIO `ai_chat_request/response`, REST `/api/chat/message` + `/api/chat/clear`
+- ⚡ **Strategic Debate Mode** — Toggle puts the LLM into a challenging, devil's-advocate persona
+- 🎨 **3-Panel Dashboard (v0.4 UX)** — Fixed-header · 240 px config sidebar · flex centre with 5 tabs · 340 px real-time chat panel
+- 🗂️ **Live Feed Cards** — `addFeedCard()` renders animated progress/success/error cards in the Live tab as agents run
+- 📑 **Tab Navigation** — Live · Agents · Reports · Tasks · Log tabs replace the old single-scroll layout
+
+**✨ What was added in v0.3:**
 
 - 🧠 **Prompt Expert Agent** — Node 0 converts raw user commands into structured routing signals (LLM-backed, keyword fallback)
 - 🔄 **Conditional Dispatch Loop** — CEO builds a `dispatch_plan`; only required agents run — no more hard-coded sequences
@@ -37,12 +46,12 @@ Open: http://localhost:5001/reports # Reports section (direct)
 
 ---
 
-## 🎨 **Graph Architecture — v0.3 (3-Tier LangGraph)**
+## 🎨 **Graph Architecture — v0.4 (3-Tier LangGraph + CTO)**
 
-### LLM-driven dispatch, Prompt Expert, 13-agent hierarchy
+### LLM-driven dispatch, Prompt Expert, 14-agent hierarchy
 
 ```bash
-# Run the v0.3 graph system directly
+# Run the v0.4 graph system directly
 python3 graph_architecture/main_graph.py
 
 # Or via the web dashboard
@@ -55,6 +64,7 @@ Open: http://localhost:5001/graph
 |------|-------|------|
 | Node 0 | Prompt Expert | Parses raw user input into routing signals |
 | Tier 1 | CEO | LLM orchestrator, builds `dispatch_plan` |
+| Tier 1 | **CTO** 🆕 | Architecture review, tech-stack decisions, budget-aware planning |
 | Tier 2 | CFO | Finance, budget analysis |
 | Tier 2 | Engineer | Architecture, delegates Tier-3 |
 | Tier 2 | Researcher | Market & competitive analysis |

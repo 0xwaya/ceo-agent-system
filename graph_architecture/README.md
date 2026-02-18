@@ -1,6 +1,7 @@
-# Hierarchical Graph-Based Multi-Agent Architecture — v0.3
+# Hierarchical Graph-Based Multi-Agent Architecture — v0.4
 
-> **v0.3** introduces a full 3-tier LangGraph redesign: LLM-driven dispatch, a Prompt Expert agent, 6 Tier-2 domain directors, and 7 Tier-3 execution specialists.
+> **v0.4** adds a CTO Tier-1 agent, real-time LLM chat with per-agent conversational memory, and the 3-panel v0.4 dashboard UX.
+> **v0.3** introduced the full 3-tier LangGraph redesign: LLM-driven dispatch, a Prompt Expert agent, 6 Tier-2 domain directors, and 7 Tier-3 execution specialists.
 
 ## Overview
 
@@ -8,6 +9,7 @@ This directory contains the implementation of a **hierarchical, graph-based mult
 
 - **Prompt Expert** (Node 0): Parses raw user input into structured routing signals before CEO sees it
 - **CEO Agent** (Tier 1): LLM-driven root orchestrator — builds a `dispatch_plan` and loops through it
+- **CTO Agent** (Tier 1 — 🆕 v0.4): Architecture review, technology-stack decisions, budget-aware technical planning
 - **Domain Directors** (Tier 2): CFO · Engineer · Researcher · Legal · Martech · Security — each an LLM-backed subgraph
 - **Execution Specialists** (Tier 3): UX/UI · WebDev · SoftEng · Branding · Content · Campaign · SocialMedia — orchestrated inside their Tier-2 parent
 
@@ -17,6 +19,7 @@ This directory contains the implementation of a **hierarchical, graph-based mult
 ```
 Prompt Expert (Node 0 — intent parser)
     └─► CEO (Tier 1 — strategic orchestrator)
+    └─► CTO (Tier 1 — architecture & tech decisions)  ← NEW v0.4
             ├── CFO            (Tier 2 — Finance)
             ├── Engineer       (Tier 2 — Engineering)
             │       ├── UX/UI Design  (Tier 3)
@@ -31,6 +34,14 @@ Prompt Expert (Node 0 — intent parser)
             │       └── Social Media  (Tier 3)
             └── Security       (Tier 2 — Audit)
 ```
+
+### Node Maps (v0.4)
+
+| Map | Keys |
+|-----|------|
+| `TIER1_NODE_MAP` | `ceo`, `cto` |
+| `TIER2_NODE_MAP` | `cfo`, `engineer`, `researcher`, `legal`, `martech`, `security` |
+| `TIER3_NODE_MAP` | `ux_ui`, `web_dev`, `software_eng`, `branding`, `content`, `campaign`, `social_media` |
 
 ### 2. Communication Model
 - **LLM-driven dispatch**: CEO's `dispatch_plan` list is built from Prompt Expert output, not hard-coded

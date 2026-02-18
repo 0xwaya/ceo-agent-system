@@ -1,0 +1,724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Phase 4 — UI Redesign Preview</title>
+<style>
+/* =========================================================
+   DESIGN TOKENS  (same palette as existing app)
+   ========================================================= */
+:root {
+  --bg-dark:     #0f0f23;
+  --bg-card:     #1a1a35;
+  --bg-panel:    #13132b;
+  --border:      rgba(102,126,234,.25);
+  --accent:      #667eea;
+  --accent2:     #764ba2;
+  --green:       #10b981;
+  --amber:       #f59e0b;
+  --red:         #ef4444;
+  --text:        #f1f5f9;
+  --text-muted:  #94a3b8;
+  --text-dim:    #64748b;
+  --sidebar-w:   240px;
+  --chat-w:      340px;
+  --header-h:    60px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg-dark); color: var(--text); height: 100dvh; overflow: hidden; font-size: 14px; }
+
+/* =========================================================
+   TOP HEADER — single sticky bar
+   ========================================================= */
+.app-header {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: var(--header-h);
+  background: #0c0c1e;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 1rem; padding: 0 1rem;
+}
+.logo { display: flex; align-items: center; gap: .5rem; font-size: 1rem; font-weight: 700; white-space: nowrap; }
+.logo .badge { background: linear-gradient(135deg,var(--accent),var(--accent2)); padding: 2px 8px; border-radius: 20px; font-size: .7rem; font-weight: 600; letter-spacing:.05em; }
+.header-agents { display: flex; align-items: center; gap: .5rem; flex: 1; padding: 0 .5rem; }
+.ha-chip {
+  display: flex; align-items: center; gap: .35rem;
+  background: rgba(255,255,255,.05);
+  border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px; cursor: pointer;
+  transition: background .15s;
+  font-size: .78rem; font-weight: 500;
+}
+.ha-chip:hover { background: rgba(102,126,234,.15); border-color: var(--accent); }
+.ha-chip.active { background: rgba(16,185,129,.12); border-color: var(--green); }
+.ha-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.dot-green { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.dot-amber { background: var(--amber); }
+.dot-gray  { background: #475569; }
+
+.header-budget {
+  display: flex; gap: 1.5rem; align-items: center;
+  border-left: 1px solid var(--border); padding-left: 1rem;
+  font-size: .78rem;
+}
+.hb-item { display: flex; flex-direction: column; align-items: flex-end; }
+.hb-label { color: var(--text-muted); font-size: .68rem; text-transform: uppercase; letter-spacing: .06em; }
+.hb-val   { color: var(--text); font-weight: 700; }
+.hb-val.ok   { color: var(--green); }
+.hb-val.warn { color: var(--amber); }
+
+.header-run {
+  margin-left: auto;
+  background: linear-gradient(135deg,var(--accent),var(--accent2));
+  border: none; color: #fff; font-weight: 700; padding: 7px 18px;
+  border-radius: 8px; cursor: pointer; font-size: .82rem; white-space: nowrap;
+  transition: opacity .15s;
+}
+.header-run:hover { opacity: .85; }
+
+/* =========================================================
+   3-PANEL BODY
+   ========================================================= */
+.app-body {
+  position: fixed; top: var(--header-h); left: 0; right: 0; bottom: 0;
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr var(--chat-w);
+  grid-template-rows: 1fr;
+}
+
+/* =========================================================
+   LEFT SIDEBAR
+   ========================================================= */
+.sidebar {
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+}
+.sidebar-section { padding: .75rem 1rem; }
+.sidebar-section + .sidebar-section { border-top: 1px solid var(--border); }
+.sidebar-title { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); margin-bottom: .6rem; }
+
+/* Config accordion */
+.config-toggle {
+  width: 100%; background: none; border: none; color: var(--text); cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: .82rem; font-weight: 600; padding: .4rem 0;
+}
+.config-body { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
+.cfg-field label { display: block; font-size: .68rem; color: var(--text-muted); margin-bottom: 2px; }
+.cfg-field input, .cfg-field select {
+  width: 100%; background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text); border-radius: 6px; padding: 5px 8px; font-size: .78rem;
+}
+.cfg-field input:focus, .cfg-field select:focus { outline: none; border-color: var(--accent); }
+
+/* Agent roster */
+.agent-row {
+  display: flex; align-items: center; gap: .5rem;
+  padding: .45rem .6rem; border-radius: 8px; cursor: pointer;
+  transition: background .12s; margin-bottom: 2px;
+}
+.agent-row:hover { background: rgba(102,126,234,.1); }
+.agent-row.selected { background: rgba(102,126,234,.18); border: 1px solid rgba(102,126,234,.4); }
+.agent-row .ar-icon { font-size: 1rem; }
+.agent-row .ar-info { flex: 1; min-width: 0; }
+.agent-row .ar-name { font-size: .8rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent-row .ar-role { font-size: .65rem; color: var(--text-muted); }
+.agent-row .ar-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.sidebar-footer { margin-top: auto; padding: .75rem 1rem; border-top: 1px solid var(--border); }
+.btn-new-run {
+  width: 100%; background: rgba(102,126,234,.12); border: 1px solid var(--border);
+  color: var(--accent); border-radius: 8px; padding: 8px; font-size: .8rem;
+  font-weight: 600; cursor: pointer; transition: background .15s;
+}
+.btn-new-run:hover { background: rgba(102,126,234,.25); }
+
+/* =========================================================
+   CENTER — ACTIVITY FEED
+   ========================================================= */
+.center-panel {
+  display: flex; flex-direction: column;
+  overflow: hidden; background: var(--bg-dark);
+}
+.center-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .7rem 1rem; border-bottom: 1px solid var(--border);
+  background: var(--bg-panel); flex-shrink: 0;
+}
+.center-toolbar h2 { font-size: .9rem; font-weight: 700; }
+.tab-pills { display: flex; gap: .25rem; }
+.tab-pill {
+  background: none; border: none; color: var(--text-muted);
+  font-size: .75rem; padding: 4px 12px; border-radius: 20px; cursor: pointer;
+  transition: all .15s;
+}
+.tab-pill.active { background: rgba(102,126,234,.2); color: var(--accent); font-weight: 600; }
+
+.feed-container { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: .75rem; }
+
+/* Card variants */
+.feed-card {
+  background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 1rem; overflow: hidden; position: relative;
+  transition: border-color .15s;
+}
+.feed-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 4px; border-radius: 4px 0 0 4px;
+}
+.feed-card.success::before { background: var(--green); }
+.feed-card.running::before { background: var(--amber); animation: pulse-amber 1.5s infinite; }
+.feed-card.info::before    { background: var(--accent); }
+.feed-card.error::before   { background: var(--red); }
+@keyframes pulse-amber { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.fc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .5rem; }
+.fc-title { font-size: .88rem; font-weight: 700; display: flex; align-items: center; gap: .4rem; }
+.fc-badge { font-size: .65rem; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+.badge-success { background: rgba(16,185,129,.15); color: var(--green); }
+.badge-running { background: rgba(245,158,11,.15); color: var(--amber); }
+.badge-info    { background: rgba(102,126,234,.15); color: var(--accent); }
+
+.fc-meta { font-size: .72rem; color: var(--text-muted); margin-bottom: .75rem; }
+.fc-metrics { display: flex; gap: .75rem; margin-bottom: .75rem; }
+.fc-metric { background: rgba(255,255,255,.04); border-radius: 8px; padding: .4rem .6rem; text-align: center; min-width: 70px; }
+.fc-metric .m-val { font-size: 1rem; font-weight: 800; }
+.fc-metric .m-lbl { font-size: .6rem; color: var(--text-muted); text-transform: uppercase; }
+.fc-actions { display: flex; gap: .5rem; }
+.btn-outline-sm {
+  background: none; border: 1px solid var(--border); color: var(--text-muted);
+  border-radius: 6px; padding: 4px 10px; font-size: .72rem; cursor: pointer;
+  transition: all .15s;
+}
+.btn-outline-sm:hover { border-color: var(--accent); color: var(--accent); }
+.btn-accent-sm {
+  background: rgba(102,126,234,.15); border: 1px solid rgba(102,126,234,.4);
+  color: var(--accent); border-radius: 6px; padding: 4px 10px; font-size: .72rem;
+  cursor: pointer; transition: all .15s; font-weight: 600;
+}
+.btn-accent-sm:hover { background: rgba(102,126,234,.3); }
+
+/* Progress bar */
+.progress-track {
+  background: rgba(255,255,255,.06); border-radius: 20px; height: 6px;
+  overflow: hidden; margin-top: .5rem;
+}
+.progress-fill-bar { height: 100%; border-radius: 20px; transition: width .5s; }
+.progress-fill-bar.green { background: linear-gradient(90deg, var(--green), #38f9d7); }
+.progress-fill-bar.amber { background: linear-gradient(90deg, var(--amber), #fde68a); }
+
+/* =========================================================
+   RIGHT — CHAT PANEL
+   ========================================================= */
+.chat-panel {
+  background: var(--bg-panel);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.chat-topbar {
+  padding: .65rem .85rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+.chat-topbar-title { font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-muted); margin-bottom: .4rem; }
+.agent-selector {
+  display: flex; gap: .3rem; flex-wrap: wrap;
+}
+.agt-btn {
+  background: rgba(255,255,255,.04); border: 1px solid var(--border);
+  color: var(--text-muted); border-radius: 8px; padding: 4px 10px;
+  font-size: .72rem; cursor: pointer; transition: all .15s;
+}
+.agt-btn.active { background: rgba(102,126,234,.2); border-color: var(--accent); color: var(--text); font-weight: 600; }
+
+.chat-messages { flex: 1; overflow-y: auto; padding: .75rem; display: flex; flex-direction: column; gap: .6rem; }
+
+.msg { display: flex; flex-direction: column; gap: .2rem; max-width: 90%; }
+.msg.user { align-self: flex-end; align-items: flex-end; }
+.msg.agent { align-self: flex-start; }
+.msg.system { align-self: center; max-width: 100%; }
+
+.msg-bubble {
+  border-radius: 14px; padding: .55rem .9rem; font-size: .82rem; line-height: 1.55;
+}
+.msg.user  .msg-bubble { background: linear-gradient(135deg,var(--accent),var(--accent2)); color: #fff; border-bottom-right-radius: 4px; }
+.msg.agent .msg-bubble { background: var(--bg-card); border: 1px solid var(--border); color: var(--text); border-bottom-left-radius: 4px; }
+.msg.system .msg-bubble { background: rgba(255,255,255,.04); color: var(--text-muted); font-size: .72rem; text-align: center; border-radius: 8px; }
+
+.msg-meta { font-size: .62rem; color: var(--text-dim); padding: 0 .4rem; }
+.msg-persona { font-size: .7rem; font-weight: 700; color: var(--accent); margin-bottom: .1rem; }
+
+/* Typing indicator */
+.typing-indicator { display: flex; gap: 4px; padding: .55rem .9rem; }
+.typing-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: var(--text-muted);
+  animation: bounce .9s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: .15s; }
+.typing-dot:nth-child(3) { animation-delay: .3s; }
+@keyframes bounce { 0%,100%{transform:translateY(0)} 45%{transform:translateY(-5px)} }
+
+.chat-input-bar {
+  padding: .65rem; border-top: 1px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; gap: .5rem;
+}
+.chat-textarea {
+  flex: 1; background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--text); border-radius: 10px; padding: .5rem .75rem;
+  font-size: .82rem; resize: none; height: 40px; line-height: 1.4;
+  font-family: inherit;
+}
+.chat-textarea:focus { outline: none; border-color: var(--accent); }
+.chat-send-btn {
+  width: 38px; height: 38px; border-radius: 10px; border: none;
+  background: linear-gradient(135deg,var(--accent),var(--accent2));
+  color: #fff; font-size: .9rem; cursor: pointer; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.debate-btn {
+  width: 100%; background: rgba(245,158,11,.1); border: 1px dashed rgba(245,158,11,.4);
+  color: var(--amber); border-radius: 8px; padding: 5px; font-size: .72rem;
+  cursor: pointer; transition: background .15s; margin-top: .3rem;
+}
+.debate-btn:hover { background: rgba(245,158,11,.2); }
+
+/* =========================================================
+   SCROLLBAR STYLING
+   ========================================================= */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 4px; }
+
+/* =========================================================
+   ANNOTATION OVERLAYS  (preview-only)
+   ========================================================= */
+.annotation {
+  position: fixed; background: rgba(245,158,11,.9); color: #000;
+  font-size: .7rem; font-weight: 700; padding: 3px 8px; border-radius: 4px;
+  z-index: 500; pointer-events: none; white-space: nowrap;
+}
+.annotation::after {
+  content: ''; position: absolute; bottom: -5px; left: 12px;
+  border-left: 5px solid transparent; border-right: 5px solid transparent;
+  border-top: 5px solid rgba(245,158,11,.9);
+}
+
+/* preview banner */
+.preview-banner {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 600;
+  background: linear-gradient(90deg,#0c0c1e 0%,#1a1a35 100%);
+  border-top: 1px solid var(--accent);
+  padding: 6px 1rem; display: flex; align-items: center; gap: 1rem;
+  font-size: .72rem; color: var(--text-muted);
+}
+.preview-banner strong { color: var(--amber); }
+.preview-banner .tag { background: rgba(102,126,234,.2); color: var(--accent); padding: 2px 8px; border-radius: 20px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<!-- ===================== HEADER ===================== -->
+<header class="app-header">
+  <div class="logo">
+    <span>⚙️</span>
+    <span>Executive AI</span>
+    <span class="badge">v4</span>
+  </div>
+
+  <div class="header-agents">
+    <div class="ha-chip active" title="CTO — Active">
+      <span class="dot dot-green"></span>CTO
+    </div>
+    <div class="ha-chip active" title="CEO — Active">
+      <span class="dot dot-green"></span>CEO
+    </div>
+    <div class="ha-chip" title="CFO — Ready">
+      <span class="dot dot-amber"></span>CFO
+    </div>
+    <div class="ha-chip" title="Legal — Standby">
+      <span class="dot dot-gray"></span>Legal
+    </div>
+    <div class="ha-chip" title="Branding — Standby">
+      <span class="dot dot-gray"></span>Branding
+    </div>
+    <div class="ha-chip" title="Web Dev — Standby">
+      <span class="dot dot-gray"></span>Web Dev
+    </div>
+    <div class="ha-chip" title="MarTech — Standby">
+      <span class="dot dot-gray"></span>MarTech
+    </div>
+  </div>
+
+  <div class="header-budget">
+    <div class="hb-item">
+      <span class="hb-label">Total</span>
+      <span class="hb-val">$5,000</span>
+    </div>
+    <div class="hb-item">
+      <span class="hb-label">Used</span>
+      <span class="hb-val warn">$1,840</span>
+    </div>
+    <div class="hb-item">
+      <span class="hb-label">Remaining</span>
+      <span class="hb-val ok">$3,160</span>
+    </div>
+  </div>
+
+  <button class="header-run">🚀 Run All Agents</button>
+</header>
+
+<!-- ===================== 3-PANEL BODY ===================== -->
+<div class="app-body">
+
+  <!-- === LEFT SIDEBAR === -->
+  <aside class="sidebar">
+
+    <!-- CONFIG ACCORDION -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Configuration</div>
+      <button class="config-toggle" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display==='none'?'flex':'none'">
+        🏢 Company Setup <span id="cfgArrow">▲</span>
+      </button>
+      <div class="config-body">
+        <div class="cfg-field">
+          <label>Company Name</label>
+          <input type="text" value="Amazon Granite LLC" />
+        </div>
+        <div class="cfg-field">
+          <label>DBA / Brand</label>
+          <input type="text" value="SurfaceCraft Studio" />
+        </div>
+        <div class="cfg-field">
+          <label>Industry</label>
+          <select><option>Construction, Custom Countertops</option><option>Technology</option><option>Retail</option></select>
+        </div>
+        <div class="cfg-field">
+          <label>Location</label>
+          <input type="text" value="Cincinnati, OH" />
+        </div>
+        <div class="cfg-field">
+          <label>Budget ($)</label>
+          <input type="number" value="5000" />
+        </div>
+        <div class="cfg-field">
+          <label>Timeline (days)</label>
+          <input type="number" value="30" />
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENT ROSTER -->
+    <div class="sidebar-section" style="flex:1">
+      <div class="sidebar-title">Agent Roster</div>
+
+      <div class="agent-row" style="background:rgba(102,126,234,.08);border:1px solid rgba(102,126,234,.25)">
+        <span class="ar-icon">🔧</span>
+        <div class="ar-info">
+          <div class="ar-name">CTO Agent</div>
+          <div class="ar-role">Architecture &amp; Tech Decisions</div>
+        </div>
+        <span class="ar-dot dot-green"></span>
+      </div>
+
+      <div class="agent-row">
+        <span class="ar-icon">👔</span>
+        <div class="ar-info">
+          <div class="ar-name">CEO Agent</div>
+          <div class="ar-role">Strategy &amp; Orchestration</div>
+        </div>
+        <span class="ar-dot dot-green"></span>
+      </div>
+
+      <div class="agent-row">
+        <span class="ar-icon">💰</span>
+        <div class="ar-info">
+          <div class="ar-name">CFO Agent</div>
+          <div class="ar-role">Finance &amp; Analysis</div>
+        </div>
+        <span class="ar-dot" style="background:var(--amber)"></span>
+      </div>
+
+      <div class="agent-row">
+        <span class="ar-icon">⚖️</span>
+        <div class="ar-info">
+          <div class="ar-name">Legal Agent</div>
+          <div class="ar-role">Ohio Compliance</div>
+        </div>
+        <span class="ar-dot" style="background:#475569"></span>
+      </div>
+
+      <div class="agent-row">
+        <span class="ar-icon">🎨</span>
+        <div class="ar-info">
+          <div class="ar-name">Branding Agent</div>
+          <div class="ar-role">Visual Identity</div>
+        </div>
+        <span class="ar-dot" style="background:#475569"></span>
+      </div>
+
+      <div class="agent-row">
+        <span class="ar-icon">💻</span>
+        <div class="ar-info">
+          <div class="ar-name">Web Dev Agent</div>
+          <div class="ar-role">Next.js + AR Stack</div>
+        </div>
+        <span class="ar-dot" style="background:#475569"></span>
+      </div>
+
+      <div class="agent-row">
+        <span class="ar-icon">📊</span>
+        <div class="ar-info">
+          <div class="ar-name">MarTech Agent</div>
+          <div class="ar-role">Analytics &amp; Automation</div>
+        </div>
+        <span class="ar-dot" style="background:#475569"></span>
+      </div>
+
+      <div class="agent-row">
+        <span class="ar-icon">📸</span>
+        <div class="ar-info">
+          <div class="ar-name">Content Agent</div>
+          <div class="ar-role">Photography &amp; Copy</div>
+        </div>
+        <span class="ar-dot" style="background:#475569"></span>
+      </div>
+    </div>
+
+    <div class="sidebar-footer">
+      <button class="btn-new-run">+ New Orchestration Run</button>
+    </div>
+  </aside>
+
+  <!-- === CENTER ACTIVITY FEED === -->
+  <main class="center-panel">
+    <div class="center-toolbar">
+      <h2>📡 Activity Feed</h2>
+      <div class="tab-pills">
+        <button class="tab-pill active">All</button>
+        <button class="tab-pill">Reports</button>
+        <button class="tab-pill">Tasks</button>
+        <button class="tab-pill">Log</button>
+      </div>
+    </div>
+
+    <div class="feed-container">
+
+      <!-- RUNNING card -->
+      <div class="feed-card running">
+        <div class="fc-header">
+          <div class="fc-title">🔍 CFO Strategic Analysis <span class="fc-badge badge-running">Running…</span></div>
+          <span style="font-size:.7rem;color:var(--text-muted)">12s ago</span>
+        </div>
+        <div class="fc-meta">Amazon Granite LLC · SurfaceCraft Studio · Cincinnati, OH</div>
+        <div class="progress-track"><div class="progress-fill-bar amber" style="width:42%"></div></div>
+        <div style="font-size:.7rem;color:var(--text-muted);margin-top:.3rem">Identifying tasks across 6 domains… 42%</div>
+      </div>
+
+      <!-- SUCCESS — Analysis done -->
+      <div class="feed-card success">
+        <div class="fc-header">
+          <div class="fc-title">✅ Strategic Analysis Complete <span class="fc-badge badge-success">Done</span></div>
+          <span style="font-size:.7rem;color:var(--text-muted)">2m ago</span>
+        </div>
+        <div class="fc-meta">CFO Agent · 12 tasks identified across 6 domains</div>
+        <div class="fc-metrics">
+          <div class="fc-metric">
+            <div class="m-val" style="color:var(--green)">12</div>
+            <div class="m-lbl">Tasks</div>
+          </div>
+          <div class="fc-metric">
+            <div class="m-val">6</div>
+            <div class="m-lbl">Domains</div>
+          </div>
+          <div class="fc-metric">
+            <div class="m-val">$3.2k</div>
+            <div class="m-lbl">Allocated</div>
+          </div>
+          <div class="fc-metric">
+            <div class="m-val">30d</div>
+            <div class="m-lbl">Timeline</div>
+          </div>
+        </div>
+        <div class="fc-actions">
+          <button class="btn-outline-sm">Details</button>
+          <button class="btn-accent-sm">Deploy Agents ›</button>
+        </div>
+      </div>
+
+      <!-- INFO — CTO briefing -->
+      <div class="feed-card info">
+        <div class="fc-header">
+          <div class="fc-title">🔧 CTO Architecture Briefing <span class="fc-badge badge-info">Reviewed</span></div>
+          <span style="font-size:.7rem;color:var(--text-muted)">5m ago</span>
+        </div>
+        <div class="fc-meta">CTO Agent · Reviewed Web Dev artifact + engineer recommendations</div>
+        <p style="font-size:.8rem;color:var(--text-muted);border-left:3px solid var(--accent);padding-left:.6rem;margin:.5rem 0;font-style:italic">
+          "Recommending Next.js 15 App Router + React Three Fiber for AR countertop visualizer.
+          Sanity CMS for content operations. Estimated 14 weeks, $35,000 for full SurfaceCraft web platform.
+          Budget is well-scoped for the feature set."
+        </p>
+        <div class="fc-actions">
+          <button class="btn-outline-sm">View Full Report</button>
+          <button class="btn-outline-sm">Chat with CTO</button>
+        </div>
+      </div>
+
+      <!-- SUCCESS — Branding done -->
+      <div class="feed-card success">
+        <div class="fc-header">
+          <div class="fc-title">🎨 Branding Agent Complete <span class="fc-badge badge-success">Done</span></div>
+          <span style="font-size:.7rem;color:var(--text-muted)">18m ago</span>
+        </div>
+        <div class="fc-meta">Branding Agent · Budget $480</div>
+        <div class="fc-metrics">
+          <div class="fc-metric">
+            <div class="m-val" style="color:var(--green)">7</div>
+            <div class="m-lbl">Deliverables</div>
+          </div>
+          <div class="fc-metric">
+            <div class="m-val">$480</div>
+            <div class="m-lbl">Used</div>
+          </div>
+        </div>
+        <div class="fc-actions">
+          <button class="btn-outline-sm">View Report</button>
+          <button class="btn-outline-sm">Re-run</button>
+        </div>
+      </div>
+
+      <!-- PLACEHOLDER empty state hint -->
+      <div style="text-align:center;color:var(--text-dim);font-size:.78rem;padding:1rem 0;">
+        ↑ Live feed updates as agents execute  ·  Scroll for history
+      </div>
+
+    </div>
+  </main>
+
+  <!-- === RIGHT CHAT PANEL === -->
+  <aside class="chat-panel">
+    <div class="chat-topbar">
+      <div class="chat-topbar-title">Talk to an Agent</div>
+      <div class="agent-selector">
+        <button class="agt-btn active">� CEO</button>
+        <button class="agt-btn">💰 CFO</button>
+        <button class="agt-btn">🔧 CTO</button>
+        <button class="agt-btn">⚖️ Legal</button>
+      </div>
+    </div>
+
+    <div class="chat-messages">
+      <div class="msg system">
+        <div class="msg-bubble">Connected · Talking to <strong>CTO Agent</strong> · LLM-backed conversation</div>
+      </div>
+
+      <div class="msg agent">
+        <div class="msg-persona">🔧 CTO Agent</div>
+        <div class="msg-bubble">
+          I've reviewed the Web Dev agent's artifact from the February run.
+          The engineering team proposed Next.js App Router with React Three Fiber for the
+          AR countertop visualizer — that's architecturally solid.
+          My recommendation: proceed with that stack and add <strong>8th Wall WebAR</strong> for
+          the markerless AR experience. Ready to debate the tradeoffs?
+        </div>
+        <div class="msg-meta">just now</div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-bubble">What about the $35k budget estimate — is that realistic given our $5k constraint?</div>
+        <div class="msg-meta">just now</div>
+      </div>
+
+      <div class="msg agent">
+        <div class="msg-persona">🔧 CTO Agent</div>
+        <div class="msg-bubble">
+          Good challenge. The $35k is the <em>full SurfaceCraft platform</em> budget —
+          that's separate from your current $5,000 orchestration budget.
+          Here's how I'd split it:<br><br>
+          • <strong>Phase 1 ($5k)</strong>: Core site + product catalog<br>
+          • <strong>Phase 2 ($12k)</strong>: AR visualizer MVP<br>
+          • <strong>Phase 3 ($18k)</strong>: CMS + analytics + campaigns<br><br>
+          You can get a working product for $5k and expand. Shall I adjust the Web Dev agent scope?
+        </div>
+        <div class="msg-meta">just now</div>
+      </div>
+
+      <div class="msg user">
+        <div class="msg-bubble">Yes, scope Phase 1 only. Also what's the risk with 8th Wall?</div>
+        <div class="msg-meta">just now</div>
+      </div>
+
+      <!-- Typing indicator -->
+      <div class="msg agent">
+        <div class="msg-persona">🔧 CTO Agent</div>
+        <div class="msg-bubble" style="background:var(--bg-card);border:1px solid var(--border)">
+          <div class="typing-indicator">
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+            <div class="typing-dot"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-input-bar" style="flex-direction:column;gap:.4rem">
+      <div style="display:flex;gap:.5rem;width:100%">
+        <textarea class="chat-textarea" placeholder="Ask the CTO anything… press Enter to send" rows="1"></textarea>
+        <button class="chat-send-btn">▶</button>
+      </div>
+      <button class="debate-btn">⚡ Strategic Debate Mode — push agent to defend its recommendation</button>
+    </div>
+  </aside>
+
+</div><!-- /.app-body -->
+
+<!-- ================== PREVIEW ANNOTATIONS ================== -->
+<div class="annotation" style="top:68px;left:4px">← Collapsible config + live agent roster</div>
+<div class="annotation" style="top:68px;left:255px">← Live activity feed replaces static sections</div>
+<div class="annotation" style="top:68px;right:4px">← Real LLM chat, per-agent persona →</div>
+<div class="annotation" style="top:14px;left:230px">← Agent status pills in header (click to chat)</div>
+
+<!-- ================== PREVIEW BANNER ================== -->
+<div class="preview-banner">
+  <strong>PREVIEW ONLY</strong> — Phase 4 proposed layout for approval before implementation
+  <span class="tag">New: CTO Agent</span>
+  <span class="tag">New: LLM Chat</span>
+  <span class="tag">New: Activity Feed</span>
+  <span class="tag">New: Debate Mode</span>
+  <span style="margin-left:auto">Open docs/UX_REDESIGN_PREVIEW.html in browser to explore · No changes made to app yet</span>
+</div>
+
+<script>
+// minimal interactivity for preview
+document.querySelectorAll('.agt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.agt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+});
+document.querySelectorAll('.tab-pill').forEach(pill => {
+  pill.addEventListener('click', () => {
+    document.querySelectorAll('.tab-pill').forEach(p => p.classList.remove('active'));
+    pill.classList.add('active');
+  });
+});
+document.querySelectorAll('.ha-chip').forEach(chip => {
+  chip.addEventListener('click', () => chip.classList.toggle('active'));
+});
+document.querySelectorAll('.agent-row').forEach(row => {
+  row.addEventListener('click', () => {
+    document.querySelectorAll('.agent-row').forEach(r => r.classList.remove('selected'));
+    row.classList.add('selected');
+  });
+});
+// send input on Enter
+document.querySelector('.chat-textarea').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); }
+});
+</script>
+</body>
+</html>

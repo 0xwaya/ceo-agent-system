@@ -10,6 +10,16 @@ from pathlib import Path
 # Add parent directory to path so we can import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Load .env before importing app so OPENAI_API_KEY and other vars are available
+try:
+    from dotenv import load_dotenv
+
+    _env_path = Path(__file__).parent.parent / ".env"
+    if _env_path.exists():
+        load_dotenv(dotenv_path=_env_path, override=True)
+except ImportError:
+    pass
+
 from app import app, socketio
 from flask import Flask
 

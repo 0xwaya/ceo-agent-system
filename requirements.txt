@@ -3,7 +3,7 @@
 
 # Core Framework
 Flask==3.0.0
-Werkzeug==3.0.1
+Werkzeug==3.1.5  # CVE-2026-21860 fix: upgraded from 3.0.1
 
 # Real-time Communication
 flask-socketio==5.3.5

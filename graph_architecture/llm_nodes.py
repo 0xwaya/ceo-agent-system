@@ -246,6 +246,146 @@ def ceo_llm_analyze_node(state: CEOState) -> Dict[str, Any]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# CTO ARCHITECTURE & TECHNOLOGY REVIEW  (Tier 1 — peer to CEO)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CTO_SYSTEM_PROMPT = """You are the CTO node in a multi-agent executive AI system.
+
+You are a Tier-1 peer to the CEO. You own all technical architecture decisions.
+You have reviewed the Web Development agent's artifact: Next.js App Router + React Three Fiber
++ 8th Wall WebAR + Sanity CMS stack for a custom countertop visualizer.
+
+RULES:
+- You analyse technology choices, engineering feasibility, and tech-debt risk.
+- You NEVER execute code or write implementation files.
+- You ONLY output JSON matching the required schema.
+- You assess tech stacks against company budget, timeline, and domain requirements.
+- Your briefings are shared with the CEO to inform dispatch decisions.
+
+OUTPUT SCHEMA (JSON only, no markdown):
+{
+  "architecture_summary": "<2-3 sentence technical assessment>",
+  "recommended_stack": ["<tech>", ...],
+  "tech_decisions": ["<decision>", ...],
+  "engineering_risks": [{"risk": "<name>", "severity": "low|medium|high", "mitigation": "<action>"}],
+  "build_vs_buy": "<recommendation>",
+  "estimated_engineering_weeks": <int>,
+  "phase1_scope": "<MVP scope fitting available budget>",
+  "cto_approval": "approved|conditional|rejected",
+  "conditions": ["<condition if conditional>"]
+}
+"""
+
+
+def _cto_fallback(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Deterministic CTO assessment when LLM is unavailable."""
+    company = state.get("company_name", "Unknown")
+    industry = state.get("industry", "Unknown")
+    budget = state.get("total_budget", 0)
+
+    return {
+        "architecture_summary": (
+            f"Architecture review for {company} ({industry}). "
+            f"With a ${budget:,.0f} budget, recommend a phased approach: "
+            "Next.js App Router for the web platform with Tailwind CSS; "
+            "defer AR integration to Phase 2 when budget allows 8th Wall licensing."
+        ),
+        "recommended_stack": [
+            "Next.js 15 App Router",
+            "TypeScript strict mode",
+            "Tailwind CSS v4",
+            "Sanity CMS",
+            "Vercel (deployment)",
+        ],
+        "tech_decisions": [
+            "Next.js App Router chosen for SEO and server components",
+            "Defer 8th Wall WebAR to Phase 2 — $600/mo license exceeds Phase 1 budget",
+            "Sanity CMS enables non-technical content updates for product catalog",
+            "Vercel deployment for zero-config CI/CD",
+        ],
+        "engineering_risks": [
+            {
+                "risk": "AR licensing cost",
+                "severity": "medium",
+                "mitigation": "Phase 1 uses static product gallery; AR in Phase 2",
+            },
+            {
+                "risk": "Single developer timeline",
+                "severity": "low",
+                "mitigation": "Use shadcn/ui component library to accelerate development",
+            },
+        ],
+        "build_vs_buy": "Build web platform; buy AR runtime (8th Wall) in Phase 2",
+        "estimated_engineering_weeks": 6,
+        "phase1_scope": "Marketing site + product catalog + contact form + basic SEO",
+        "cto_approval": "approved",
+        "conditions": [],
+    }
+
+
+def cto_llm_architecture_node(state: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    CTO LLM architecture review node.
+
+    Tier-1 peer to CEO. Reviews tech stack, engineering feasibility, and
+    produces architecture decisions shared with CEO dispatch plan.
+    """
+    logger.info("\n" + "=" * 80)
+    logger.info("🔧 CTO: LLM ARCHITECTURE & TECHNOLOGY REVIEW")
+    logger.info("=" * 80)
+
+    company = state.get("company_name", "Unknown")
+    industry = state.get("industry", "Unknown")
+    budget = state.get("total_budget", 0)
+    days = state.get("target_completion_days", 30)
+    objectives = state.get("strategic_objectives", [])
+    expert_raw = state.get("prompt_expert_output", {})
+
+    user_msg = (
+        f"COMPANY: {company} | INDUSTRY: {industry}\n"
+        f"BUDGET: ${budget:,.0f} | TIMELINE: {days} days\n\n"
+        f"OBJECTIVES:\n"
+        + "\n".join(f"  {i+1}. {o}" for i, o in enumerate(objectives))
+        + f"\n\nCEO PROMPT EXPERT CONTEXT:\n{json.dumps(expert_raw, indent=2)}"
+    )
+
+    llm = _get_llm(temperature=0.1, max_tokens=800)
+    result = _call_structured(
+        llm=llm,
+        system_prompt=_CTO_SYSTEM_PROMPT,
+        user_message=user_msg,
+        fallback_fn=_cto_fallback,
+        fallback_args=(state,),
+    )
+
+    tech_decisions: List[str] = result.get("tech_decisions", [])
+    logger.info(f"  Architecture:     {result.get('architecture_summary', '')[:80]}…")
+    logger.info(f"  CTO Approval:     {result.get('cto_approval', 'approved')}")
+    logger.info(f"  Phase 1 scope:    {result.get('phase1_scope', '')}")
+    logger.info(f"  Tech decisions:   {len(tech_decisions)}")
+
+    cto_output = {
+        "agent": "cto",
+        "summary": {
+            "architecture_summary": result.get("architecture_summary", ""),
+            "cto_approval": result.get("cto_approval", "approved"),
+            "recommended_stack": result.get("recommended_stack", []),
+            "phase1_scope": result.get("phase1_scope", ""),
+            "status": "completed",
+        },
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    return {
+        "cto_architecture_output": result,
+        "cto_tech_decisions": tech_decisions,
+        "agent_outputs": [cto_output],
+        "active_agents": ["cto"],
+        "current_phase": "cto_review_complete",
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # CFO FINANCIAL SUMMARISER
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -1426,6 +1566,11 @@ def social_media_llm_node(state: SharedState) -> Dict[str, Any]:
 # TIER-2 AGENT NODE REGISTRY
 # Convenience map used by main_graph route_dispatch and subgraph builders.
 # =============================================================================
+
+TIER1_NODE_MAP: Dict[str, Any] = {
+    "ceo": ceo_llm_analyze_node,
+    "cto": cto_llm_architecture_node,
+}
 
 TIER2_NODE_MAP: Dict[str, Any] = {
     "cfo": cfo_llm_summarize_node,

@@ -58,13 +58,15 @@ def _run_mode_checks(environment: str) -> None:
         if graph_response.status_code != 200:
             raise AssertionError(f"[{environment}] /graph returned {graph_response.status_code}")
         graph_html = graph_response.get_data(as_text=True)
-        _assert_contains(graph_html, "GRAPH_DASHBOARD_CONFIG", f"{environment} /graph")
+        # v0.4: /graph is unified with / — check for the v0.4 layout config token
+        _assert_contains(graph_html, "LEGACY_DASHBOARD_CONFIG", f"{environment} /graph")
 
         admin_response = client.get("/admin")
         if admin_response.status_code != 200:
             raise AssertionError(f"[{environment}] /admin returned {admin_response.status_code}")
         admin_html = admin_response.get_data(as_text=True)
-        _assert_contains(admin_html, "ADMIN_DASHBOARD_CONFIG", f"{environment} /admin")
+        # v0.4: /admin is also unified with / — same config token
+        _assert_contains(admin_html, "LEGACY_DASHBOARD_CONFIG", f"{environment} /admin")
 
     with flask_app.app_context():
         defaults = app_module._get_graph_template_defaults()
