@@ -998,6 +998,29 @@ function showAgentResults(agentType, resultData, companyInfo) {
                     : `<p>${resultData.recommendations}</p>`}
             </div>` : ''}
 
+        ${resultData.action_plan_30_60_90 && Object.keys(resultData.action_plan_30_60_90).length > 0 ? `
+            <div class="results-section">
+                <h3>📅 30 / 60 / 90 Day Execution Plan</h3>
+                ${['day_0_to_30','day_31_to_60','day_61_to_90'].map((key, i) => {
+                    const ph = resultData.action_plan_30_60_90[key];
+                    if (!ph) return '';
+                    const labels = ['Days 1–30','Days 31–60','Days 61–90'];
+                    const colors = ['#f59e0b','#3b82f6','#10b981'];
+                    return `<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid ${colors[i]};">
+                        <strong style="color:${colors[i]};">${labels[i]} — ${ph.theme || ''}</strong>
+                        ${ph.objectives && ph.objectives.length > 0 ? `<ul style="margin:8px 0 0;padding-left:18px;">${ph.objectives.slice(0,3).map(o => `<li style="font-size:13px;color:#cbd5e1;margin-bottom:3px;">${o}</li>`).join('')}${ph.objectives.length > 3 ? `<li style="font-size:12px;color:#64748b;">+${ph.objectives.length-3} more...</li>` : ''}</ul>` : ''}
+                    </div>`;
+                }).join('')}
+            </div>` : ''}
+
+        ${resultData.best_practices && resultData.best_practices.length > 0 ? `
+            <div class="results-section">
+                <h3>⭐ Expert Best Practices</h3>
+                <ul class="deliverables-list">
+                    ${resultData.best_practices.map(bp => `<li>⭐ ${bp}</li>`).join('')}
+                </ul>
+            </div>` : ''}
+
         ${resultData.design_concepts && resultData.design_concepts.length > 0 ? `
             <div class="results-section">
                 <h3>🖼️ Design Proposals (${resultData.design_concepts.length})</h3>
@@ -1161,6 +1184,82 @@ function displayAgentReport(agentType, resultData, companyInfo) {
        </div>`
         : '';
 
+    // 30/60/90 day action plan
+    const _plan = resultData.action_plan_30_60_90;
+    const actionPlanHTML = _plan && Object.keys(_plan).length > 0
+        ? (() => {
+            const phaseStyles = [
+                { key: 'day_0_to_30', label: 'Days 1–30', color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: '#f59e0b' },
+                { key: 'day_31_to_60', label: 'Days 31–60', color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: '#3b82f6' },
+                { key: 'day_61_to_90', label: 'Days 61–90', color: '#10b981', bg: 'rgba(16,185,129,0.08)', border: '#10b981' },
+            ];
+            const phases = phaseStyles.map(ps => {
+                const phase = _plan[ps.key];
+                if (!phase) return '';
+                const objs = (phase.objectives || []).map(o => `<li style="margin-bottom:4px;color:#cbd5e1;">${o}</li>`).join('');
+                const delivs = (phase.deliverables || []).map(d => `<li style="margin-bottom:4px;color:#94a3b8;">${d}</li>`).join('');
+                const kpis = (phase.kpis || []).map(k => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:rgba(255,255,255,0.07);border-radius:20px;font-size:11px;color:#94a3b8;">${k}</span>`).join('');
+                const tools = Array.isArray(phase.tools) ? phase.tools.map(t => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:2px 8px;background:rgba(255,255,255,0.05);border-radius:20px;font-size:11px;color:#64748b;">${t}</span>`).join('') : '';
+                return `<div style="margin-bottom:16px;padding:16px;background:${ps.bg};border-radius:10px;border-left:4px solid ${ps.border};">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+                        <strong style="color:${ps.color};font-size:15px;">${ps.label} — ${phase.theme || ''}</strong>
+                        ${phase.priority ? `<span style="padding:2px 10px;background:${ps.border}22;border:1px solid ${ps.border};border-radius:20px;font-size:11px;color:${ps.color};">${phase.priority}</span>` : ''}
+                    </div>
+                    ${objs ? `<div style="margin-bottom:8px;"><p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Objectives</p><ul style="margin:0;padding-left:18px;">${objs}</ul></div>` : ''}
+                    ${delivs ? `<div style="margin-bottom:8px;"><p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Deliverables</p><ul style="margin:0;padding-left:18px;">${delivs}</ul></div>` : ''}
+                    ${kpis ? `<div style="margin-bottom:6px;"><p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">KPIs</p><div>${kpis}</div></div>` : ''}
+                    ${tools ? `<div><p style="margin:0 0 4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">Tools</p><div>${tools}</div></div>` : ''}
+                    ${phase.budget_allocation ? `<p style="margin:8px 0 0;font-size:12px;color:#64748b;">💰 Budget: ${phase.budget_allocation}</p>` : ''}
+                </div>`;
+            }).join('');
+            return `<div class="report-section">
+                <h4 style="color:#f59e0b;border-bottom:2px solid rgba(245,158,11,0.3);padding-bottom:8px;margin-bottom:16px;">📅 30 / 60 / 90 Day Action Plan</h4>
+                ${phases}
+            </div>`;
+        })()
+        : '';
+
+    // Expert best practices
+    const _bestPractices = resultData.best_practices || (Array.isArray(resultData.recommendations) ? resultData.recommendations : []);
+    const bestPracticesHTML = _bestPractices.length > 0
+        ? `<div class="report-section">
+            <h4 style="color:#a78bfa;border-bottom:2px solid rgba(167,139,250,0.3);padding-bottom:8px;margin-bottom:12px;">⭐ Expert Best Practices</h4>
+            <ul style="margin:0;padding-left:0;list-style:none;">
+                ${_bestPractices.map((bp, i) => `<li style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;padding:10px 12px;background:rgba(167,139,250,0.06);border-radius:8px;border-left:3px solid #7c3aed;">
+                    <span style="color:#a78bfa;font-weight:700;min-width:22px;">${String(i+1).padStart(2,'0')}</span>
+                    <span style="color:#e2e8f0;font-size:13px;line-height:1.5;">${bp}</span>
+                </li>`).join('')}
+            </ul>
+           </div>`
+        : '';
+
+    // Legal-specific: filings + compliance checklist + risks
+    const _filings = resultData.filings_required || [];
+    const _compliance = resultData.compliance_checklist || [];
+    const _risks = resultData.risks_identified || [];
+    const legalFilingsHTML = _filings.length > 0
+        ? `<div class="report-section"><h4>📋 Filings Required</h4><ul class="report-deliverables">${_filings.map(f => `<li>📄 ${typeof f === 'object' ? (f.filing || JSON.stringify(f)) : f}</li>`).join('')}</ul></div>`
+        : '';
+    const legalComplianceHTML = _compliance.length > 0
+        ? `<div class="report-section"><h4>✅ Compliance Checklist</h4><ul class="report-deliverables">${_compliance.map(c => `<li>☑️ ${typeof c === 'object' ? (c.item || JSON.stringify(c)) : c}</li>`).join('')}</ul></div>`
+        : '';
+    const legalRisksHTML = _risks.length > 0
+        ? `<div class="report-section"><h4>⚠️ Risks Identified</h4><ul class="report-deliverables">${_risks.map(r => `<li>🔴 ${typeof r === 'object' ? (r.risk || JSON.stringify(r)) : r}</li>`).join('')}</ul></div>`
+        : '';
+
+    // AI Tools 2026 (ux_ui / designer agent)
+    const _aiTools = resultData.ai_tools_2026;
+    const aiToolsHTML = _aiTools && Object.keys(_aiTools).length > 0
+        ? `<div class="report-section">
+            <h4 style="color:#38bdf8;">🤖 AI Design Tools Stack 2026</h4>
+            ${Object.entries(_aiTools).map(([cat, tools]) => `
+                <div style="margin-bottom:10px;">
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">${cat.replace(/_/g,' ')}</p>
+                    <div>${(Array.isArray(tools) ? tools : [tools]).map(t => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:20px;font-size:12px;color:#7dd3fc;">${t}</span>`).join('')}</div>
+                </div>`).join('')}
+          </div>`
+        : '';
+
     // Social media-specific sections
     const _playbook = resultData.community_playbook;
     const communityPlaybookHTML = _playbook
@@ -1218,8 +1317,14 @@ function displayAgentReport(agentType, resultData, companyInfo) {
         ${timelineHTML}
         ${budgetBreakdownHTML}
         ${_recs ? `<div class="report-section"><h4>💡 Recommendations</h4>${recommendationsHTML}</div>` : ''}
+        ${actionPlanHTML}
+        ${bestPracticesHTML}
         ${brandKitHTML}
         ${designConceptsHTML}
+        ${aiToolsHTML}
+        ${legalFilingsHTML}
+        ${legalComplianceHTML}
+        ${legalRisksHTML}
         ${communityPlaybookHTML}
         ${campaignIdeasHTML}
 

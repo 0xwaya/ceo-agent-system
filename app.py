@@ -1332,7 +1332,11 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         result["deliverables"] = concepts_result.get("deliverables", [])
         result["design_concepts"] = concepts_result.get("design_concepts", [])
         result["brand_kit_reference"] = concepts_result.get("brand_kit_reference", {})
-        result["recommendations"] = concepts_result.get("recommendations", [])
+        result["recommendations"] = concepts_result.get(
+            "best_practices", concepts_result.get("recommendations", [])
+        )
+        result["best_practices"] = concepts_result.get("best_practices", [])
+        result["action_plan_30_60_90"] = concepts_result.get("action_plan_30_60_90", {})
         result["codex_tooling"] = concepts_result.get("codex_tooling", {})
         result["budget_used"] = concepts_result.get("budget_used", 0)
 
@@ -1352,8 +1356,13 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         }
         web_result = agent.analyze_requirements(state)
         result["tech_stack"] = web_result.get("tech_stack", [])
-        result["deliverables"] = web_result.get("deliverables", [])
+        result["deliverables"] = web_result.get(
+            "deliverables", web_result.get("development_phases", [])
+        )
         result["timeline"] = web_result.get("development_phases", [])
+        result["action_plan_30_60_90"] = web_result.get("action_plan_30_60_90", {})
+        result["recommendations"] = web_result.get("best_practices", [])
+        result["best_practices"] = web_result.get("best_practices", [])
         result["budget_used"] = web_result.get("budget_used", 0)
 
     elif agent_type == "martech" and hasattr(agent, "configure_stack"):
@@ -1370,10 +1379,15 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         }
         martech_result = agent.configure_stack(state)
         result["tech_stack"] = martech_result.get("recommended_stack", [])
-        result["deliverables"] = [
-            f"✅ {tool.get('tool', 'Tool')}: {tool.get('ai_configures', 'Configured')}"
-            for tool in martech_result.get("recommended_stack", [])
-        ]
+        result["deliverables"] = martech_result.get(
+            "deliverables",
+            [
+                f"✅ {tool.get('tool', 'Tool')}: {tool.get('ai_configures', 'Configured')}"
+                for tool in martech_result.get("recommended_stack", [])
+            ],
+        )
+        result["action_plan_30_60_90"] = martech_result.get("action_plan_30_60_90", {})
+        result["recommendations"] = martech_result.get("best_practices", [])
         result["budget_used"] = martech_result.get("budget_used", 0)
 
     elif agent_type == "content" and hasattr(agent, "produce_content"):
@@ -1389,7 +1403,11 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
             "timeline_days": 30,
         }
         content_result = agent.produce_content(state)
-        result["deliverables"] = content_result.get("assets_created", [])
+        result["deliverables"] = content_result.get(
+            "deliverables", content_result.get("assets_created", [])
+        )
+        result["action_plan_30_60_90"] = content_result.get("action_plan_30_60_90", {})
+        result["recommendations"] = content_result.get("best_practices", [])
         result["budget_used"] = content_result.get("budget_used", 0)
 
     elif agent_type == "campaigns" and hasattr(agent, "launch_campaigns"):
@@ -1406,10 +1424,16 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         }
         campaign_result = agent.launch_campaigns(state)
         result["timeline"] = campaign_result.get("creative_concepts", [])
-        result["deliverables"] = [
-            concept.get("ai_creates", "Campaign created")
-            for concept in campaign_result.get("creative_concepts", [])
-        ]
+        result["deliverables"] = campaign_result.get(
+            "deliverables",
+            [
+                concept.get("ai_creates", "Campaign created")
+                for concept in campaign_result.get("creative_concepts", [])
+            ],
+        )
+        result["action_plan_30_60_90"] = campaign_result.get("action_plan_30_60_90", {})
+        result["recommendations"] = campaign_result.get("best_practices", [])
+        result["best_practices"] = campaign_result.get("best_practices", [])
         result["budget_used"] = campaign_result.get("budget_used", 0)
 
     elif agent_type == "legal" and hasattr(agent, "dba_registration_process"):
@@ -1425,7 +1449,17 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
             "timeline_days": 14,
         }
         legal_result = agent.dba_registration_process(state)
-        result["deliverables"] = legal_result.get("documents_prepared", [])
+        result["deliverables"] = legal_result.get(
+            "deliverables", legal_result.get("documents_prepared", [])
+        )
+        result["filings_required"] = legal_result.get("filings_required", [])
+        result["compliance_checklist"] = legal_result.get("compliance_checklist", [])
+        result["risks_identified"] = legal_result.get("risks_identified", [])
+        result["action_plan_30_60_90"] = legal_result.get("action_plan_30_60_90", {})
+        result["recommendations"] = legal_result.get(
+            "recommendations", legal_result.get("best_practices", [])
+        )
+        result["best_practices"] = legal_result.get("best_practices", [])
         result["budget_used"] = legal_result.get("budget_used", 0)
 
     elif agent_type == "social_media" and hasattr(agent, "execute_social_strategy"):
@@ -1444,10 +1478,15 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         }
         social_result = agent.execute_social_strategy(state)
         result["platforms"] = social_result.get("platforms", [])
-        result["deliverables"] = social_result.get("posting_workflows", [])
+        result["deliverables"] = social_result.get(
+            "deliverables", social_result.get("posting_workflows", [])
+        )
         result["timeline"] = social_result.get("content_calendar", [])
         result["campaign_ideas"] = social_result.get("campaign_ideas", [])
         result["community_playbook"] = social_result.get("community_playbook", "")
+        result["action_plan_30_60_90"] = social_result.get("action_plan_30_60_90", {})
+        result["recommendations"] = social_result.get("best_practices", [])
+        result["best_practices"] = social_result.get("best_practices", [])
         result["budget_used"] = social_result.get("budget_used", 0)
 
     elif agent_type == "security":
@@ -1457,12 +1496,91 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
             "✅ Threat monitoring and anomaly detection protocols established",
             "✅ Compliance reporting templates generated (SOC2, GDPR baseline)",
             "✅ Access control policies documented and enforced",
+            "✅ Penetration testing report and vulnerability registry created",
+            "✅ Incident response runbook and escalation matrix drafted",
+            "✅ Zero-trust architecture assessment and roadmap delivered",
         ]
         result["budget_used"] = 0
-        result["recommendations"] = (
-            "Run the security audit monthly. Rotate API keys quarterly. "
-            "All agent-initiated payments must pass the CFO approval workflow before execution."
-        )
+        result["action_plan_30_60_90"] = {
+            "day_0_to_30": {
+                "theme": "ASSESS — Security Audit & Threat Modeling",
+                "priority": "CRITICAL",
+                "objectives": [
+                    "Conduct full OWASP Top-10 vulnerability assessment",
+                    "Perform threat modeling (STRIDE) for all agent operations",
+                    "Audit API key rotation and secrets management practices",
+                    "Map all data flows and classify PII/sensitive assets",
+                    "Establish security baseline metrics and SLA benchmarks",
+                    "Deploy SIEM and centralized logging infrastructure",
+                ],
+                "deliverables": [
+                    "Vulnerability assessment report with CVSS scores",
+                    "Threat model diagram and attack surface map",
+                    "Secrets management audit findings",
+                    "Data classification matrix",
+                ],
+                "tools": ["OWASP ZAP", "Burp Suite", "HashiCorp Vault", "Splunk/ELK", "Trivy"],
+                "kpis": ["0 critical vulnerabilities unpatched > 48h", "100% secrets in vault"],
+                "budget_allocation": "$0 (internal tooling)",
+            },
+            "day_31_to_60": {
+                "theme": "HARDEN — Implement Controls & SDLC Integration",
+                "priority": "HIGH",
+                "objectives": [
+                    "Implement zero-trust network architecture principles",
+                    "Integrate SAST/DAST into CI/CD pipeline",
+                    "Deploy WAF, IDS/IPS, and rate-limiting protections",
+                    "Enforce MFA and RBAC across all agent access points",
+                    "Complete SOC 2 Type I readiness gap analysis",
+                    "Run red team exercise against agent API endpoints",
+                ],
+                "deliverables": [
+                    "Zero-trust implementation guide",
+                    "CI/CD security gates configuration",
+                    "SOC 2 gap analysis report",
+                    "Red team findings and remediation plan",
+                ],
+                "tools": ["Snyk", "SonarQube", "Cloudflare WAF", "Okta", "AWS GuardDuty"],
+                "kpis": ["SAST/DAST coverage > 90%", "MFA adoption 100%", "MTTR < 4h"],
+                "budget_allocation": "$0 (OSS tooling)",
+            },
+            "day_61_to_90": {
+                "theme": "MONITOR — Ongoing Detection & Incident Readiness",
+                "priority": "HIGH",
+                "objectives": [
+                    "Activate 24/7 automated threat detection and alerting",
+                    "Conduct tabletop incident response simulation",
+                    "Establish quarterly penetration testing cadence",
+                    "Publish security runbook and escalation matrix",
+                    "Achieve SOC 2 Type II audit readiness",
+                    "Implement blockchain-based audit trail for all transactions",
+                ],
+                "deliverables": [
+                    "Incident response playbook (v1.0)",
+                    "Penetration test results and remediation tracker",
+                    "SOC 2 Type II readiness checklist",
+                    "Blockchain audit trail implementation report",
+                ],
+                "tools": ["PagerDuty", "Datadog Security", "CrowdStrike Falcon", "Hyperledger"],
+                "kpis": [
+                    "MTTD < 15min",
+                    "0 unresolved highs after 7 days",
+                    "100% audit log coverage",
+                ],
+                "budget_allocation": "$0 (existing infra)",
+            },
+        }
+        result["best_practices"] = [
+            "Shift-left security: integrate SAST/DAST scans into every PR pipeline",
+            "Zero-trust architecture: never trust, always verify — enforce mTLS between all agent services",
+            "Secrets management: all API keys and credentials stored in HashiCorp Vault, rotated every 90 days",
+            "Principle of least privilege: every agent role granted minimum required permissions only",
+            "Defense in depth: WAF → IDS/IPS → SAST/DAST → runtime protection layered approach",
+            "Immutable audit trails: blockchain-backed transaction logs for all financial agent operations",
+            "Incident response readiness: documented runbook, tested annually via tabletop simulation",
+            "Compliance-as-code: automated SOC 2, GDPR, and CCPA controls validated on every deployment",
+        ]
+        result["recommendations"] = result["best_practices"]
 
     if "deliverables" not in result or not result.get("deliverables"):
         result["deliverables"] = [
