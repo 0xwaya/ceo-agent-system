@@ -667,7 +667,8 @@ async function analyzeObjectives() {
         } else {
             updateStatus(`Error: ${data.error}`, 'error');
             addLogEntry(`Analysis failed: ${data.error}`, 'error');
-            addChatMessage(`❌ Analysis failed: ${data.error}`, 'error');
+            const errDetail = (data.details && data.details.length) ? `\n  → ${data.details.join('\n  → ')}` : '';
+            addChatMessage(`❌ Analysis failed: ${data.error}${errDetail}`, 'error');
         }
     } catch (error) {
         console.error('Analyze error:', error);
@@ -992,9 +993,21 @@ function showAgentResults(agentType, resultData, companyInfo) {
         ${resultData.recommendations ? `
             <div class="results-section">
                 <h3>💡 Recommendations</h3>
-                <p>${resultData.recommendations}</p>
-            </div>
-        ` : ''}
+                ${Array.isArray(resultData.recommendations)
+                    ? `<ul class="deliverables-list">${resultData.recommendations.map(r => `<li>💡 ${r}</li>`).join('')}</ul>`
+                    : `<p>${resultData.recommendations}</p>`}
+            </div>` : ''}
+
+        ${resultData.design_concepts && resultData.design_concepts.length > 0 ? `
+            <div class="results-section">
+                <h3>🖼️ Design Proposals (${resultData.design_concepts.length})</h3>
+                ${resultData.design_concepts.map((c, idx) => `
+                    <div style="margin-bottom:10px;padding:12px;background:rgba(37,99,235,0.1);border-radius:8px;border-left:3px solid #2563eb;">
+                        <strong>0${idx + 1} — ${c.concept_name}</strong>
+                        <p style="margin:4px 0;font-size:13px;opacity:0.8;">${c.description}</p>
+                        <small style="opacity:0.6;">📱 ${c.applications} | 💰 ${c.tools_budget}</small>
+                    </div>`).join('')}
+            </div>` : ''}
 
         <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #34495e; opacity: 0.6; font-size: 0.9rem;">
             <p>Execution Time: ${resultData.timestamp || new Date().toLocaleString()}</p>
@@ -1107,6 +1120,61 @@ function displayAgentReport(agentType, resultData, companyInfo) {
        </div>`
         : '';
 
+    // Handle recommendations: may be array (branding) or string
+    const _recs = resultData.recommendations;
+    const recommendationsHTML = _recs
+        ? Array.isArray(_recs)
+            ? `<ul class="report-deliverables">${_recs.map(r => `<li>${r}</li>`).join('')}</ul>`
+            : `<p style="color:#f1f5f9;line-height:1.8;">${_recs}</p>`
+        : '';
+
+    // Brand kit reference (branding agent)
+    const _brandKit = resultData.brand_kit_reference;
+    const brandKitHTML = _brandKit && _brandKit.brand_name
+        ? `<div class="report-section">
+        <h4>🎨 Brand Kit Reference</h4>
+        <div style="padding:12px;background:rgba(37,99,235,0.08);border-radius:8px;border-left:3px solid #2563eb;">
+            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Brand:</strong> ${_brandKit.brand_name}</p>
+            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Direction:</strong> ${_brandKit.direction || ''}</p>
+            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Logo approach:</strong> ${_brandKit.logo_reference || ''}</p>
+            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Core palette:</strong> ${(_brandKit.color_palette && _brandKit.color_palette.primary ? _brandKit.color_palette.primary : []).join(' · ')}</p>
+            <p style="margin:4px 0;color:#cbd5e1;"><strong style="color:#60a5fa;">Typography:</strong> ${_brandKit.typography_note || ''}</p>
+        </div></div>`
+        : '';
+
+    // Design concept proposals (branding agent)
+    const _concepts = resultData.design_concepts;
+    const designConceptsHTML = _concepts && _concepts.length > 0
+        ? `<div class="report-section">
+        <h4>🖼️ Logo Proposals (${_concepts.length})</h4>
+        ${_concepts.map((c, idx) => `
+            <div style="margin-bottom:12px;padding:14px;background:rgba(37,99,235,0.08);border-radius:8px;border-left:3px solid #2563eb;">
+                <p style="margin:0 0 4px;font-weight:700;font-size:14px;color:#60a5fa;">0${idx + 1} — ${c.concept_name}</p>
+                <p style="margin:0 0 6px;font-size:13px;color:#cbd5e1;">${c.description}</p>
+                <div style="font-size:11px;color:#64748b;display:flex;gap:12px;flex-wrap:wrap;margin-bottom:6px;">
+                    <span>📱 ${c.applications}</span><span>⚡ ${c.scalability}</span><span>💰 ${c.tools_budget}</span>
+                </div>
+                <ul style="margin:0;padding-left:16px;font-size:12px;color:#94a3b8;">
+                    ${(c.design_principles || []).map(p => `<li style="margin-bottom:2px;">${p}</li>`).join('')}
+                </ul>
+            </div>`).join('')}
+       </div>`
+        : '';
+
+    // Social media-specific sections
+    const _playbook = resultData.community_playbook;
+    const communityPlaybookHTML = _playbook
+        ? `<div class="report-section"><h4>💬 Community Playbook</h4><p style="color:#f1f5f9;line-height:1.8;">${_playbook}</p></div>`
+        : '';
+    const _campaigns = resultData.campaign_ideas;
+    const campaignIdeasHTML = _campaigns && _campaigns.length > 0
+        ? `<div class="report-section"><h4>🎯 Campaign Concepts (${_campaigns.length})</h4>
+        ${_campaigns.map(c => `<div style="margin-bottom:8px;padding:10px;background:rgba(37,99,235,0.08);border-radius:6px;">
+            <strong style="color:#60a5fa;">${c.campaign}</strong>
+            <span style="font-size:12px;color:#64748b;margin-left:8px;">${c.platform}</span>
+            <p style="margin:2px 0 0;font-size:12px;color:#94a3b8;">Objective: ${c.objective}</p></div>`).join('')}</div>`
+        : '';
+
     console.log('🎨 [displayAgentReport] Building HTML for report...');
 
     // Build the full report HTML
@@ -1149,13 +1217,11 @@ function displayAgentReport(agentType, resultData, companyInfo) {
         ${techStackHTML}
         ${timelineHTML}
         ${budgetBreakdownHTML}
-
-        ${resultData.recommendations ? `
-            <div class="report-section">
-                <h4>💡 Recommendations</h4>
-                <p style="color: #f1f5f9; line-height: 1.8;">${resultData.recommendations}</p>
-            </div>
-        ` : ''}
+        ${_recs ? `<div class="report-section"><h4>💡 Recommendations</h4>${recommendationsHTML}</div>` : ''}
+        ${brandKitHTML}
+        ${designConceptsHTML}
+        ${communityPlaybookHTML}
+        ${campaignIdeasHTML}
 
         <div style="margin-top: 2.5rem; padding-top: 1.5rem; border-top: 2px solid rgba(59, 130, 246, 0.2); opacity: 0.7; font-size: 0.9rem; color: #94a3b8;">
             <p style="margin: 0;">⏱️ Execution Time: ${resultData.timestamp || new Date().toLocaleString()}</p>
