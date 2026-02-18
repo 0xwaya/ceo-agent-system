@@ -304,10 +304,24 @@ function applyScenarioToForm(scenario) {
 
 async function syncScenarioToBackend(scenario) {
     try {
+        // Only send fields the backend allowlist accepts — prevents stale-key 400s
+        const safe = {
+            company_name: scenario.company_name,
+            name: scenario.name,
+            dba_name: scenario.dba_name,
+            industry: scenario.industry,
+            location: scenario.location,
+            budget: scenario.budget,
+            timeline: scenario.timeline,
+            objectives: scenario.objectives,
+            updated_at: scenario.updated_at,
+        };
+        // Remove undefined keys
+        Object.keys(safe).forEach(k => safe[k] === undefined && delete safe[k]);
         await fetch('/api/scenario/current', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(scenario)
+            body: JSON.stringify(safe)
         });
     } catch (error) {
         console.warn('Scenario sync to backend failed:', error);
@@ -658,6 +672,14 @@ async function analyzeObjectives() {
         addLogEntry('CFO Agent: Starting strategic analysis', 'warning');
 
         const scenario = persistScenarioToStorage();
+
+        // Guard: required fields must be non-empty before hitting the backend
+        if (!scenario.company_name || !scenario.industry || !scenario.location) {
+            updateStatus('Please fill in Company Name, Industry, and Location first', 'error');
+            addLogEntry('Analysis blocked — missing required fields (company name / industry / location)', 'error');
+            addChatMessage('⚠️ Please fill in your **Company Name**, **Industry**, and **Location** in the form before running analysis.', 'system');
+            return;
+        }
 
         // Explicitly pick only the fields the backend allowlist accepts
         // to avoid accidental rejection if the scenario object grows extra keys
