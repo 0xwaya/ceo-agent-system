@@ -73,11 +73,15 @@ except ImportError:
 try:
     from graph_architecture.main_graph import execute_multi_agent_system
     from graph_architecture.schemas import SharedState
+    from graph_architecture.prompt_expert import prompt_expert_node as _prompt_expert_node
+
+    PROMPT_EXPERT_AVAILABLE = True
 
     GRAPH_ARCHITECTURE_AVAILABLE = True
     print("✅ Graph architecture loaded successfully")
 except ImportError as e:
     GRAPH_ARCHITECTURE_AVAILABLE = False
+    PROMPT_EXPERT_AVAILABLE = False
     print(f"⚠️ Graph architecture not available: {e}")
 
 from agents.specialized_agents import AgentFactory
@@ -116,6 +120,97 @@ except Exception:
 app.config["SECRET_KEY"] = _APP_SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB max request size
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
+
+# ── Rate Limiting ─────────────────────────────────────────────────────────────
+try:
+    from flask_limiter import Limiter
+    from flask_limiter.util import get_remote_address
+    from config import SecurityConfig as _SecCfg
+
+    _redis_url = os.getenv("REDIS_URL", "")
+    _limiter_storage = (
+        _redis_url
+        if (_redis_url.startswith("redis://") or _redis_url.startswith("rediss://"))
+        and "host:port" not in _redis_url  # skip unfilled placeholder
+        else "memory://"
+    )
+    try:
+        limiter = Limiter(
+            get_remote_address,
+            app=app,
+            default_limits=[
+                f"{_SecCfg.RATE_LIMIT_PER_MINUTE}/minute",
+                f"{_SecCfg.RATE_LIMIT_PER_HOUR}/hour",
+            ],
+            storage_uri=_limiter_storage,
+            enabled=_SecCfg.ENABLE_RATE_LIMITING,
+            headers_enabled=True,  # expose X-RateLimit-* headers
+        )
+        RATE_LIMITER_AVAILABLE = True
+        print(
+            f"✅ Rate Limiting: active "
+            f"({_SecCfg.RATE_LIMIT_PER_MINUTE}/min global, storage={_limiter_storage})"
+        )
+    except Exception as _limiter_err:
+        limiter = None
+        RATE_LIMITER_AVAILABLE = False
+        print(f"⚠️  Rate Limiting: storage init failed ({_limiter_err}) — disabled")
+except ImportError:
+    limiter = None
+    RATE_LIMITER_AVAILABLE = False
+    print("⚠️  Flask-Limiter not installed — rate limiting disabled")
+
+
+def rate_limit(limit_string: str):
+    """Apply @limiter.limit() when available, no-op otherwise."""
+    if RATE_LIMITER_AVAILABLE and limiter:
+        return limiter.limit(limit_string)
+    return lambda f: f  # no-op passthrough
+
+
+# ── API Key Authentication ─────────────────────────────────────────────────────
+try:
+    from config import SecurityConfig as _SecCfgAuth
+
+    _AUTH_ENABLED: bool = _SecCfgAuth.ENABLE_AUTH
+except Exception:
+    _AUTH_ENABLED = os.getenv("ENABLE_AUTH", "False").lower() == "true"
+
+_API_ACCESS_KEY: str = os.getenv("API_ACCESS_KEY", "")
+
+
+def require_api_key(f):
+    """Enforce X-API-Key header when ENABLE_AUTH=true; pass-through in dev mode."""
+
+    @wraps(f)
+    def _decorated(*args, **kwargs):
+        if not _AUTH_ENABLED:
+            return f(*args, **kwargs)
+        if not _API_ACCESS_KEY:
+            return (
+                jsonify({"success": False, "error": "Server API key not configured"}),
+                500,
+            )
+        key = (
+            request.headers.get("X-API-Key")
+            or request.args.get("api_key")
+            or (request.get_json(silent=True) or {}).get("api_key")
+        )
+        if not key or key != _API_ACCESS_KEY:
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "error": "Unauthorized — valid X-API-Key header required",
+                    }
+                ),
+                401,
+            )
+        return f(*args, **kwargs)
+
+    _decorated.__name__ = f.__name__
+    return _decorated
+
 
 # Global state for admin dashboard
 pending_approvals = []
@@ -548,6 +643,29 @@ def request_entity_too_large(error):
     return jsonify({"error": "Request too large", "max_size": "10MB"}), 413
 
 
+@app.errorhandler(429)
+def rate_limit_exceeded(error):
+    """Return JSON 429 for rate-limit violations instead of default HTML."""
+    retry_after = getattr(error, "retry_after", None)
+    payload: Dict[str, Any] = {
+        "success": False,
+        "error": "Rate limit exceeded — too many requests. Please slow down.",
+    }
+    if retry_after:
+        payload["retry_after_seconds"] = int(retry_after)
+    response = jsonify(payload)
+    response.status_code = 429
+    if retry_after:
+        response.headers["Retry-After"] = str(int(retry_after))
+    return response
+
+
+@app.errorhandler(401)
+def unauthorized(error):
+    """Return JSON 401 for auth failures."""
+    return jsonify({"success": False, "error": "Unauthorized — valid API key required"}), 401
+
+
 # Error handler decorator
 def handle_errors(f):
     """Decorator for consistent error handling"""
@@ -769,6 +887,8 @@ def scenario_current():
 
 @app.route("/api/ceo/analyze", methods=["POST"])
 @app.route("/api/cfo/analyze", methods=["POST"])  # Backward compatibility
+@rate_limit("10/minute")
+@require_api_key
 def analyze_objectives():
     """Analyze strategic objectives with CEO/CFO agent"""
     try:
@@ -894,6 +1014,30 @@ def analyze_objectives():
             "completed_phases": [],
         }
 
+        # ── Step 0: Prompt Expert — enrich and structure the intake ────────
+        print("🧠 Running Prompt Expert intake analysis...")
+        try:
+            if PROMPT_EXPERT_AVAILABLE:
+                pe_state = {
+                    **state,
+                    "user_raw_input": (
+                        f"Company: {normalized_scenario['company_name']} "
+                        f"({normalized_scenario['industry']}, {normalized_scenario['location']}). "
+                        + "Objectives: "
+                        + "; ".join(normalized_scenario.get("objectives") or [])
+                    ),
+                }
+                pe_output = _prompt_expert_node(pe_state)
+                state.update(pe_output)  # merge enrichment into state
+                _pe_meta = pe_output.get("prompt_expert_output", {})
+                print(f"🧠 Prompt Expert → intent: {_pe_meta.get('intent_summary', 'n/a')}")
+                print(f"🧠 Prompt Expert → domain: {_pe_meta.get('primary_domain', 'n/a')}")
+            else:
+                _pe_meta = {}
+        except Exception as _pe_err:
+            print(f"⚠️ Prompt Expert skipped — {_pe_err}")
+            _pe_meta = {}
+
         print("🔄 Running CEO strategic analysis...")
 
         # Run strategic analysis
@@ -954,6 +1098,23 @@ def analyze_objectives():
             "risk_summary": risk_lines[:5],
             "executive_report_markdown": result.get("final_executive_summary", ""),
             "execution_mode": "AI_PERFORMED",
+            # Prompt Expert enrichment metadata surfaced to the frontend
+            "prompt_expert": {
+                "intent_summary": _pe_meta.get("intent_summary", ""),
+                "primary_domain": _pe_meta.get("primary_domain", ""),
+                "secondary_domains": _pe_meta.get("secondary_domains", []),
+                "enriched_prompt": _pe_meta.get("enriched_prompt", ""),
+                "confidence_score": _pe_meta.get("confidence_score", 0.0),
+                "ambiguities": _pe_meta.get("ambiguities", []),
+                "routing_flags": {
+                    "finance": _pe_meta.get("requires_financial_analysis", False),
+                    "engineering": _pe_meta.get("requires_engineering", False),
+                    "research": _pe_meta.get("requires_research", False),
+                    "legal": _pe_meta.get("requires_legal", False),
+                    "marketing": _pe_meta.get("requires_marketing", False),
+                    "security": _pe_meta.get("requires_security_audit", False),
+                },
+            },
         }
 
         try:
@@ -994,6 +1155,8 @@ def analyze_objectives():
 
 
 @app.route("/api/graph/execute", methods=["POST"])
+@rate_limit("10/minute")
+@require_api_key
 def execute_graph():
     """Execute the LangGraph multi-agent system"""
     if not GRAPH_ARCHITECTURE_AVAILABLE:
@@ -1191,6 +1354,8 @@ def execute_graph():
 
 
 @app.route("/api/agent/execute/<agent_type>", methods=["POST"])
+@rate_limit("20/minute")
+@require_api_key
 def execute_agent(agent_type):
     """Execute a specific specialized agent"""
     normalized_agent_type = "branding" if agent_type.lower() == "designer" else agent_type
@@ -1198,7 +1363,7 @@ def execute_agent(agent_type):
     if UTILS_AVAILABLE:
         allowlist_validation = validate_payload_allowlist(
             data,
-            allowed_fields={"task", "company_info", "requirements"},
+            allowed_fields={"task", "company_info", "requirements", "strategic_objectives"},
             required_fields={"task", "company_info"},
             payload_name="agent_execute",
         )
@@ -1310,6 +1475,13 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
     if not company_info.get("location"):
         company_info["location"] = "United States"
 
+    # Resolve strategic objectives from multiple possible sources
+    strategic_objectives = (
+        data.get("strategic_objectives") or data.get("requirements", {}).get("objectives") or []
+    )
+    if not isinstance(strategic_objectives, list):
+        strategic_objectives = []
+
     result = {
         "agent_type": agent_type,
         "agent_name": agent.name,
@@ -1322,6 +1494,7 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         state = {
             "task_description": data.get("task", "Design brand identity"),
             "company_info": company_info,
+            "strategic_objectives": strategic_objectives,
             "research_findings": [],
             "design_concepts": [],
             "recommendations": [],
@@ -1348,6 +1521,7 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         state = {
             "task_description": data.get("task", "Build website with AR"),
             "requirements": data.get("requirements", company_info),
+            "strategic_objectives": strategic_objectives,
             "tech_stack": [],
             "architecture_design": "",
             "ar_features": [],
@@ -1372,6 +1546,7 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
     elif agent_type == "martech" and hasattr(agent, "configure_stack"):
         state = {
             "task_description": data.get("task", "Configure marketing tech stack"),
+            "strategic_objectives": strategic_objectives,
             "current_systems": [],
             "recommended_stack": [],
             "integrations": [],
@@ -1397,6 +1572,7 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
     elif agent_type == "content" and hasattr(agent, "produce_content"):
         state = {
             "task_description": data.get("task", "Create marketing content"),
+            "strategic_objectives": strategic_objectives,
             "content_types": [],
             "production_schedule": [],
             "assets_created": [],
@@ -1417,6 +1593,7 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
     elif agent_type == "campaigns" and hasattr(agent, "launch_campaigns"):
         state = {
             "task_description": data.get("task", "Launch advertising campaigns"),
+            "strategic_objectives": strategic_objectives,
             "channels": [],
             "audience_targeting": [],
             "creative_assets": [],
@@ -1444,6 +1621,7 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
         state = {
             "task_description": data.get("task", "Legal compliance and filing"),
             "jurisdiction": company_info.get("location", "United States"),
+            "strategic_objectives": strategic_objectives,
             "filings_required": [],
             "compliance_checklist": [],
             "documents_prepared": [],
@@ -1471,6 +1649,7 @@ def _execute_specialized_agent(agent_type: str, data: dict) -> dict:
             "task_description": data.get(
                 "task", "Build social media presence and content strategy"
             ),
+            "strategic_objectives": strategic_objectives,
             "platforms": [],
             "content_calendar": [],
             "posting_workflows": [],
@@ -1625,24 +1804,38 @@ def get_guard_rails(agent_type):
         if normalized_agent_type.lower() in ("ceo", "cfo"):
             exec_info = {
                 "ceo": {
-                    "summary": "CEO Executive Agent — strategic orchestration and multi-agent governance",
+                    "summary": "CEO Executive Agent — multifaceted strategic orchestration, advisory, and execution governance",
                     "max_budget": system_settings.get("total_budget", 10000),
                     "allowed_categories": [
-                        "Strategic Planning",
-                        "Agent Orchestration",
-                        "Risk Management",
+                        "Strategic Planning & Advisory",
+                        "Agent Orchestration & Coordination",
+                        "Risk Management & Opportunity Analysis",
+                        "Executive Communications & Proposals",
+                        "Partnership & Negotiation Frameworks",
+                        "Business Plan & Pitch Development",
                     ],
-                    "forbidden_categories": ["Contractor Payments", "Personal Expenses"],
+                    "forbidden_categories": [
+                        "Contractor Payments",
+                        "Personal Expenses",
+                        "Unauthorized Autonomous Spend",
+                    ],
                     "permitted_tasks": [
-                        "Analyze and set strategic objectives",
-                        "Orchestrate all specialized agents",
-                        "Risk assessment and opportunity analysis",
-                        "Executive budget governance and approvals",
-                        "Final executive reporting and summaries",
+                        "Analyze strategic objectives and build execution plans",
+                        "Orchestrate and coordinate all specialized agents",
+                        "Reason through complex business problems and present options",
+                        "Draft executive proposals, business plans, and partnership letters",
+                        "Risk assessment, opportunity identification, and scenario planning",
+                        "Executive budget governance and approval workflows",
+                        "Market analysis, competitive intelligence, and growth strategy",
+                        "Investor relations narratives and pitch deck outlines",
+                        "Cross-domain advisory and inter-agent consultation",
+                        "Final executive reporting, summaries, and board-level communications",
                     ],
                     "quality_standards": {
                         "strategic_alignment": "required",
                         "risk_flagging": "required",
+                        "multi_domain_reasoning": "required",
+                        "actionability": "every recommendation must be executable",
                     },
                 },
                 "cfo": {
@@ -1740,6 +1933,7 @@ def get_pending_approvals():
 
 
 @app.route("/api/approval/<approval_id>/approve", methods=["POST"])
+@require_api_key
 def approve_payment(approval_id):
     """Approve a payment request"""
     global pending_approvals
@@ -1768,6 +1962,7 @@ def approve_payment(approval_id):
 
 
 @app.route("/api/approval/<approval_id>/reject", methods=["POST"])
+@require_api_key
 def reject_payment(approval_id):
     """Reject a payment request"""
     global pending_approvals
@@ -2118,6 +2313,7 @@ def list_artifact_runs(agent_type=None):
 
 
 @app.route("/api/settings/update", methods=["POST"])
+@require_api_key
 def update_settings():
     """Update system settings"""
     global system_settings
@@ -2329,40 +2525,124 @@ _CHAT_SESSIONS: dict = {}
 
 _AGENT_PERSONAS: dict = {
     "ceo": (
-        "You are the CEO Agent for {company_name}, a {industry} company in {location}.\n"
-        "You are the top-level strategic orchestrator. You set company direction, coordinate "
-        "agents, allocate budget, and make executive decisions.\n"
+        "You are the CEO Agent — chief executive advisor for {company_name}, "
+        "a {industry} company in {location}.\n"
+        "You are the top-level strategic orchestrator. You think at the intersection of "
+        "vision, operations, finance, growth, and talent. You set company direction, "
+        "coordinate all agents, allocate budget, craft proposals, and make executive decisions.\n"
         "Current context: Total budget ${budget}, Timeline: {timeline} days.\n"
-        "Speak with executive authority. Tie every decision back to business objectives. "
-        "When challenged, defend your position with business reasoning. Keep responses to "
-        "2-4 paragraphs."
+        "You have multifaceted capabilities: strategic planning, market analysis, "
+        "partnership negotiation, risk management, investor relations, and executive "
+        "communications. You can draft proposals, executive summaries, partnership letters, "
+        "pitch decks outlines, and business plans.\n"
+        "Speak with executive authority and genuine insight. Challenge assumptions when "
+        "warranted. Defend positions with data and reasoning. Keep responses focused and "
+        "decisive — 2-4 paragraphs unless detail is specifically requested."
     ),
     "cfo": (
-        "You are the CFO Agent for {company_name}, a {industry} company in {location}.\n"
-        "You own financial oversight: budget management, ROI analysis, cost structures, "
-        "and financial risk. You speak in numbers and financial metrics.\n"
+        "You are the CFO Agent — chief financial advisor for {company_name}, "
+        "a {industry} company in {location}.\n"
+        "You own financial oversight: budget architecture, ROI modeling, cost structures, "
+        "cash flow forecasting, financial risk, and investment analysis.\n"
         "Current context: Total budget ${budget}, Timeline: {timeline} days.\n"
-        "Be skeptical of overspending. Always demand financial justification for proposals. "
-        "Keep responses concise with clear financial framing."
+        "You can produce budget proposals, financial models, pricing strategies, "
+        "break-even analyses, revenue projections, and funding recommendations.\n"
+        "Be analytically rigorous. Demand financial justification. Surface hidden costs. "
+        "Speak in numbers, ratios, and financial logic. Keep responses concise and metric-driven."
     ),
     "cto": (
-        "You are the CTO Agent for {company_name}, a {industry} company in {location}.\n"
-        "You own all technical architecture decisions. You reviewed the Web Development "
-        "agent's artifact recommending Next.js 15 App Router + React Three Fiber + "
-        "8th Wall WebAR + Sanity CMS for the SurfaceCraft Studio countertop visualizer.\n"
+        "You are the CTO Agent — chief technology advisor for {company_name}, "
+        "a {industry} company in {location}.\n"
+        "You own all technical architecture, platform decisions, and engineering strategy.\n"
         "Current context: Total budget ${budget}, Timeline: {timeline} days.\n"
-        "Speak about tech stacks, scalability, engineering timelines, and technical risk. "
-        "Be pragmatic about budget constraints. Defend sound technical choices with reasoning. "
-        "Keep responses to 2-4 paragraphs."
+        "You advise on: technology stack selection, build vs buy decisions, API integrations, "
+        "scalability, security architecture, automation opportunities, AI/ML integration, "
+        "and technical roadmapping.\n"
+        "Be pragmatic about budget constraints. Translate technical complexity into business "
+        "impact. Defend sound technical choices with clear reasoning. Keep responses to 2-4 paragraphs."
     ),
     "legal": (
-        "You are the Legal Agent for {company_name}, a {industry} company in {location}.\n"
-        "You specialise in Ohio commercial law, business compliance, contracts, IP, "
-        "and regulatory requirements for the {industry} sector.\n"
+        "You are the Legal Agent — legal advisor for {company_name}, "
+        "a {industry} company in {location}.\n"
+        "You specialise in commercial law, business compliance, contracts, IP protection, "
+        "regulatory requirements, and risk mitigation for the {industry} sector.\n"
         "Current context: Budget ${budget}.\n"
-        "Speak precisely and always flag risks. Frame everything as considerations to "
-        "discuss with licensed counsel — never give definitive legal advice. "
-        "Keep responses clear and structured."
+        "You can draft contract templates, compliance checklists, vendor agreements, "
+        "partnership term sheets, IP protection strategies, and regulatory filings.\n"
+        "Speak precisely and always flag risks. Frame substantive legal matters as "
+        "considerations to review with licensed counsel. Keep responses structured and actionable."
+    ),
+    "branding": (
+        "You are the Branding Agent — brand strategy and visual identity director for "
+        "{company_name}, a {industry} company in {location}.\n"
+        "You own brand positioning, visual identity systems, messaging architecture, "
+        "and the emotional relationship between the company and its audience.\n"
+        "Current context: Budget ${budget}, Timeline: {timeline} days.\n"
+        "You can advise on: brand naming, logo direction, color psychology, typography, "
+        "brand voice, competitive positioning, rebranding strategy, brand extensions, "
+        "and visual storytelling.\n"
+        "Think like a world-class brand strategist. Be opinionated and creative. "
+        "Back creative decisions with strategic rationale. Keep responses visually-minded "
+        "and brand-focused."
+    ),
+    "web_development": (
+        "You are the Web Development Agent — full-stack architect and digital experience "
+        "Director for {company_name}, a {industry} company in {location}.\n"
+        "You own the technical implementation of digital presence: websites, web apps, "
+        "APIs, integrations, and platform architecture.\n"
+        "Current context: Budget ${budget}, Timeline: {timeline} days.\n"
+        "You advise on: tech stack selection, CMS choices, e-commerce platforms, "
+        "performance optimization, SEO infrastructure, accessibility, security hardening, "
+        "and third-party integrations.\n"
+        "Be practical and opinionated about technology choices. Translate requirements "
+        "into architecture. Surface tradeoffs clearly. Speak in systems, not just code."
+    ),
+    "martech": (
+        "You are the MarTech Agent — marketing technology strategist for {company_name}, "
+        "a {industry} company in {location}.\n"
+        "You own the full marketing technology stack: CRM, email automation, analytics, "
+        "lead generation, conversion optimization, and data infrastructure.\n"
+        "Current context: Budget ${budget}, Timeline: {timeline} days.\n"
+        "You advise on: CRM strategy, email sequences, funnel architecture, attribution "
+        "modeling, customer segmentation, lifecycle marketing, and marketing automation.\n"
+        "Be data-driven and systems-oriented. Connect every technology decision to "
+        "measurable business outcomes. Identify the highest-ROI stack for the budget."
+    ),
+    "content": (
+        "You are the Content Agent — content strategy director and creative producer for "
+        "{company_name}, a {industry} company in {location}.\n"
+        "You own content strategy, copywriting, storytelling, and multi-format production "
+        "across all channels.\n"
+        "Current context: Budget ${budget}, Timeline: {timeline} days.\n"
+        "You can produce: marketing copy, website content, blog posts, video scripts, "
+        "email campaigns, social captions, press releases, proposals, pitch narratives, "
+        "and brand voice guidelines.\n"
+        "Be a master storyteller. Write with the brand voice. Every word should serve "
+        "a purpose. Balance creativity with strategic intent."
+    ),
+    "campaigns": (
+        "You are the Campaigns Agent — growth marketing strategist for {company_name}, "
+        "a {industry} company in {location}.\n"
+        "You own paid acquisition, performance marketing, campaign architecture, "
+        "and revenue growth strategies.\n"
+        "Current context: Budget ${budget}, Timeline: {timeline} days.\n"
+        "You advise on: campaign strategy, audience targeting, ad creative direction, "
+        "budget allocation across channels, A/B testing frameworks, CAC/LTV optimization, "
+        "funnel conversion, and attribution.\n"
+        "Be metric-obsessed. Every campaign decision should have a measurable hypothesis. "
+        "Think in funnels, audiences, and conversion rates."
+    ),
+    "social_media": (
+        "You are the Social Media Agent — social strategy director for {company_name}, "
+        "a {industry} company in {location}.\n"
+        "You own social media presence, community building, platform strategy, "
+        "and organic growth across all channels.\n"
+        "Current context: Budget ${budget}, Timeline: {timeline} days.\n"
+        "You advise on: platform selection, content formats, posting cadence, "
+        "community management, influencer partnerships, social listening, trending topics, "
+        "and platform algorithm strategies.\n"
+        "Be culturally aware and platform-native. Know what works on each platform. "
+        "Think in engagement, reach, community, and cultural relevance."
     ),
 }
 
@@ -2517,6 +2797,7 @@ def handle_ai_chat_request(data):
 
 
 @app.route("/api/chat/message", methods=["POST"])
+@rate_limit("30/minute")
 def api_chat_message():
     """
     REST endpoint for LLM-backed agent chat (alternative to SocketIO).
@@ -2790,6 +3071,7 @@ def handle_full_orchestration(data):
                 payload = {
                     "task": task.get("description", f"Execute {agent_type} workstream"),
                     "company_info": company_info,
+                    "strategic_objectives": normalized_scenario.get("objectives", []),
                     "requirements": {
                         "objectives": normalized_scenario.get("objectives", []),
                         "task": task,
@@ -2909,8 +3191,18 @@ if __name__ == "__main__":
     print("   ✅ Request Size Limits (10MB)")
     print("   ✅ CORS Protection")
     print("   ✅ Structured Logging with Rotation")
-    print("   ⚠️  Authentication: NOT CONFIGURED")
-    print("   ⚠️  Rate Limiting: NOT CONFIGURED")
+    _auth_status = (
+        "✅ API Key Auth: ACTIVE (X-API-Key)"
+        if _AUTH_ENABLED
+        else "⚠️  Authentication: disabled (set ENABLE_AUTH=true to enable)"
+    )
+    _rl_status = (
+        "✅ Rate Limiting: ACTIVE (Flask-Limiter)"
+        if RATE_LIMITER_AVAILABLE
+        else "⚠️  Rate Limiting: Flask-Limiter unavailable"
+    )
+    print(f"   {_auth_status}")
+    print(f"   {_rl_status}")
     print("   ⚠️  HTTPS/TLS: NOT CONFIGURED (development mode)")
 
     print("\n📚 DOCUMENTATION:")
@@ -2932,9 +3224,10 @@ if __name__ == "__main__":
 
     print("\n🚀 NEXT STEPS:")
     print("   1. Run tests: pytest tests/ -v --cov=.")
-    print("   2. Implement authentication (see SECURITY_AUDIT_2026.md)")
-    print("   3. Add rate limiting (Flask-Limiter)")
-    print("   4. Configure production environment")
+    print("   2. Set ENABLE_AUTH=true + API_ACCESS_KEY=<key> to activate authentication")
+    print("   3. Set REDIS_URL=redis://... to switch rate-limiter storage to Redis")
+    print("   4. Configure production environment (ENVIRONMENT=production)")
+    print("   5. Enable HTTPS/TLS via reverse proxy (nginx/Cloudflare)")
 
     print("\n🛑 Press CTRL+C to stop")
     print("=" * 80 + "\n")

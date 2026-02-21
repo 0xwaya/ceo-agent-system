@@ -1656,13 +1656,16 @@ body.v4-layout ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); bor
   display: block; font-size: .65rem; color: var(--v4-muted); margin-bottom: 2px;
 }
 .v4-cfg-field input,
-.v4-cfg-field select {
+.v4-cfg-field select,
+.v4-cfg-field textarea {
   width: 100%; background: var(--v4-card); border: 1px solid var(--v4-border);
   color: var(--v4-text); border-radius: 6px; padding: 5px 8px; font-size: .75rem;
-  font-family: inherit;
+  font-family: inherit; box-sizing: border-box;
 }
+.v4-cfg-field textarea { resize: vertical; line-height: 1.45; }
 .v4-cfg-field input:focus,
-.v4-cfg-field select:focus { outline: none; border-color: var(--v4-accent); }
+.v4-cfg-field select:focus,
+.v4-cfg-field textarea:focus { outline: none; border-color: var(--v4-accent); }
 .v4-cfg-actions { margin-top: .35rem; }
 .v4-cfg-actions .btn { grid-column: auto; width: 100%; }
 

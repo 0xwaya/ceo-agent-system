@@ -17,20 +17,12 @@ const INDUSTRY_OPTIONS = new Set([
     'Real Estate',
     'Education',
     'Transportation & Logistics',
-    'Hospitality & Tourism'
+    'Hospitality & Tourism',
+    'Entertainment'
 ]);
 
-const DEFAULT_DEV_OBJECTIVES = [
-    'Launch AR platform showroom',
-    'Relaunch the company brand as SurfaceCraft Studio',
-    'Create a brand kit to be use across platforms',
-    'Create and maintain social media accounts and content creation',
-    'Possition the company in the highend exclusive market',
-    'Create all necessary agent to execute and manage customer caption and retention',
-    'Create sales agent to target residential and commercial contracts',
-    'Register as a minority business with the city of Cincinnati',
-    'Automate most processes that deals with outside sales'
-];
+// Default objectives are intentionally empty — agents operate on company-specific context
+const DEFAULT_DEV_OBJECTIVES = [];
 
 const LEGACY_OBJECTIVE_MARKERS = new Set([
     'Launch SaaS platform',
@@ -272,9 +264,16 @@ function getScenarioFromForm() {
         timeline: Number.isFinite(parsedTimeline) ? parsedTimeline : defaults.timeline
     };
 
+    // Read strategic objectives from the textarea if present
+    const objectivesInput = document.getElementById('objectives');
+    const objectivesText = objectivesInput?.value?.trim() || '';
+    const parsedObjectives = objectivesText
+        ? objectivesText.split('\n').map(s => s.trim()).filter(Boolean)
+        : (Array.isArray(defaults.objectives) ? defaults.objectives : buildDefaultObjectives(companyInfo));
+
     return {
         ...companyInfo,
-        objectives: Array.isArray(defaults.objectives) ? defaults.objectives : buildDefaultObjectives(companyInfo),
+        objectives: parsedObjectives,
         updated_at: new Date().toISOString()
     };
 }
@@ -300,6 +299,12 @@ function applyScenarioToForm(scenario) {
     });
 
     setIndustryValue(scenario.industry);
+
+    // Populate strategic objectives textarea if present
+    const objectivesInput = document.getElementById('objectives');
+    if (objectivesInput && Array.isArray(scenario.objectives) && scenario.objectives.length > 0) {
+        objectivesInput.value = scenario.objectives.join('\n');
+    }
 }
 
 async function syncScenarioToBackend(scenario) {
@@ -378,7 +383,7 @@ function initializeScenarioSync() {
         persistScenarioToStorage({ syncBackend: true, userModified: true, source: 'user_change' });
     };
 
-    ['companyName', 'dbaName', 'industry', 'industryOther', 'location', 'budget', 'timeline'].forEach((elementId) => {
+    ['companyName', 'dbaName', 'industry', 'industryOther', 'location', 'budget', 'timeline', 'objectives'].forEach((elementId) => {
         const input = document.getElementById(elementId);
         if (!input) {
             return;
@@ -446,7 +451,17 @@ function setupSocketListeners() {
             SCENARIO_STORAGE_KEY,
             JSON.stringify(buildScenarioEnvelope(data.scenario, { source: 'socket_sync', userModified: false }))
         );
-        applyScenarioToForm(data.scenario);
+
+        // Only update the form when the user is NOT actively editing a field.
+        // This prevents the socket echo from overwriting mid-keystroke input.
+        const active = document.activeElement;
+        const cfgBody = document.getElementById('cfgBody');
+        const userIsEditing = cfgBody && cfgBody.contains(active) && (
+            active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT'
+        );
+        if (!userIsEditing) {
+            applyScenarioToForm(data.scenario);
+        }
         addLogEntry('Scenario context synchronized', 'success');
     });
 
@@ -514,10 +529,24 @@ function setupSocketListeners() {
         };
 
         console.log('📊 Displaying orchestration report with:', analysisData);
-        displayOrchestrationReport(companyInfo, analysisData);
+        displayOrchestrationReport(companyInfo, analysisData); // switches to Reports tab internally
+
+        // Feed card with link back to the now-visible report
+        addFeedCard(
+            'success',
+            '🎯 Orchestration Complete',
+            (data.completed_tasks || 0) + ' of ' + (data.total_tasks || 0) + ' tasks',
+            null,
+            [
+                { val: data.completed_tasks || 0, lbl: 'Done' },
+                { val: '$' + (data.budget_used || 0), lbl: 'Used' },
+                { val: data.total_tasks || 0, lbl: 'Total' },
+            ],
+            [{ label: '📄 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
+        );
 
         // Chat notification - orchestration complete
-        addChatMessage(`🎉 Full orchestration complete! Executed ${data.total_tasks || 0} tasks. Total budget used: $${data.budget_used}. Check the Execution Report below for details.`, 'assistant');
+        addChatMessage(`🎉 Full orchestration complete! Executed ${data.total_tasks || 0} tasks. Total budget used: $${data.budget_used}. The Execution Report is now open.`, 'assistant');
 
         setTimeout(() => {
             hideProgressBar();
@@ -550,20 +579,7 @@ function setupSocketListeners() {
             null, null, [{ label: 'View Details', onclick: "viewAgentDetails('" + data.agent + "')" }]);
     });
 
-    socket.on('orchestration_complete', function (data) {
-        addFeedCard(
-            'success',
-            '🎯 Orchestration Complete',
-            (data.completed_tasks || 0) + ' of ' + (data.total_tasks || 0) + ' tasks',
-            null,
-            [
-                { val: data.completed_tasks || 0, lbl: 'Done' },
-                { val: '$' + (data.budget_used || 0), lbl: 'Used' },
-                { val: data.total_tasks      || 0, lbl: 'Total' },
-            ],
-            [{ label: '📄 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
-        );
-    });
+    // orchestration_complete feed card is handled in the primary listener above
 
     console.log('✅ Socket listeners configured');
 }
@@ -715,6 +731,19 @@ async function analyzeObjectives() {
             updateStatus('Strategic analysis complete!', 'success');
             addLogEntry(`Identified ${data.tasks.length} tasks across ${Object.keys(data.budget_allocation).length} domains`, 'success');
 
+            // Surface Prompt Expert intake result in chat
+            const pe = data.prompt_expert || {};
+            if (pe.intent_summary) {
+                addChatMessage(
+                    `🧠 **Research & Prompt Agent intake complete**\n` +
+                    `Intent: ${pe.intent_summary}\n` +
+                    `Primary domain: ${pe.primary_domain || 'strategy'}` +
+                    (pe.confidence_score ? ` • Confidence: ${Math.round(pe.confidence_score * 100)}%` : '') +
+                    (pe.ambiguities && pe.ambiguities.length ? `\n⚠️ Ambiguities flagged: ${pe.ambiguities.join('; ')}` : ''),
+                    'system'
+                );
+            }
+
             // Display analysis report in execution report section
             displayAnalysisReport(scenario, data);
 
@@ -800,7 +829,8 @@ async function executeAgent(agentType) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 task: `Execute ${agentType} tasks`,
-                company_info: companyInfo
+                company_info: companyInfo,
+                strategic_objectives: scenario.objectives || []
             })
         });
 
@@ -1050,21 +1080,21 @@ function showAgentResults(agentType, resultData, companyInfo) {
             <div class="results-section">
                 <h3>💡 Recommendations</h3>
                 ${Array.isArray(resultData.recommendations)
-                    ? `<ul class="deliverables-list">${resultData.recommendations.map(r => `<li>💡 ${r}</li>`).join('')}</ul>`
-                    : `<p>${resultData.recommendations}</p>`}
+                ? `<ul class="deliverables-list">${resultData.recommendations.map(r => `<li>💡 ${r}</li>`).join('')}</ul>`
+                : `<p>${resultData.recommendations}</p>`}
             </div>` : ''}
 
         ${resultData.action_plan_30_60_90 && Object.keys(resultData.action_plan_30_60_90).length > 0 ? `
             <div class="results-section">
                 <h3>📅 30 / 60 / 90 Day Execution Plan</h3>
-                ${['day_0_to_30','day_31_to_60','day_61_to_90'].map((key, i) => {
+                ${['day_0_to_30', 'day_31_to_60', 'day_61_to_90'].map((key, i) => {
                     const ph = resultData.action_plan_30_60_90[key];
                     if (!ph) return '';
-                    const labels = ['Days 1–30','Days 31–60','Days 61–90'];
-                    const colors = ['#f59e0b','#3b82f6','#10b981'];
+                    const labels = ['Days 1–30', 'Days 31–60', 'Days 61–90'];
+                    const colors = ['#f59e0b', '#3b82f6', '#10b981'];
                     return `<div style="margin-bottom:12px;padding:12px;background:rgba(255,255,255,0.04);border-radius:8px;border-left:3px solid ${colors[i]};">
                         <strong style="color:${colors[i]};">${labels[i]} — ${ph.theme || ''}</strong>
-                        ${ph.objectives && ph.objectives.length > 0 ? `<ul style="margin:8px 0 0;padding-left:18px;">${ph.objectives.slice(0,3).map(o => `<li style="font-size:13px;color:#cbd5e1;margin-bottom:3px;">${o}</li>`).join('')}${ph.objectives.length > 3 ? `<li style="font-size:12px;color:#64748b;">+${ph.objectives.length-3} more...</li>` : ''}</ul>` : ''}
+                        ${ph.objectives && ph.objectives.length > 0 ? `<ul style="margin:8px 0 0;padding-left:18px;">${ph.objectives.slice(0, 3).map(o => `<li style="font-size:13px;color:#cbd5e1;margin-bottom:3px;">${o}</li>`).join('')}${ph.objectives.length > 3 ? `<li style="font-size:12px;color:#64748b;">+${ph.objectives.length - 3} more...</li>` : ''}</ul>` : ''}
                     </div>`;
                 }).join('')}
             </div>` : ''}
@@ -1266,15 +1296,15 @@ function displayAgentReport(agentType, resultData, companyInfo) {
             <h4 style="color:#c9a84c;border-bottom:2px solid rgba(201,168,76,0.3);padding-bottom:8px;margin-bottom:16px;">🖼️ Logo Proposals — ${_concepts.length} Directions</h4>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;">
             ${_concepts.map((c, idx) => {
-                const svgContent = _logoSVGs[c.svg_key] || '';
-                const swatches = (c.colors || []).map((hex, i) => `<div title="${(c.color_names||[])[i]||hex}" style="width:22px;height:22px;border-radius:4px;background:${hex};border:1.5px solid rgba(255,255,255,0.15);cursor:pointer;"></div>`).join('');
-                return `<div style="background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(201,168,76,0.2);overflow:hidden;">
+            const svgContent = _logoSVGs[c.svg_key] || '';
+            const swatches = (c.colors || []).map((hex, i) => `<div title="${(c.color_names || [])[i] || hex}" style="width:22px;height:22px;border-radius:4px;background:${hex};border:1.5px solid rgba(255,255,255,0.15);cursor:pointer;"></div>`).join('');
+            return `<div style="background:rgba(255,255,255,0.04);border-radius:12px;border:1px solid rgba(201,168,76,0.2);overflow:hidden;">
                     ${svgContent
-                        ? `<div style="background:#0f1117;padding:20px;display:flex;justify-content:center;align-items:center;min-height:120px;">${svgContent}</div>`
-                        : `<div style="background:#0f1117;padding:20px;display:flex;justify-content:center;align-items:center;min-height:120px;color:#64748b;font-size:12px;">Preview not available</div>`}
+                    ? `<div style="background:#0f1117;padding:20px;display:flex;justify-content:center;align-items:center;min-height:120px;">${svgContent}</div>`
+                    : `<div style="background:#0f1117;padding:20px;display:flex;justify-content:center;align-items:center;min-height:120px;color:#64748b;font-size:12px;">Preview not available</div>`}
                     <div style="padding:14px;">
                         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
-                            <p style="margin:0;font-weight:700;font-size:13px;color:#e2e8f0;">0${idx+1} — ${c.concept_name.replace(/Polished Proposal \d+ — /,'')}</p>
+                            <p style="margin:0;font-weight:700;font-size:13px;color:#e2e8f0;">0${idx + 1} — ${c.concept_name.replace(/Polished Proposal \d+ — /, '')}</p>
                             ${c.best_for ? `<span style="padding:2px 8px;background:rgba(201,168,76,0.15);border:1px solid rgba(201,168,76,0.4);border-radius:20px;font-size:10px;color:#c9a84c;white-space:nowrap;">${c.best_for}</span>` : ''}
                         </div>
                         <p style="margin:0 0 10px;font-size:12px;color:#94a3b8;line-height:1.5;">${c.description}</p>
@@ -1284,11 +1314,11 @@ function displayAgentReport(agentType, resultData, companyInfo) {
                             <span>💰 ${c.tools_budget}</span>
                         </div>
                         <ul style="margin:8px 0 0;padding-left:16px;font-size:11px;color:#64748b;line-height:1.6;">
-                            ${(c.design_principles || []).slice(0,2).map(p => `<li>${p}</li>`).join('')}
+                            ${(c.design_principles || []).slice(0, 2).map(p => `<li>${p}</li>`).join('')}
                         </ul>
                     </div>
                 </div>`;
-            }).join('')}
+        }).join('')}
             </div>
         </div>`
         : '';
@@ -1335,7 +1365,7 @@ function displayAgentReport(agentType, resultData, companyInfo) {
             <h4 style="color:#a78bfa;border-bottom:2px solid rgba(167,139,250,0.3);padding-bottom:8px;margin-bottom:12px;">⭐ Expert Best Practices</h4>
             <ul style="margin:0;padding-left:0;list-style:none;">
                 ${_bestPractices.map((bp, i) => `<li style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;padding:10px 12px;background:rgba(167,139,250,0.06);border-radius:8px;border-left:3px solid #7c3aed;">
-                    <span style="color:#a78bfa;font-weight:700;min-width:22px;">${String(i+1).padStart(2,'0')}</span>
+                    <span style="color:#a78bfa;font-weight:700;min-width:22px;">${String(i + 1).padStart(2, '0')}</span>
                     <span style="color:#e2e8f0;font-size:13px;line-height:1.5;">${bp}</span>
                 </li>`).join('')}
             </ul>
@@ -1363,7 +1393,7 @@ function displayAgentReport(agentType, resultData, companyInfo) {
             <h4 style="color:#38bdf8;">🤖 AI Design Tools Stack 2026</h4>
             ${Object.entries(_aiTools).map(([cat, tools]) => `
                 <div style="margin-bottom:10px;">
-                    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">${cat.replace(/_/g,' ')}</p>
+                    <p style="margin:0 0 6px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase;letter-spacing:.5px;">${cat.replace(/_/g, ' ')}</p>
                     <div>${(Array.isArray(tools) ? tools : [tools]).map(t => `<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 10px;background:rgba(56,189,248,0.08);border:1px solid rgba(56,189,248,0.25);border-radius:20px;font-size:12px;color:#7dd3fc;">${t}</span>`).join('')}</div>
                 </div>`).join('')}
           </div>`
@@ -1442,6 +1472,9 @@ function displayAgentReport(agentType, resultData, companyInfo) {
         </div>
     </div>
 `;
+
+    // Ensure the Reports tab is visible before writing content
+    switchTab('reports', document.querySelector('[data-tab="reports"]'));
 
     console.log('🎨 [displayAgentReport] Setting innerHTML...');
     reportDisplay.innerHTML = reportHTML;
@@ -1570,6 +1603,36 @@ function displayAnalysisReport(companyInfo, analysisData) {
                 </p>
             </div>
 
+            ${(() => {
+            const pe = analysisData.prompt_expert || {};
+            if (!pe.intent_summary) return '';
+            const flags = pe.routing_flags || {};
+            const activeFlags = Object.entries(flags).filter(([, v]) => v).map(([k]) => k);
+            const domains = [pe.primary_domain, ...(pe.secondary_domains || [])].filter(Boolean);
+            return `<div class="report-section" style="margin-bottom: 24px; padding: 16px;
+                    background: linear-gradient(135deg, rgba(139,92,246,0.08) 0%, rgba(59,130,246,0.08) 100%);
+                    border-radius: 10px; border-left: 4px solid #8b5cf6;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <span style="font-size:1.25rem">🧠</span>
+                        <strong style="color:#7c3aed; font-size:0.85rem; letter-spacing:0.05em; text-transform:uppercase;">Research &amp; Prompt Agent — Intake Analysis</strong>
+                        ${pe.confidence_score ? `<span style="margin-left:auto; background:rgba(139,92,246,0.15); color:#7c3aed;
+                            padding:2px 8px; border-radius:999px; font-size:0.75rem; font-weight:600;">
+                            ${Math.round(pe.confidence_score * 100)}% confidence</span>` : ''}
+                    </div>
+                    <p style="margin:0 0 8px; color:#334155; font-size:0.9rem;">
+                        <strong>Intent:</strong> ${pe.intent_summary}
+                    </p>
+                    ${domains.length ? `<p style="margin:0 0 8px; color:#64748b; font-size:0.82rem;">
+                        <strong>Domains:</strong> ${domains.join(' → ')}</p>` : ''}
+                    ${activeFlags.length ? `<p style="margin:0 0 8px; color:#64748b; font-size:0.82rem;">
+                        <strong>Routing:</strong> ${activeFlags.map(f =>
+                `<span style="background:rgba(139,92,246,0.12);color:#6d28d9;padding:1px 6px;border-radius:4px;margin-right:4px;">${f}</span>`
+            ).join('')}</p>` : ''}
+                    ${pe.ambiguities && pe.ambiguities.length ? `<p style="margin:4px 0 0; color:#b45309; font-size:0.8rem;">
+                        ⚠️ Ambiguities: ${pe.ambiguities.join(' • ')}</p>` : ''}
+                </div>`;
+        })()}
+
             <div class="report-metrics">
                 <div class="report-metric">
                     <div class="report-metric-label">Total Tasks</div>
@@ -1607,6 +1670,9 @@ function displayAnalysisReport(companyInfo, analysisData) {
             </div>
         </div>
     `;
+
+    // Ensure the Reports tab is visible before writing content
+    switchTab('reports', document.querySelector('[data-tab="reports"]'));
 
     console.log('🎨 [displayAnalysisReport] Setting innerHTML...');
     reportDisplay.innerHTML = reportHTML;
@@ -1825,6 +1891,9 @@ function displayOrchestrationReport(companyInfo, reportData) {
             </div>
     `;
 
+    // Ensure the Reports tab is visible before writing content
+    switchTab('reports', document.querySelector('[data-tab="reports"]'));
+
     console.log('🎨 [displayOrchestrationReport] Setting innerHTML...');
     reportDisplay.innerHTML = reportHTML;
     console.log('✅ [displayOrchestrationReport] innerHTML set successfully!');
@@ -2030,28 +2099,59 @@ function initializeChat() {
     console.log('✅ Chat interface initialized');
 }
 
-// Send chat message
+// Send chat message — routed through LLM socket with per-agent identity + debate mode
 async function sendChatMessage() {
     const chatInput = document.getElementById('chatInput');
     const message = chatInput.value.trim();
 
     if (!message) return;
 
-    // Add user message to chat
     addChatMessage(message, 'user');
     chatInput.value = '';
-
-    // Show typing indicator
     setChatStatus('typing');
 
-    // Process message (simple command parser)
+    // Build a minimal, safe scenario payload for context
+    const scenario = persistScenarioToStorage({ syncBackend: false });
+    const scenarioCtx = {
+        company_name: scenario.company_name || '',
+        industry: scenario.industry || '',
+        location: scenario.location || '',
+        budget: scenario.budget || 0,
+        timeline: scenario.timeline || 30,
+        objectives: Array.isArray(scenario.objectives) ? scenario.objectives.slice(0, 10) : [],
+    };
+
+    // ── Primary path: SocketIO LLM chat ──────────────────────────────────
+    if (socket && socket.connected) {
+        socket.emit('ai_chat_request', {
+            message,
+            agent: _v4ActiveAgent || 'ceo',
+            debate_mode: _v4DebateMode,
+            scenario: scenarioCtx,
+        });
+        // ai_chat_response socket listener clears status + renders reply
+        return;
+    }
+
+    // ── Fallback: REST endpoint when socket is unavailable ───────────────
     try {
-        const response = await processChatCommand(message);
-        addChatMessage(response, 'assistant');
-    } catch (error) {
-        addChatMessage(`Error: ${error.message}`, 'error');
-    } finally {
+        const res = await fetch('/api/chat/message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                message,
+                agent: _v4ActiveAgent || 'ceo',
+                debate_mode: _v4DebateMode,
+                scenario: scenarioCtx,
+                session_id: 'dashboard',
+            }),
+        });
+        const data = await res.json();
         setChatStatus('');
+        addChatMessage(data.response || 'No response received.', 'assistant');
+    } catch (error) {
+        setChatStatus('');
+        addChatMessage(`Connection error: ${error.message}`, 'error');
     }
 }
 
@@ -2256,80 +2356,80 @@ console.log('✅ All functions attached to window object');
 // All identifiers are prefixed v4 to avoid collisions with legacy code.
 // =============================================================================
 
-let _v4ActiveAgent  = 'ceo';
-let _v4DebateMode   = false;
-let _v4ConfigOpen   = true;
+let _v4ActiveAgent = 'ceo';
+let _v4DebateMode = false;
+let _v4ConfigOpen = true;
 
 // ── Tab switching ─────────────────────────────────────────────────────────────
 function switchTab(tabName, btn) {
-  document.querySelectorAll('.v4-tab-panel').forEach(p => p.classList.add('v4-hidden'));
-  document.querySelectorAll('.v4-tab').forEach(t => t.classList.remove('v4-tab-active'));
-  const panel = document.getElementById('tab-' + tabName);
-  if (panel) panel.classList.remove('v4-hidden');
-  if (btn) btn.classList.add('v4-tab-active');
+    document.querySelectorAll('.v4-tab-panel').forEach(p => p.classList.add('v4-hidden'));
+    document.querySelectorAll('.v4-tab').forEach(t => t.classList.remove('v4-tab-active'));
+    const panel = document.getElementById('tab-' + tabName);
+    if (panel) panel.classList.remove('v4-hidden');
+    if (btn) btn.classList.add('v4-tab-active');
 }
 
 // ── Sidebar config accordion ──────────────────────────────────────────────────
 function toggleConfig() {
-  const body  = document.getElementById('cfgBody');
-  const arrow = document.getElementById('cfgToggleArrow');
-  if (!body) return;
-  _v4ConfigOpen = !_v4ConfigOpen;
-  body.style.display = _v4ConfigOpen ? 'flex' : 'none';
-  if (arrow) arrow.textContent = _v4ConfigOpen ? '▲' : '▼';
+    const body = document.getElementById('cfgBody');
+    const arrow = document.getElementById('cfgToggleArrow');
+    if (!body) return;
+    _v4ConfigOpen = !_v4ConfigOpen;
+    body.style.display = _v4ConfigOpen ? 'flex' : 'none';
+    if (arrow) arrow.textContent = _v4ConfigOpen ? '▲' : '▼';
 }
 
 // ── Agent selection (chat panel + roster + header pills) ─────────────────────
 const _V4_AGENT_LABELS = {
-  ceo:             '👔 CEO Agent',
-  cfo:             '💰 CFO Agent',
-  cto:             '🔧 CTO Agent',
-  legal:           '⚖️ Legal Agent',
-  branding:        '🎨 Branding Agent',
-  web_development: '💻 Web Dev Agent',
-  martech:         '📊 MarTech Agent',
-  content:         '✍️ Content Agent',
+    ceo: '👔 CEO Agent',
+    cfo: '💰 CFO Agent',
+    cto: '🔧 CTO Agent',
+    legal: '⚖️ Legal Agent',
+    branding: '🎨 Branding Agent',
+    web_development: '💻 Web Dev Agent',
+    martech: '📊 MarTech Agent',
+    content: '✍️ Content Agent',
 };
 
 function selectChatAgent(agentKey) {
-  _v4ActiveAgent = agentKey;
+    _v4ActiveAgent = agentKey;
 
-  // Chat-panel selector buttons
-  document.querySelectorAll('.v4-agt-btn').forEach(b =>
-    b.classList.toggle('v4-agt-active', b.dataset.agent === agentKey));
+    // Chat-panel selector buttons
+    document.querySelectorAll('.v4-agt-btn').forEach(b =>
+        b.classList.toggle('v4-agt-active', b.dataset.agent === agentKey));
 
-  // Header agent pills
-  document.querySelectorAll('.v4-ha-chip').forEach(c =>
-    c.classList.toggle('v4-chip-active', c.dataset.agent === agentKey));
+    // Header agent pills
+    document.querySelectorAll('.v4-ha-chip').forEach(c =>
+        c.classList.toggle('v4-chip-active', c.dataset.agent === agentKey));
 
-  // Sidebar roster rows
-  document.querySelectorAll('.v4-agent-row').forEach(r =>
-    r.classList.toggle('v4-row-active', r.dataset.agent === agentKey));
+    // Sidebar roster rows
+    document.querySelectorAll('.v4-agent-row').forEach(r =>
+        r.classList.toggle('v4-row-active', r.dataset.agent === agentKey));
 
-  // Update placeholder
-  const input      = document.getElementById('chatInput');
-  const agentLabel = (_V4_AGENT_LABELS[agentKey] || agentKey).replace(/^\S+\s/, ''); // strip emoji
-  if (input) input.placeholder = 'Ask the ' + agentLabel + ' anything…';
+    // Update placeholder
+    const input = document.getElementById('chatInput');
+    const agentLabel = (_V4_AGENT_LABELS[agentKey] || agentKey).replace(/^\S+\s/, ''); // strip emoji
+    if (input) input.placeholder = 'Ask the ' + agentLabel + ' anything…';
 
-  addChatMessage('Now talking to ' + (_V4_AGENT_LABELS[agentKey] || agentKey), 'system');
+    addChatMessage('Now talking to ' + (_V4_AGENT_LABELS[agentKey] || agentKey), 'system');
 }
 
 // ── Strategic Debate Mode toggle ──────────────────────────────────────────────
 function toggleDebateMode() {
-  _v4DebateMode = !_v4DebateMode;
-  const btn = document.getElementById('debateModeBtn');
-  if (btn) {
-    btn.classList.toggle('v4-debate-active', _v4DebateMode);
-    btn.textContent = _v4DebateMode
-      ? '⚡ Debate Mode: ON — agent will push back'
-      : '⚡ Strategic Debate Mode';
-  }
-  addChatMessage(
-    _v4DebateMode
-      ? '⚡ Debate Mode activated — the agent will challenge your ideas and defend its recommendations.'
-      : '✓ Debate Mode off — returning to advisory mode.',
-    'system'
-  );
+    _v4DebateMode = !_v4DebateMode;
+    const btn = document.getElementById('debateModeBtn');
+    if (btn) {
+        btn.classList.toggle('v4-debate-active', _v4DebateMode);
+        btn.textContent = _v4DebateMode
+            ? '⚡ Debate Mode: ON — agent will push back'
+            : '⚡ Strategic Debate Mode';
+    }
+    addChatMessage(
+        _v4DebateMode
+            ? '⚡ Debate Mode activated — the agent will challenge your ideas and defend its recommendations.'
+            : '✓ Debate Mode off — returning to advisory mode.',
+        'system'
+    );
 }
 
 // ── Live feed cards ───────────────────────────────────────────────────────────
@@ -2341,93 +2441,93 @@ function toggleDebateMode() {
  * actions : [{label, onclick, primary}, …]  (optional)
  */
 function addFeedCard(type, title, meta, body, metrics, actions) {
-  const container = document.getElementById('liveFeedContainer');
-  if (!container) return;
+    const container = document.getElementById('liveFeedContainer');
+    if (!container) return;
 
-  const TYPE_CLASS  = { success:'v4-card-success', running:'v4-card-running', info:'v4-card-info', error:'v4-card-error' };
-  const BADGE_CLASS = { success:'v4-badge-success', running:'v4-badge-running', info:'v4-badge-info', error:'v4-badge-error' };
+    const TYPE_CLASS = { success: 'v4-card-success', running: 'v4-card-running', info: 'v4-card-info', error: 'v4-card-error' };
+    const BADGE_CLASS = { success: 'v4-badge-success', running: 'v4-badge-running', info: 'v4-badge-info', error: 'v4-badge-error' };
 
-  const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  const metricsHtml = (metrics && metrics.length)
-    ? '<div class="v4-fc-metrics">' +
+    const metricsHtml = (metrics && metrics.length)
+        ? '<div class="v4-fc-metrics">' +
         metrics.map(m =>
-          '<div class="v4-fc-metric"><div class="v4-m-val">' + m.val + '</div><div class="v4-m-lbl">' + m.lbl + '</div></div>'
+            '<div class="v4-fc-metric"><div class="v4-m-val">' + m.val + '</div><div class="v4-m-lbl">' + m.lbl + '</div></div>'
         ).join('') +
-      '</div>'
-    : '';
+        '</div>'
+        : '';
 
-  const actionsHtml = (actions && actions.length)
-    ? '<div class="v4-fc-actions">' +
+    const actionsHtml = (actions && actions.length)
+        ? '<div class="v4-fc-actions">' +
         actions.map(a =>
-          '<button class="' + (a.primary ? 'v4-btn-accent' : 'v4-btn-outline') + '"' +
-          (a.onclick ? ' onclick="' + a.onclick + '"' : '') + '>' + a.label + '</button>'
+            '<button class="' + (a.primary ? 'v4-btn-accent' : 'v4-btn-outline') + '"' +
+            (a.onclick ? ' onclick="' + a.onclick + '"' : '') + '>' + a.label + '</button>'
         ).join('') +
-      '</div>'
-    : '';
+        '</div>'
+        : '';
 
-  const card = document.createElement('div');
-  card.className = 'v4-feed-card ' + (TYPE_CLASS[type] || 'v4-card-info');
-  card.innerHTML =
-    '<div class="v4-fc-header">' +
-      '<div class="v4-fc-title">' + title +
+    const card = document.createElement('div');
+    card.className = 'v4-feed-card ' + (TYPE_CLASS[type] || 'v4-card-info');
+    card.innerHTML =
+        '<div class="v4-fc-header">' +
+        '<div class="v4-fc-title">' + title +
         ' <span class="v4-fc-badge ' + (BADGE_CLASS[type] || 'v4-badge-info') + '">' +
-          type.charAt(0).toUpperCase() + type.slice(1) +
+        type.charAt(0).toUpperCase() + type.slice(1) +
         '</span>' +
-      '</div>' +
-      '<span class="v4-fc-time">' + now + '</span>' +
-    '</div>' +
-    '<div class="v4-fc-meta">' + (meta || '') + '</div>' +
-    (body ? '<p class="v4-fc-text">' + body + '</p>' : '') +
-    metricsHtml + actionsHtml;
+        '</div>' +
+        '<span class="v4-fc-time">' + now + '</span>' +
+        '</div>' +
+        '<div class="v4-fc-meta">' + (meta || '') + '</div>' +
+        (body ? '<p class="v4-fc-text">' + body + '</p>' : '') +
+        metricsHtml + actionsHtml;
 
-  // Prepend so newest is at top
-  container.insertBefore(card, container.firstChild);
+    // Prepend so newest is at top
+    container.insertBefore(card, container.firstChild);
 
-  // Auto-switch to Live tab if another tab is active
-  const feedPanel = document.getElementById('tab-feed');
-  if (feedPanel && feedPanel.classList.contains('v4-hidden')) {
-    switchTab('feed', document.querySelector('[data-tab="feed"]'));
-  }
+    // Auto-switch to Live tab if another tab is active
+    const feedPanel = document.getElementById('tab-feed');
+    if (feedPanel && feedPanel.classList.contains('v4-hidden')) {
+        switchTab('feed', document.querySelector('[data-tab="feed"]'));
+    }
 }
 
 // ── Override sendChatMessage to use LLM backend via SocketIO ─────────────────
 window.sendChatMessage = function () {
-  const chatInput = document.getElementById('chatInput');
-  const message   = chatInput ? chatInput.value.trim() : '';
-  if (!message) return;
+    const chatInput = document.getElementById('chatInput');
+    const message = chatInput ? chatInput.value.trim() : '';
+    if (!message) return;
 
-  addChatMessage(message, 'user');
-  if (chatInput) chatInput.value = '';
-  setChatStatus('typing…');
+    addChatMessage(message, 'user');
+    if (chatInput) chatInput.value = '';
+    setChatStatus('typing…');
 
-  // Build scenario context from sidebar form fields
-  const scenario = {
-    company_name: document.getElementById('companyName')?.value  || '',
-    industry:     document.getElementById('industry')?.value     || '',
-    location:     document.getElementById('location')?.value     || '',
-    budget:       parseFloat(document.getElementById('budget')?.value)   || 5000,
-    timeline:     parseInt(document.getElementById('timeline')?.value, 10) || 30,
-  };
+    // Build scenario context from sidebar form fields
+    const scenario = {
+        company_name: document.getElementById('companyName')?.value || '',
+        industry: document.getElementById('industry')?.value || '',
+        location: document.getElementById('location')?.value || '',
+        budget: parseFloat(document.getElementById('budget')?.value) || 5000,
+        timeline: parseInt(document.getElementById('timeline')?.value, 10) || 30,
+    };
 
-  if (typeof socket !== 'undefined' && socket && socket.connected) {
-    socket.emit('ai_chat_request', {
-      message,
-      agent:       _v4ActiveAgent,
-      debate_mode: _v4DebateMode,
-      scenario,
-    });
-  } else {
-    // Fallback: REST endpoint
-    fetch('/api/chat/message', {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ message, agent: _v4ActiveAgent, debate_mode: _v4DebateMode, scenario }),
-    })
-      .then(r  => r.json())
-      .then(d  => { addChatMessage(d.response || 'No response received.', 'assistant'); setChatStatus(''); })
-      .catch(e => { addChatMessage('Error: ' + e.message, 'error'); setChatStatus(''); });
-  }
+    if (typeof socket !== 'undefined' && socket && socket.connected) {
+        socket.emit('ai_chat_request', {
+            message,
+            agent: _v4ActiveAgent,
+            debate_mode: _v4DebateMode,
+            scenario,
+        });
+    } else {
+        // Fallback: REST endpoint
+        fetch('/api/chat/message', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message, agent: _v4ActiveAgent, debate_mode: _v4DebateMode, scenario }),
+        })
+            .then(r => r.json())
+            .then(d => { addChatMessage(d.response || 'No response received.', 'assistant'); setChatStatus(''); })
+            .catch(e => { addChatMessage('Error: ' + e.message, 'error'); setChatStatus(''); });
+    }
 };
 
 // ── SocketIO event handlers (registered in setupSocketListeners above) ───────
@@ -2436,27 +2536,27 @@ window.sendChatMessage = function () {
 
 // ── Intercept displayAgentReport to also add a feed card ─────────────────────
 (function patchDisplayAgentReport() {
-  const _orig = window.displayAgentReport;
-  if (typeof _orig !== 'function') return;
-  window.displayAgentReport = function (agentType, resultData, companyInfo) {
-    _orig(agentType, resultData, companyInfo);
-    const name = (agentType || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    addFeedCard(
-      'success',
-      '✅ ' + name + ' Report Ready',
-      (resultData.deliverables ? resultData.deliverables.length : 0) + ' deliverable(s) · $' + (resultData.budget_used || 0),
-      null, null,
-      [{ label: '📋 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
-    );
-    switchTab('reports', document.querySelector('[data-tab="reports"]'));
-  };
+    const _orig = window.displayAgentReport;
+    if (typeof _orig !== 'function') return;
+    window.displayAgentReport = function (agentType, resultData, companyInfo) {
+        _orig(agentType, resultData, companyInfo);
+        const name = (agentType || '').split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+        addFeedCard(
+            'success',
+            '✅ ' + name + ' Report Ready',
+            (resultData.deliverables ? resultData.deliverables.length : 0) + ' deliverable(s) · $' + (resultData.budget_used || 0),
+            null, null,
+            [{ label: '📋 View Report', onclick: "switchTab('reports', document.querySelector('[data-tab=\"reports\"]'))", primary: true }]
+        );
+        switchTab('reports', document.querySelector('[data-tab="reports"]'));
+    };
 })();
 
 // ── Expose new v0.4 functions on window ──────────────────────────────────────
-window.switchTab      = switchTab;
-window.toggleConfig   = toggleConfig;
+window.switchTab = switchTab;
+window.toggleConfig = toggleConfig;
 window.selectChatAgent = selectChatAgent;
 window.toggleDebateMode = toggleDebateMode;
-window.addFeedCard    = addFeedCard;
+window.addFeedCard = addFeedCard;
 
 console.log('✅ v0.4 three-panel layout and LLM chat initialized');

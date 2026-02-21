@@ -248,6 +248,224 @@ class SpecializedAgent:
         )
 
 
+# ────────────────────────────────────────────────────────────────────────────
+# BRANDING HELPERS  — dynamic palette / SVG / initials (no hardcoded names)
+# ────────────────────────────────────────────────────────────────────────────
+
+
+def _get_brand_initials(name: str) -> str:
+    """Return 1-3 uppercase initials from a brand name."""
+    words = [w for w in name.split() if w and w[0].isalpha()]
+    if not words:
+        return "B"
+    if len(words) == 1:
+        return words[0][:2].upper()
+    return "".join(w[0] for w in words[:3]).upper()
+
+
+def _get_industry_palette(industry: str) -> dict:
+    """Return a {name: hex} colour palette tuned for the given industry."""
+    ind = (industry or "").lower()
+    if any(k in ind for k in ("entertainment", "media", "film", "music", "gaming", "sport")):
+        return {
+            "name": "Dark Stage",
+            "primary": "#0D0020",  # Deep Purple Black
+            "secondary": "#4A0080",  # Electric Purple
+            "accent": "#F5C518",  # Gold Star
+            "neutral": "#F0ECE8",  # Soft Cream
+            "support": "#7B2FBE",  # Mid Purple
+            "color_names": [
+                "Deep Purple Black",
+                "Electric Purple",
+                "Gold Star",
+                "Soft Cream",
+                "Mid Purple",
+            ],
+            "style": "bold, premium, theatrical",
+        }
+    if any(k in ind for k in ("tech", "software", "ai", "saas", "data", "cloud", "digital")):
+        return {
+            "name": "Digital Horizon",
+            "primary": "#0A0E1A",  # Midnight
+            "secondary": "#0047AB",  # Cobalt Blue
+            "accent": "#00E5FF",  # Electric Cyan
+            "neutral": "#EBF4FF",  # Ice White
+            "support": "#1B3A6B",  # Deep Sapphire
+            "color_names": [
+                "Midnight",
+                "Cobalt Blue",
+                "Electric Cyan",
+                "Ice White",
+                "Deep Sapphire",
+            ],
+            "style": "clean, futuristic, innovative",
+        }
+    if any(k in ind for k in ("health", "medical", "pharma", "wellness", "biotech")):
+        return {
+            "name": "Vital Care",
+            "primary": "#FFFFFF",  # Clean White
+            "secondary": "#1565C0",  # Medical Blue
+            "accent": "#00897B",  # Teal Green
+            "neutral": "#F5F9FF",  # Soft Sky White
+            "support": "#1B5E20",  # Forest Green
+            "color_names": [
+                "Clean White",
+                "Medical Blue",
+                "Teal Green",
+                "Soft Sky White",
+                "Forest Green",
+            ],
+            "style": "trustworthy, clinical, approachable",
+        }
+    if any(k in ind for k in ("finance", "banking", "insurance", "invest", "wealth")):
+        return {
+            "name": "Capital Prestige",
+            "primary": "#003087",  # Deep Navy
+            "secondary": "#1C3A5E",  # Navy Blue
+            "accent": "#B87333",  # Copper Gold
+            "neutral": "#E8E8E0",  # Platinum
+            "support": "#0A1628",  # Midnight Navy
+            "color_names": ["Deep Navy", "Navy Blue", "Copper Gold", "Platinum", "Midnight Navy"],
+            "style": "authoritative, prestigious, dependable",
+        }
+    if any(
+        k in ind
+        for k in (
+            "construct",
+            "contractor",
+            "granite",
+            "quartz",
+            "countertop",
+            "stone",
+            "real estate",
+            "property",
+        )
+    ):
+        return {
+            "name": "Crafted Materials",
+            "primary": "#1C1C1E",  # Charcoal Black
+            "secondary": "#0F1F3D",  # Deep Navy
+            "accent": "#C9A84C",  # Brushed Gold
+            "neutral": "#F5F0EA",  # Marble White
+            "support": "#6B7280",  # Slate Gray
+            "color_names": [
+                "Charcoal Black",
+                "Deep Navy",
+                "Brushed Gold",
+                "Marble White",
+                "Slate Gray",
+            ],
+            "style": "premium, handcrafted, luxury materials",
+        }
+    if any(k in ind for k in ("retail", "fashion", "apparel", "beauty", "lifestyle", "luxury")):
+        return {
+            "name": "Lifestyle Edit",
+            "primary": "#1A1A2E",  # Deep Noir
+            "secondary": "#9B1C4A",  # Rose Wine
+            "accent": "#D4A853",  # Warm Champagne
+            "neutral": "#FFF5F8",  # Blush White
+            "support": "#5C1033",  # Bordeaux
+            "color_names": ["Deep Noir", "Rose Wine", "Warm Champagne", "Blush White", "Bordeaux"],
+            "style": "sophisticated, editorial, lifestyle",
+        }
+    if any(k in ind for k in ("education", "school", "university", "training", "learn")):
+        return {
+            "name": "Knowledge Academy",
+            "primary": "#1A237E",  # Royal Blue
+            "secondary": "#00701A",  # Forest Emerald
+            "accent": "#FFD600",  # Knowledge Gold
+            "neutral": "#F5F5F5",  # Pearl White
+            "support": "#283593",  # Academy Blue
+            "color_names": [
+                "Royal Blue",
+                "Forest Emerald",
+                "Knowledge Gold",
+                "Pearl White",
+                "Academy Blue",
+            ],
+            "style": "academic, aspirational, trustworthy",
+        }
+    if any(k in ind for k in ("hospitality", "hotel", "restaurant", "food", "tourism", "travel")):
+        return {
+            "name": "Warm Welcome",
+            "primary": "#1A0A00",  # Espresso
+            "secondary": "#8B4513",  # Warm Sienna
+            "accent": "#FF6B4A",  # Coral
+            "neutral": "#FFFBF0",  # Ivory
+            "support": "#006994",  # Ocean Blue
+            "color_names": ["Espresso", "Warm Sienna", "Coral", "Ivory", "Ocean Blue"],
+            "style": "warm, inviting, experiential",
+        }
+    # Default — professional executive
+    return {
+        "name": "Executive Classic",
+        "primary": "#1C3453",  # Navy
+        "secondary": "#0A1C2E",  # Midnight
+        "accent": "#D4AF37",  # Classic Gold
+        "neutral": "#F5F2ED",  # Warm White
+        "support": "#4A6580",  # Steel Blue
+        "color_names": ["Navy", "Midnight", "Classic Gold", "Warm White", "Steel Blue"],
+        "style": "professional, authoritative, timeless",
+    }
+
+
+def _build_dynamic_brand_svgs(initials: str, display_name: str, palette: dict) -> dict:
+    """Generate 4 inline SVG logo proposals from dynamic brand identity tokens."""
+    p = palette["primary"]
+    s = palette["secondary"]
+    a = palette["accent"]
+    n = palette["neutral"]
+
+    # Shorten display name sensibly for SVG text
+    dn = display_name[:14] if len(display_name) > 14 else display_name
+    init = initials[:3] if len(initials) > 3 else initials
+
+    return {
+        "proposal_01_monogram": (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
+            f'<rect width="200" height="200" fill="{p}"/>'
+            f'<circle cx="100" cy="100" r="88" fill="none" stroke="{a}" stroke-width="2.5"/>'
+            f'<text x="100" y="118" font-family="Georgia,serif" font-size="{64 if len(init)<=2 else 46}" font-weight="700" '
+            f'fill="{a}" text-anchor="middle" letter-spacing="-3">{init}</text>'
+            f'<text x="100" y="156" font-family="Georgia,serif" font-size="10" font-weight="400" '
+            f'fill="{n}" text-anchor="middle" letter-spacing="3">{dn}</text>'
+            f"</svg>"
+        ),
+        "proposal_02_serif_wordmark": (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
+            f'<rect width="360" height="120" fill="{n}"/>'
+            f'<text x="180" y="62" font-family="Georgia,serif" font-size="{38 if len(dn)<=10 else 28}" font-weight="700" '
+            f'fill="{p}" text-anchor="middle" letter-spacing="2">{dn}</text>'
+            f'<rect x="40" y="72" width="280" height="1.5" fill="{a}"/>'
+            f'<text x="180" y="94" font-family="Georgia,serif" font-size="12" font-weight="400" '
+            f'fill="{s}" text-anchor="middle" letter-spacing="5">STUDIO</text>'
+            f"</svg>"
+        ),
+        "proposal_03_sans_prestige": (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
+            f'<rect width="360" height="120" fill="{p}"/>'
+            f'<polygon points="50,20 80,60 50,100 20,60" fill="none" stroke="{a}" stroke-width="2"/>'
+            f'<polygon points="50,34 66,60 50,86 34,60" fill="{a}"/>'
+            f'<text x="210" y="55" font-family="Arial,Helvetica,sans-serif" font-size="{26 if len(dn)<=10 else 18}" '
+            f'font-weight="700" fill="{n}" text-anchor="middle" letter-spacing="3">{dn}</text>'
+            f'<text x="210" y="82" font-family="Arial,Helvetica,sans-serif" font-size="11" '
+            f'font-weight="300" fill="{a}" text-anchor="middle" letter-spacing="7">OFFICIAL</text>'
+            f"</svg>"
+        ),
+        "proposal_04_monoline_emblem": (
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
+            f'<rect width="200" height="200" fill="{n}"/>'
+            f'<circle cx="100" cy="100" r="88" fill="none" stroke="{p}" stroke-width="1.5"/>'
+            f'<circle cx="100" cy="100" r="80" fill="none" stroke="{a}" stroke-width="0.8"/>'
+            f'<text x="100" y="108" font-family="Georgia,serif" font-size="{56 if len(init)<=2 else 40}" font-weight="400" '
+            f'fill="{p}" text-anchor="middle">{init}</text>'
+            f'<text x="100" y="168" font-family="Arial,sans-serif" font-size="9" '
+            f'fill="{s}" text-anchor="middle" letter-spacing="4">EST. 2024</text>'
+            f"</svg>"
+        ),
+    }
+
+
 class BrandingAgent(SpecializedAgent):
     """Expert in brand strategy and visual identity design
 
@@ -328,92 +546,40 @@ class BrandingAgent(SpecializedAgent):
 
         company_info = state.get("company_info", {})
         brand_name = company_info.get("dba_name", company_info.get("name", "Brand"))
+        industry = company_info.get("industry", "General Business")
+        strategic_objectives = state.get("strategic_objectives", [])
+
+        # Derive dynamic tokens from brand identity
+        initials = _get_brand_initials(brand_name)
+        palette = _get_industry_palette(industry)
+        svg_logos = _build_dynamic_brand_svgs(initials, brand_name.upper(), palette)
 
         codex_tooling = self.run_codex_tooling(
-            objective="Create four polished luxury logo proposal directions from provided brand kit",
+            objective="Create four polished logo proposal directions from provided brand kit",
             context={
                 "brand_name": brand_name,
-                "palette": ["Marble White", "Brushed Gold", "Charcoal Black"],
-                "style": "luxury, elegant, modern stone surfaces",
+                "industry": industry,
+                "palette": palette["color_names"][:3],
+                "style": palette["style"],
             },
         )
 
-        # ── Resolved colour tokens ──────────────────────────────────────────
         palette_hex = {
-            "Marble White": "#F5F0EA",
-            "Brushed Gold": "#C9A84C",
-            "Charcoal Black": "#1C1C1E",
-            "Slate Gray": "#6B7280",
-            "Midnight Navy": "#0F1B2D",
-            "Off White": "#FAF8F5",
-        }
-
-        # ── SVG logo previews (inline, production-quality) ──────────────
-        svg_logos = {
-            "proposal_01_monogram": (
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
-                '<rect width="200" height="200" fill="#1C1C1E"/>'
-                # Outer gold ring
-                '<circle cx="100" cy="100" r="88" fill="none" stroke="#C9A84C" stroke-width="2.5"/>'
-                # Stylised S/C monogram in gold
-                '<text x="100" y="118" font-family="Georgia,serif" font-size="72" font-weight="700" '
-                'fill="#C9A84C" text-anchor="middle" letter-spacing="-4">SC</text>'
-                # Brand name below
-                '<text x="100" y="158" font-family="Georgia,serif" font-size="11" font-weight="400" '
-                'fill="#F5F0EA" text-anchor="middle" letter-spacing="4">SURFACECRAFT</text>'
-                "</svg>"
-            ),
-            "proposal_02_serif_wordmark": (
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
-                '<rect width="360" height="120" fill="#F5F0EA"/>'
-                # Wordmark
-                '<text x="180" y="62" font-family="Georgia,serif" font-size="38" font-weight="700" '
-                'fill="#1C1C1E" text-anchor="middle" letter-spacing="2">SurfaceCraft</text>'
-                # Gold rule
-                '<rect x="40" y="72" width="280" height="1.5" fill="#C9A84C"/>'
-                # Tagline
-                '<text x="180" y="94" font-family="Georgia,serif" font-size="12" font-weight="400" '
-                'fill="#6B7280" text-anchor="middle" letter-spacing="5">STUDIO</text>'
-                "</svg>"
-            ),
-            "proposal_03_sans_prestige": (
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
-                '<rect width="360" height="120" fill="#1C1C1E"/>'
-                # Icon mark — geometric diamond
-                '<polygon points="50,20 80,60 50,100 20,60" fill="none" stroke="#C9A84C" stroke-width="2"/>'
-                '<polygon points="50,32 68,60 50,88 32,60" fill="#C9A84C"/>'
-                # Wordmark
-                '<text x="200" y="55" font-family="Arial,Helvetica,sans-serif" font-size="28" '
-                'font-weight="700" fill="#F5F0EA" text-anchor="middle" letter-spacing="3">SURFACECRAFT</text>'
-                '<text x="200" y="82" font-family="Arial,Helvetica,sans-serif" font-size="12" '
-                'font-weight="300" fill="#C9A84C" text-anchor="middle" letter-spacing="8">STUDIO</text>'
-                "</svg>"
-            ),
-            "proposal_04_monoline_emblem": (
-                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
-                '<rect width="200" height="200" fill="#F5F0EA"/>'
-                # Outer emblem ring
-                '<circle cx="100" cy="100" r="88" fill="none" stroke="#1C1C1E" stroke-width="1.5"/>'
-                '<circle cx="100" cy="100" r="80" fill="none" stroke="#C9A84C" stroke-width="0.8"/>'
-                # Monoline S mark
-                '<path d="M76,80 Q76,65 100,65 Q124,65 124,80 Q124,95 100,100 Q76,105 76,120 Q76,135 100,135 Q124,135 124,120"'
-                ' fill="none" stroke="#1C1C1E" stroke-width="4" stroke-linecap="round"/>'
-                # Studio text arc (simplified as bottom text)
-                '<text x="100" y="170" font-family="Arial,sans-serif" font-size="9" '
-                'fill="#6B7280" text-anchor="middle" letter-spacing="5">ESTABLISHED 2024</text>'
-                "</svg>"
-            ),
+            palette["color_names"][0]: palette["primary"],
+            palette["color_names"][1]: palette["secondary"],
+            palette["color_names"][2]: palette["accent"],
+            palette["color_names"][3]: palette["neutral"],
+            palette["color_names"][4]: palette["support"],
         }
 
         brand_kit_reference = {
             "brand_name": brand_name,
-            "legacy_name": "Amazon Granite LLC",
-            "reference_handles": ["amzgranite.com", "instagram.com/amazongranite"],
-            "direction": "SurfaceCraft Studio luxury repositioning",
-            "logo_reference": "Elegant monogram + refined wordmark balance",
+            "direction": f"{brand_name} — {palette['style']} identity for {industry}",
+            "logo_reference": f"Monogram initials ({initials}) + bold wordmark + prestige emblem",
+            "palette_theme": palette["name"],
             "color_palette": {
-                "primary": ["Marble White", "Brushed Gold", "Charcoal Black"],
-                "supporting": ["Slate Gray", "Midnight Navy"],
+                "primary": palette["color_names"][:3],
+                "supporting": palette["color_names"][3:],
                 "hex": palette_hex,
             },
             "typography": {
@@ -437,57 +603,61 @@ class BrandingAgent(SpecializedAgent):
                 "scale": "Perfect Fourth (1.333): 12 / 16 / 21 / 28 / 37 / 50 / 67px",
             },
             "logo_svgs": svg_logos,
-            "typography_note": "Serif for luxury weight; sans for digital clarity; pair tested at all scales",
+            "typography_note": "Serif for brand weight; sans for digital clarity; pair tested at all scales",
+            "strategic_alignment": strategic_objectives[:3] if strategic_objectives else [],
         }
+
+        c1, c2, c3 = palette["color_names"][0], palette["color_names"][1], palette["color_names"][2]
+        h1, h2, h3 = palette["primary"], palette["secondary"], palette["accent"]
 
         concepts = [
             {
-                "concept_name": "Polished Proposal 01 — Signature Monogram Luxe",
-                "description": f"{brand_name} sculpted S/C monogram with couture-style spacing",
+                "concept_name": f"Proposal 01 — {brand_name} Signature Monogram",
+                "description": f"{brand_name} ({initials}) sculpted monogram with couture-style spacing",
                 "svg_key": "proposal_01_monogram",
-                "colors": ["#1C1C1E", "#C9A84C", "#F5F0EA"],
-                "color_names": ["Charcoal Black", "Brushed Gold", "Marble White"],
+                "colors": [h1, h3, palette["neutral"]],
+                "color_names": [c1, c2, c3],
                 "design_principles": [
-                    "Golden-ratio monogram geometry inspired by premium stone inlays",
-                    "Brushed Gold accent strokes over Charcoal Black structure",
-                    "Marble White negative space preserves luxury breathing room",
-                    "Balanced lockup for signage, social avatar, and favicon use",
+                    "Golden-ratio monogram geometry for perfect visual balance",
+                    f"{c2} accent strokes over {c1} structure — high contrast premium pairing",
+                    "Generous negative space for luxury breathing room",
+                    "Balanced lockup: hero mark, social avatar, and favicon-ready",
                 ],
                 "applications": "Hero website mark, storefront signage, proposal cover",
-                "scalability": "Optimized from 24px icon to 12ft exterior sign",
+                "scalability": "Optimized from 24px icon to large-format exterior sign",
                 "best_for": "Primary Brand Mark",
                 "ai_execution": "AI-developed vector system with production-ready lockups",
                 "tools_budget": "$60 (font licensing + export templates)",
             },
             {
-                "concept_name": "Polished Proposal 02 — Heritage Serif Signature",
-                "description": "High-contrast serif wordmark with understated stone-cut ligatures",
+                "concept_name": f"Proposal 02 — {brand_name} Heritage Serif",
+                "description": f"High-contrast serif wordmark with {palette['style']} refinements",
                 "svg_key": "proposal_02_serif_wordmark",
-                "colors": ["#F5F0EA", "#1C1C1E", "#C9A84C"],
-                "color_names": ["Marble White", "Charcoal Black", "Brushed Gold"],
+                "colors": [palette["neutral"], h1, h3],
+                "color_names": [palette["color_names"][3], c1, c2],
                 "design_principles": [
-                    "Elegant serif axis for luxury positioning and premium trust signal",
-                    "Charcoal Black wordmark with Brushed Gold rule accent",
-                    "Marble White base for print and digital hero consistency",
-                    "Subtle material-finishing cues reflect crafted surfaces",
+                    f"Elegant serif axis aligned with {palette['style']} brand positioning",
+                    f"{c1} wordmark with {c2} rule accent for premium editorial quality",
+                    "Neutral base for print and digital hero consistency",
+                    "Refined letter-spacing for premium legibility at all sizes",
                 ],
-                "applications": "Brand book, business cards, showroom collateral",
+                "applications": "Brand book, business cards, collateral, print media",
                 "scalability": "Exceptional in editorial and premium print contexts",
                 "best_for": "Print & Collateral",
                 "ai_execution": "AI-generated typographic refinements with kerning variants",
                 "tools_budget": "$45 (serif family trial/license)",
             },
             {
-                "concept_name": "Polished Proposal 03 — Modern Sans Prestige",
-                "description": "Refined sans-serif wordmark with architectural geometry and icon mark",
+                "concept_name": f"Proposal 03 — {brand_name} Modern Sans",
+                "description": f"Refined sans-serif wordmark with geometric icon mark and responsive lockups",
                 "svg_key": "proposal_03_sans_prestige",
-                "colors": ["#1C1C1E", "#F5F0EA", "#C9A84C"],
-                "color_names": ["Charcoal Black", "Marble White", "Brushed Gold"],
+                "colors": [h1, palette["neutral"], h3],
+                "color_names": [c1, palette["color_names"][3], c2],
                 "design_principles": [
-                    "Contemporary sans system for web-first legibility at all viewports",
-                    "Charcoal Black foundation + selective Brushed Gold detail lines",
-                    "Diamond icon mark references precision stone fabrication craft",
-                    "Responsive lockups for desktop header, mobile nav, and socials",
+                    f"Contemporary sans system for web-first {industry} legibility",
+                    f"{c1} foundation + selective {c2} detail — confident modern presence",
+                    "Diamond icon mark signals precision and intentional craft",
+                    "Responsive lockups for desktop header, mobile nav, and social profiles",
                 ],
                 "applications": "Website navigation, social profile suite, ad creatives",
                 "scalability": "Built for digital responsiveness and motion-ready variants",
@@ -496,16 +666,16 @@ class BrandingAgent(SpecializedAgent):
                 "tools_budget": "$35 (motion export presets)",
             },
             {
-                "concept_name": "Polished Proposal 04 — Monoline Emblem Elegance",
+                "concept_name": f"Proposal 04 — {brand_name} Monoline Emblem",
                 "description": "Minimal emblem seal with monoline mark and premium wordmark lockup",
                 "svg_key": "proposal_04_monoline_emblem",
-                "colors": ["#F5F0EA", "#C9A84C", "#1C1C1E"],
-                "color_names": ["Marble White", "Brushed Gold", "Charcoal Black"],
+                "colors": [palette["neutral"], h3, h1],
+                "color_names": [palette["color_names"][3], c2, c1],
                 "design_principles": [
-                    "Monoline icon architecture referencing precision stone fabrication",
-                    "Brushed Gold ring + Charcoal Black central S mark for contrast",
-                    "Marble White applications for luxury packaging and proposal decks",
-                    "Timeless, restrained, collectible — designed to emboss and foil-stamp",
+                    f"Monoline emblem architecture — timeless, collectible, {palette['style']}",
+                    f"{c2} ring + {c1} central {initials} mark for confident contrast",
+                    "Neutral applications for premium packaging, embossing, and stamps",
+                    "Scale-resilient: 16px favicon to embossed luxury certificate",
                 ],
                 "applications": "Luxury labels, stamp marks, uniforms, premium merchandise",
                 "scalability": "Excellent for physical materials and embossed applications",
@@ -515,19 +685,20 @@ class BrandingAgent(SpecializedAgent):
             },
         ]
 
-        print(f"\n✨ AI GENERATED {len(concepts)} design concepts following:")
+        print(
+            f"\n✨ AI GENERATED {len(concepts)} design concepts tailored for {brand_name} ({industry})"
+        )
         for principle in self.knowledge_base.key_principles[:4]:
             print(f"  ✅ {principle}")
-
-        print(f"\n💡 All designs created by AI - no agency or freelancer fees")
+        print(f"\n💡 All designs created by AI — no agency or freelancer fees")
 
         recommendations = [
-            "✅ AI RECOMMENDATION: Proposal 01 as primary brand mark, Proposal 03 for digital-first alternates",
-            "🎨 Palette locked: Marble White + Brushed Gold + Charcoal Black as premium core",
+            f"✅ AI RECOMMENDATION: Proposal 01 ({initials} Monogram) as primary mark, Proposal 03 for digital-first",
+            f"🎨 Palette locked: {c1} + {c2} + {c3} as core identity for {industry}",
             "🔤 Typography path: test one elegant serif and one modern sans before final lock",
             "⏱️ Timeline: 2-3 weeks for finalization, production exports, and rollout kit",
-            "📦 AI DELIVERS: 4 polished logo proposals, social avatars, favicon set, and brand sheet",
-            "🔁 Migration: replace legacy amzgranite identity traces with SurfaceCraft Studio naming",
+            f"📦 AI DELIVERS: 4 polished {brand_name} logo proposals, social avatars, favicon set, brand sheet",
+            f"🎯 Strategy aligned with {len(strategic_objectives)} objective(s) for {industry} market positioning",
         ]
 
         return {
@@ -535,11 +706,11 @@ class BrandingAgent(SpecializedAgent):
             "design_concepts": concepts,
             "recommendations": recommendations,
             "deliverables": [
-                "✅ AI-DESIGNED: Four polished SurfaceCraft logo proposal systems",
-                "✅ AI-CREATED: Brand color standard built around Marble White / Brushed Gold / Charcoal Black",
+                f"✅ AI-DESIGNED: 4 polished {brand_name} logo systems (monogram, serif, sans, emblem)",
+                f"✅ AI-CREATED: {palette['name']} colour standard — {' / '.join(palette['color_names'][:3])}",
                 "✅ AI-PRODUCED: Typography pairing draft with serif + sans decision framework",
-                "✅ AI-GENERATED: Social profile kit and web-ready logo exports",
-                "✅ AI-RENDERED: Elegant brand mockups for signage, print, and digital hero",
+                f"✅ AI-GENERATED: Social profile kit and web-ready {initials} logo exports",
+                f"✅ AI-RENDERED: Brand mockups for signage, print, and digital hero — {palette['style']}",
             ],
             "action_plan_30_60_90": _build_30_60_90_plan(
                 agent_name=self.name,

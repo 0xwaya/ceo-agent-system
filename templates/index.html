@@ -104,6 +104,7 @@
                 <option value="Education">Education</option>
                 <option value="Transportation &amp; Logistics">Transportation &amp; Logistics</option>
                 <option value="Hospitality &amp; Tourism">Hospitality &amp; Tourism</option>
+                <option value="Entertainment">Entertainment</option>
                 <option value="Other">Other</option>
               </select>
             </div>
@@ -127,6 +128,11 @@
               <label>Timeline (days)</label>
               <input type="number" id="timeline"
                 value="{{ scenario_defaults.timeline | default(30) }}" min="30" max="365" />
+            </div>
+            <div class="v4-cfg-field">
+              <label>Strategic Objectives</label>
+              <textarea id="objectives" rows="6"
+                placeholder="Enter strategic objectives (one per line)&#10;e.g., Launch new product line&#10;Expand to 3 new markets">{{ scenario_defaults.objectives_text | default('') }}</textarea>
             </div>
             <div class="v4-cfg-actions">
               <button class="btn btn-secondary btn-small" id="analyzeBtn" type="button">

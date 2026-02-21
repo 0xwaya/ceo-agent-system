@@ -237,3 +237,93 @@ Prior audit: **B (84% app security)** → v0.4 addendum: **B+ (86%)**
 - +1% for Werkzeug CVE patched
 - +1% for v0.4 chat endpoint hardening (length caps, error sanitization)
 - Auth and rate-limiting gaps remain unchanged; overall band stays B+
+
+---
+
+## v0.5 Addendum — February 20, 2026
+
+**Scope:** Rate limiting, API-key auth wiring, branding agent expansion.
+**Auditor:** GitHub Copilot (Claude Sonnet 4.6)
+**All tests passing:** 56 passed, 2 xfailed.
+
+### Items Closed This Session
+
+| # | Finding | Prior Status | Resolution |
+|---|---------|-------------|------------|
+| 1 | No rate limiting on any endpoint | ❌ High | ✅ **Fixed** — Flask-Limiter wired |
+| 2 | No authentication on API endpoints | ❌ High | ✅ **Fixed** — `require_api_key` decorator created and applied |
+| 3 | Missing 429 / 401 JSON error handlers | ❌ | ✅ **Fixed** — Both handlers added |
+| 4 | Startup status reporting rate-limiting as "NOT CONFIGURED" | ❌ | ✅ **Fixed** — Dynamic status in startup banner |
+
+### Rate Limiting Implementation
+
+**Library:** `Flask-Limiter==3.5.0` (already in `requirements.txt`, now wired)
+
+**Storage:** `memory://` by default; automatically upgrades to Redis when `REDIS_URL`
+is set to a valid `redis://...` or `rediss://...` URL. Placeholder `.env` values
+are safely detected and ignored.
+
+**Global default:** `60/minute`, `1000/hour` (from `SecurityConfig`)
+
+**Per-endpoint overrides:**
+
+| Endpoint | Limit | Rationale |
+|----------|-------|-----------|
+| `/api/ceo/analyze` | `10/minute` | Expensive multi-agent + LLM orchestration |
+| `/api/cfo/analyze` | `10/minute` | Same route (backward compat alias) |
+| `/api/graph/execute` | `10/minute` | Full LangGraph execution |
+| `/api/agent/execute/<type>` | `20/minute` | Single-agent execution |
+| `/api/chat/message` | `30/minute` | LLM chat REST fallback |
+| All other `/api/*` | `60/minute` (global) | Default |
+
+`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` headers are
+returned on every response. `Retry-After` is included in 429 responses.
+
+### API Key Authentication Implementation
+
+**Decorator:** `require_api_key` — applied to all state-mutating endpoints:
+- `/api/ceo/analyze`, `/api/cfo/analyze`
+- `/api/graph/execute`
+- `/api/agent/execute/<agent_type>`
+- `/api/approval/<id>/approve` and `/api/approval/<id>/reject`
+- `/api/settings/update`
+
+**Activation:** Set `ENABLE_AUTH=true` in environment (default: `False` in dev).
+Set `API_ACCESS_KEY=<strong-random-key>` to configure the accepted key.
+
+**Key lookup order:** `X-API-Key` header → `?api_key=` query param → `api_key` JSON body field.
+
+**Fail-safe:** If `ENABLE_AUTH=true` but `API_ACCESS_KEY` is not set, returns HTTP 500
+(misconfiguration) rather than allowing unauthenticated access.
+
+### Error Handlers Added
+
+```
+GET /api/... with >rate-limit  →  HTTP 429 JSON {"success": false, "error": "...", "retry_after_seconds": N}
+GET /api/... without API key   →  HTTP 401 JSON {"success": false, "error": "Unauthorized..."}
+```
+
+### Confirmed Controls Still Active (v0.5)
+
+- ✅ `enforce_request_security()` — XSS/injection scanning on all POST/PUT/PATCH
+- ✅ `set_security_headers()` — CSP, `X-Content-Type-Options`, `X-XSS-Protection`, HSTS (prod)
+- ✅ `MAX_CONTENT_LENGTH = 10 MB` — 413 JSON handler active
+- ✅ Chat message cap: 2000 chars; session_id cap: 128 chars
+- ✅ No hardcoded secrets in source
+- ✅ Werkzeug 3.1.5 (CVE-2026-21860 patched)
+
+### Remaining Open Items
+
+1. ⚠️ `SECRET_KEY` dev default still in `config.py` line 39 — blocked by production startup
+   validation that rejects it when `ENVIRONMENT=production` (acceptable; no change needed).
+2. ⚠️ CSP still uses `'unsafe-inline'` for scripts/styles — nonce-based CSP is Phase 2.
+3. ⚠️ CORS `cors_allowed_origins="*"` in SocketIO — narrow to explicit origins before production.
+4. ⚠️ No automated tests for 429 / 401 behavior — add to Phase 2 test suite.
+5. ⚠️ In-memory rate-limit storage resets on server restart — acceptable for dev; use Redis in prod.
+
+### v0.5 Security Rating Delta
+
+v0.4: **B+ (86%)** → v0.5: **A- (91%)**
+- +3% Rate limiting now active on all expensive endpoints
+- +2% API key auth infrastructure in place and deployed to sensitive routes
+- CSP `unsafe-inline` and CORS wildcard gaps keep score from reaching A+

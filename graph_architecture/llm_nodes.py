@@ -1375,42 +1375,184 @@ def software_eng_llm_node(state: SharedState) -> Dict[str, Any]:
 # These run INSIDE the Martech subgraph, never directly from CEO.
 # =============================================================================
 
-_BRANDING_SYSTEM_PROMPT = """You are the Branding Agent node (Tier-3, within Martech subgraph).
-Apply: RISD visual identity, Nielsen Norman UX principles.
+_BRANDING_SYSTEM_PROMPT = """You are the Branding Agent — a senior brand strategist and creative director with expertise
+in visual identity, RISD design principles, and Nielsen Norman UX methodology.
 
-Output JSON:
+Your role is to create complete, actionable brand identities tailored to the specific company,
+industry, location, and strategic objectives provided. Be specific — no generic advice.
+
+Think through the brand architecture holistically:
+- Market positioning relative to industry competitors
+- Target audience psychographics and expectations
+- Visual identity that communicates the brand promise
+- Voice and tone that resonates with the target market
+- Practical deliverables the team can execute immediately
+
+Output valid JSON exactly matching this schema:
 {
-  "brand_summary": "<2-3 sentences>",
-  "brand_voice": "<adjectives>",
-  "color_palette": {"primary": "<hex>", "secondary": "<hex>", "accent": "<hex>"},
-  "typography": {"heading": "<font>", "body": "<font>"},
-  "logo_concept": "<description>",
-  "deliverables": ["<deliverable>", ...]
+  "brand_summary": "<3-4 sentences: company positioning, what makes this brand distinctive, and the emotional promise to customers>",
+  "brand_positioning": "<one sharp positioning statement: '[Company] is the only [category] that [differentiator] for [audience]'>",
+  "brand_voice": {
+    "adjectives": ["<adj1>", "<adj2>", "<adj3>", "<adj4>"],
+    "tone": "<how it sounds in writing>",
+    "avoid": "<what to never say or sound like>"
+  },
+  "color_palette": {
+    "primary": "<hex>",
+    "secondary": "<hex>",
+    "accent": "<hex>",
+    "neutral": "<hex>",
+    "rationale": "<why these colors fit this industry and audience>"
+  },
+  "typography": {
+    "heading": "<font name>",
+    "body": "<font name>",
+    "accent": "<font name or none>",
+    "rationale": "<why this type system fits>"
+  },
+  "logo_concept": {
+    "style": "<wordmark | lettermark | combination | emblem>",
+    "description": "<detailed concept: shape, symbolism, layout>",
+    "icon_motif": "<visual metaphor or symbol used, if any>"
+  },
+  "brand_kit_reference": {
+    "primary_color": "<hex>",
+    "secondary_color": "<hex>",
+    "accent_color": "<hex>",
+    "font_heading": "<font>",
+    "font_body": "<font>",
+    "logo_style": "<style>",
+    "industry_palette_rationale": "<one sentence>"
+  },
+  "design_concepts": [
+    {
+      "name": "<concept name>",
+      "description": "<what this concept communicates>",
+      "color_application": "<how colors are applied>",
+      "use_case": "<where this concept is used: digital, print, signage, etc.>"
+    }
+  ],
+  "strategic_alignment": "<how this brand identity supports the company's stated strategic objectives>",
+  "deliverables": [
+    "<deliverable 1>",
+    "<deliverable 2>",
+    "<deliverable 3>",
+    "<deliverable 4>",
+    "<deliverable 5>"
+  ],
+  "implementation_priorities": [
+    {"priority": 1, "item": "<most urgent deliverable>", "timeline": "<timeframe>"},
+    {"priority": 2, "item": "<second most urgent>", "timeline": "<timeframe>"},
+    {"priority": 3, "item": "<third>", "timeline": "<timeframe>"}
+  ]
 }
 """
 
 
 def branding_llm_node(state: SharedState) -> Dict[str, Any]:
     """Tier-3: Brand identity within the Martech subgraph."""
-    logger.info("  🎨 BRANDING: LLM identity design")
+    logger.info("  \U0001f3a8 BRANDING: LLM identity design")
     expert_raw = state.get("prompt_expert_output", {})
-    prompt = expert_raw.get("martech_task_prompt") or "Define brand identity for the company."
-    company = state.get("company_name", "Unknown")
-    industry = state.get("industry", "Unknown")
-    user_msg = f"BRANDING TASK: {prompt}\n\nCompany: {company}\nIndustry: {industry}"
+    prompt = (
+        expert_raw.get("martech_task_prompt")
+        or "Develop a complete brand identity for this company."
+    )
+    company = state.get("company_name", "the company")
+    industry = state.get("industry", "general business")
+    location = state.get("location", "")
+    objectives = state.get("strategic_objectives", [])
 
-    llm = _get_llm(temperature=0.4, max_tokens=600)
+    objectives_text = (
+        "\n".join(f"  - {obj}" for obj in objectives)
+        if objectives
+        else "  - (no objectives specified)"
+    )
+
+    user_msg = (
+        f"BRANDING TASK: {prompt}\n\n"
+        f"Company: {company}\n"
+        f"Industry: {industry}\n"
+        f"Location: {location}\n"
+        f"Strategic Objectives:\n{objectives_text}\n\n"
+        f"Create a brand identity that is specific to this company, industry, and market context. "
+        f"Every recommendation must tie directly to the company's objectives and target audience."
+    )
+
+    llm = _get_llm(temperature=0.5, max_tokens=1200)
     result = _call_structured(
         llm=llm,
         system_prompt=_BRANDING_SYSTEM_PROMPT,
         user_message=user_msg,
         fallback_fn=lambda: {
-            "brand_summary": "Modern professional brand identity (fallback).",
-            "brand_voice": "Professional, innovative, trustworthy",
-            "color_palette": {"primary": "#2563EB", "secondary": "#1E40AF", "accent": "#F59E0B"},
-            "typography": {"heading": "Inter", "body": "Inter"},
-            "logo_concept": "Clean wordmark with geometric icon",
-            "deliverables": ["Logo files (SVG/PNG)", "Brand guidelines PDF", "Color palette"],
+            "brand_summary": f"Professional brand identity for {company} in the {industry} market.",
+            "brand_positioning": f"{company} is the trusted {industry} partner for quality and results.",
+            "brand_voice": {
+                "adjectives": ["Professional", "Trustworthy", "Innovative", "Approachable"],
+                "tone": "Confident and clear, never condescending",
+                "avoid": "Jargon, passive voice, generic corporate-speak",
+            },
+            "color_palette": {
+                "primary": "#1E3A5F",
+                "secondary": "#2563EB",
+                "accent": "#F59E0B",
+                "neutral": "#F8FAFC",
+                "rationale": "Deep navy conveys authority; blue trust; amber energy and optimism.",
+            },
+            "typography": {
+                "heading": "Inter",
+                "body": "Inter",
+                "accent": "none",
+                "rationale": "Clean and modern; highly legible across digital and print.",
+            },
+            "logo_concept": {
+                "style": "combination",
+                "description": "Wordmark with a clean geometric icon representing the industry",
+                "icon_motif": "Abstract form referencing the core business activity",
+            },
+            "brand_kit_reference": {
+                "primary_color": "#1E3A5F",
+                "secondary_color": "#2563EB",
+                "accent_color": "#F59E0B",
+                "font_heading": "Inter",
+                "font_body": "Inter",
+                "logo_style": "combination",
+                "industry_palette_rationale": "Professional palette suited for the industry and target audience.",
+            },
+            "design_concepts": [
+                {
+                    "name": "Primary Identity",
+                    "description": "Core brand expression for all primary touchpoints",
+                    "color_application": "Navy background, white type, amber accents",
+                    "use_case": "Website, pitch decks, business cards",
+                },
+                {
+                    "name": "Digital Variant",
+                    "description": "Optimized for screens and social media",
+                    "color_application": "White background, navy type, blue highlights",
+                    "use_case": "Social profiles, email headers, app icons",
+                },
+            ],
+            "strategic_alignment": "Brand identity built to support growth objectives and market positioning.",
+            "deliverables": [
+                "Logo files (SVG, PNG, PDF — light and dark variants)",
+                "Brand guidelines document (colors, type, usage rules)",
+                "Business card template",
+                "Social media profile kit (cover + avatar sizes)",
+                "Email signature template",
+            ],
+            "implementation_priorities": [
+                {"priority": 1, "item": "Logo and brand guidelines", "timeline": "Week 1-2"},
+                {
+                    "priority": 2,
+                    "item": "Digital presence (website + social)",
+                    "timeline": "Week 2-4",
+                },
+                {
+                    "priority": 3,
+                    "item": "Print collateral (cards, signage)",
+                    "timeline": "Week 4-6",
+                },
+            ],
         },
     )
     return {"branding_output": result}

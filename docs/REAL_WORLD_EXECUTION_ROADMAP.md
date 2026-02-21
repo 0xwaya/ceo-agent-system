@@ -1275,3 +1275,273 @@ Once that works, expand to email → calendar → social → full automation.
 ---
 
 **Questions?** This roadmap is your blueprint. Start with Phase 1, validate each step, then move forward. Your architecture is solid - now it's time to connect the real-world APIs! 🚀
+
+---
+
+## Phase 5: Deliverable API Integrations
+
+The agents can now **reason, advise, and draft** — this phase wires them to real-world APIs so every output becomes an actual deliverable.
+
+---
+
+### 5.1 Document Creation
+
+| Tool | API / Library | Free Tier | Notes |
+|------|--------------|-----------|-------|
+| Google Docs | Google Docs API v1 (OAuth2) | Yes | Create / update docs programmatically |
+| Microsoft Word | Microsoft Graph API (`/documents`) | Yes (delegated) | 365 tenant required |
+| PDF Generation | WeasyPrint, ReportLab, PyMuPDF | Free / OSS | HTML → PDF pipeline |
+| Markdown → DOCX | `pandoc` CLI or `python-docx` | Free / OSS | Best for proposal letters |
+
+**Integration pattern (LangChain tool):**
+```python
+from googleapiclient.discovery import build
+
+def create_google_doc(title: str, markdown_content: str, creds) -> str:
+    """Creates a Google Doc and returns its URL."""
+    service = build("docs", "v1", credentials=creds)
+    doc = service.documents().create(body={"title": title}).execute()
+    # insert content as batch update requests …
+    return f"https://docs.google.com/document/d/{doc['documentId']}"
+```
+
+**Agent use-cases:**
+- CEO agent → partnership letter → Google Doc (sharable link in report)
+- Content agent → artist booking proposal → DOCX attachment
+- CFO agent → budget proposal → PDF via WeasyPrint
+
+---
+
+### 5.2 Presentations
+
+| Tool | API / Library | Notes |
+|------|--------------|-------|
+| Google Slides | Google Slides API v1 | OAuth2; full slide deck creation |
+| PowerPoint | `python-pptx` (OSS) | Local .pptx generation, no API key needed |
+| Beautiful.ai | Beautiful.ai REST API | AI-designed slides, paid tier |
+| Canva | Canva Connect API | Design-quality output, OAuth2 |
+
+**Recommended stack:** `python-pptx` for speed + Google Slides API for sharing.
+
+---
+
+### 5.3 Business Cards & Print
+
+| Tool | API | Free Tier |
+|------|-----|-----------|
+| MOO | MOO API (Beta) | No; per-order pricing |
+| Printful | Printful Catalog API | Free for product catalog |
+| Canva Connect | Canva Connect API | Generous free tier for designs |
+| Vistaprint | No public API | Use Canva → export PDF → manual order |
+
+**Workflow:** Brand agent generates brand kit → Canva API creates card design → export PDF → order via MOO API.
+
+---
+
+### 5.4 Brand Design & Visual Assets
+
+| Tool | API | Cost |
+|------|-----|------|
+| DALL-E 3 | OpenAI Images API (`dall-e-3`) | $0.04–$0.08/image |
+| Stable Diffusion | Stability AI REST API | $0.002–$0.02/image |
+| Adobe Firefly | Adobe Firefly API (beta) | Requires CC license |
+| Midjourney | No public API | Discord bot only |
+| Canva Text-to-Image | Canva Connect API | Included in Canva plan |
+
+**Agent use-case:** Branding agent calls DALL-E with `_build_dynamic_brand_svgs` context to produce logo concepts with the correct palette and industry cues.
+
+```python
+import openai
+
+def generate_logo_concept(brand_brief: dict) -> str:
+    prompt = (
+        f"Professional logo for {brand_brief['company_name']}, "
+        f"{brand_brief['industry']} industry. "
+        f"Color palette: {', '.join(brand_brief['colors'])}. "
+        f"Style: {brand_brief['style']}. White background, vector-style."
+    )
+    resp = openai.images.generate(model="dall-e-3", prompt=prompt, size="1024x1024")
+    return resp.data[0].url
+```
+
+---
+
+### 5.5 Video Creation & Editing
+
+| Tool | API | Use Case |
+|------|-----|----------|
+| Runway ML Gen-3 | Runway API | Text/image → video |
+| Synthesia | Synthesia API | AI presenter avatar videos |
+| ElevenLabs | ElevenLabs API | Professional voiceover synthesis |
+| FFmpeg | CLI / `ffmpeg-python` | Local video assembly / transcoding |
+| HeyGen | HeyGen API | Lip-sync avatar for pitch videos |
+
+**Workflow:** Content agent writes script → ElevenLabs generates voiceover → Synthesia renders presenter → FFmpeg assembles final MP4.
+
+---
+
+### 5.6 Email Handling
+
+| Tool | API | Free Tier |
+|------|-----|-----------|
+| SendGrid | SendGrid Web API v3 | 100 emails/day |
+| Resend | Resend API | 3,000 emails/month |
+| Gmail | Gmail API (OAuth2) | Free (send-as-user) |
+| Mailgun | Mailgun API | 1,000 emails/month (Flex) |
+
+**Integration pattern:**
+```python
+import resend
+
+resend.api_key = os.environ["RESEND_API_KEY"]
+
+def send_executive_email(to: str, subject: str, html_body: str) -> dict:
+    return resend.Emails.send({
+        "from": "ceo@yourdomain.com",
+        "to": [to],
+        "subject": subject,
+        "html": html_body,
+    })
+```
+
+**Guard rail:** All outbound emails require human approval before send (`REQUIRE_HUMAN_APPROVAL_FOR_EMAIL = True` in config).
+
+---
+
+### 5.7 Social Media Posting
+
+| Platform | API | Free Tier |
+|----------|-----|-----------|
+| Instagram / Facebook | Meta Graph API | Free (Business account) |
+| X / Twitter | Twitter API v2 | Free (1,500 tweets/month) |
+| LinkedIn | LinkedIn Marketing API | Free (member posts) |
+| Buffer | Buffer API | Free plan (3 channels) |
+| Hootsuite | Hootsuite API | Paid only |
+
+**Recommended stack:** Buffer API as unified scheduler; direct Graph API for Instagram Reels / Stories that need native media attachment.
+
+```python
+import requests
+
+def schedule_social_post(content: str, platforms: list[str], scheduled_at: str) -> dict:
+    """Queue via Buffer API."""
+    headers = {"Authorization": f"Bearer {os.environ['BUFFER_API_TOKEN']}"}
+    profile_ids = [os.environ[f"BUFFER_PROFILE_{p.upper()}"] for p in platforms]
+    return requests.post(
+        "https://api.bufferapp.com/1/updates/create.json",
+        headers=headers,
+        json={"text": content, "profile_ids": profile_ids, "scheduled_at": scheduled_at},
+    ).json()
+```
+
+---
+
+### 5.8 Website Creation & Deployment
+
+| Tool | API | Notes |
+|------|-----|-------|
+| Vercel | Vercel REST API | Deploy from GitHub or file upload |
+| Netlify | Netlify API | Drag-and-drop deploy via API |
+| WordPress | WordPress REST API | Create/update pages and posts |
+| Webflow | Webflow CMS API | No-code CMS content via API |
+| GitHub Pages | GitHub API + Actions | Free static hosting |
+
+**Workflow:** Web Dev agent generates static HTML/React scaffold → Netlify API deploys → returns live URL added to executive report.
+
+---
+
+### 5.9 Logistics & Delivery Planning
+
+| Tool | API | Free Tier |
+|------|-----|-----------|
+| Google Maps Platform | Directions / Distance Matrix API | $200/month credit |
+| OpenRouteService | ORS API | Free (2,000 req/day) |
+| Shippo | Shippo API | Free (pay per label) |
+| EasyPost | EasyPost API | Free (pay per label) |
+| Flexport | Flexport API | Enterprise |
+
+**Agent use-case:** Operations planning, event logistics, vendor routing, multi-stop venue tour routing for entertainment clients.
+
+---
+
+### 5.10 Hospitality, Restaurant & Travel
+
+| Tool | API | Free Tier |
+|------|-----|-----------|
+| Yelp Fusion | Yelp Fusion API | 500 req/day free |
+| Google Places | Places API (New) | $200/month credit |
+| OpenTable | OpenTable API | Partner program |
+| Expedia Partner | EPS Rapid API | Free dev sandbox |
+| Hotels.com | Rapid / Expedia API | Same EPS Rapid |
+| Amadeus | Amadeus API (flights/hotels) | Free test tier |
+
+**Agent use-case:** CEO/Content agent recommends client dinner venues by city, campaign launch hospitality, touring artist hotel/venue discovery.
+
+---
+
+### 5.11 Budget Proposals (Structured → Document)
+
+The CFO agent already outputs structured JSON budget proposals. This pipeline converts them to polished PDF deliverables:
+
+```
+CFO reasoning output (JSON)
+    → Jinja2 HTML template with budget tables
+    → WeasyPrint renders PDF
+    → Stored in static/generated_outputs/
+    → URL returned in executive report
+```
+
+**Libraries:** `weasyprint`, `jinja2`, `openpyxl` (for Excel export option)
+
+**Google Sheets integration:** CFO agent can push budget data directly to a shared Google Sheet via Sheets API v4 for live collaborative editing.
+
+---
+
+### Phase 5 Implementation Order
+
+```
+Week 1:  Document PDF (WeasyPrint) + python-pptx — zero API keys needed
+Week 2:  DALL-E brand image generation — one API key (OpenAI, already available)
+Week 3:  Email via Resend — one API key, instant value
+Week 4:  Google Docs + Slides — OAuth2 setup (most complex auth)
+Week 5:  Social posting via Buffer — one API key
+Week 6:  Hospitality search (Yelp + Google Places) — two API keys
+Week 7:  Video voiceover via ElevenLabs — one API key
+Week 8:  Website deploy via Netlify — one API key
+Week 9+: Logistics, travel, print-on-demand
+```
+
+### Environment Variables to Add
+
+```bash
+# Brand Design
+STABILITY_API_KEY=               # Stability AI
+
+# Email
+RESEND_API_KEY=
+SENDGRID_API_KEY=
+
+# Social
+BUFFER_API_TOKEN=
+BUFFER_PROFILE_INSTAGRAM=
+BUFFER_PROFILE_TWITTER=
+BUFFER_PROFILE_LINKEDIN=
+META_ACCESS_TOKEN=               # Facebook/Instagram Graph API
+
+# Hospitality / Places
+YELP_API_KEY=
+GOOGLE_PLACES_API_KEY=
+AMADEUS_CLIENT_ID=
+AMADEUS_CLIENT_SECRET=
+
+# Video / Voice
+ELEVENLABS_API_KEY=
+SYNTHESIA_API_KEY=
+
+# Deployment
+NETLIFY_ACCESS_TOKEN=
+VERCEL_API_TOKEN=
+
+# Sheets / Docs (OAuth2 service account JSON)
+GOOGLE_SERVICE_ACCOUNT_JSON=
+```
