@@ -238,29 +238,21 @@ active_sessions = {}
 
 shared_state_lock = threading.Lock()
 SCENARIO_SCHEMA_VERSION = 1
-DEV_SCENARIO_DEFAULTS_VERSION = "2026-02-15-dev-v1"
-PROD_SCENARIO_DEFAULTS_VERSION = "2026-02-15-prod-v1"
+DEV_SCENARIO_DEFAULTS_VERSION = "2026-02-21-dev-v2"
+PROD_SCENARIO_DEFAULTS_VERSION = "2026-02-21-prod-v2"
 
-DEFAULT_DEV_OBJECTIVES = [
-    "Launch AR platform showroom",
-    "Relaunch the company brand as SurfaceCraft Studio",
-    "Create a brand kit to be use across platforms",
-    "Create and maintain social media accounts and content creation",
-    "Possition the company in the highend exclusive market",
-    "Create all necessary agent to execute and manage customer caption and retention",
-    "Create sales agent to target residential and commercial contracts",
-    "Register as a minority business with the city of Cincinnati",
-    "Automate most processes that deals with outside sales",
-]
+# Dev scenario is intentionally blank — the user fills in their own company details
+# in the dashboard sidebar. No hardcoded training data here.
+DEFAULT_DEV_OBJECTIVES: list = []
 
-DEFAULT_DEV_SCENARIO = {
-    "company_name": "Amazon Granite LLC",
-    "dba_name": "SurfaceCraft Studio",
-    "industry": "Construction, Custom Countertops",
-    "location": "Cincinnati, OH",
-    "budget": 1000.0,
-    "timeline": 30,
-    "objectives": DEFAULT_DEV_OBJECTIVES,
+DEFAULT_DEV_SCENARIO: dict = {
+    "company_name": "",
+    "dba_name": "",
+    "industry": "",
+    "location": "",
+    "budget": 0.0,
+    "timeline": 90,
+    "objectives": [],
 }
 
 LEGACY_OBJECTIVE_MARKERS = {
@@ -364,7 +356,6 @@ def _looks_like_legacy_default_scenario(scenario: Dict[str, Any]) -> bool:
     if industry in {
         "Software & Technology",
         "AI Technology",
-        "Granite & Countertops",
         "General Business",
     }:
         marker_score += 1
@@ -916,17 +907,30 @@ def analyze_objectives():
                 data,
                 allowed_fields={
                     "company_name",
+                    "name",  # alias accepted
                     "dba_name",
                     "industry",
+                    "industry_other",
                     "location",
                     "objectives",
+                    "objectives_text",
                     "budget",
                     "timeline",
                     "updated_at",
+                    "meta",  # envelope metadata tolerated
+                    "source",
+                    "api_key",  # optional auth field
                 },
-                required_fields={"company_name", "industry", "location"},
+                required_fields={"industry", "location"},  # company_name OR name
                 payload_name="analyze",
             )
+            # Also accept payloads that have 'name' instead of 'company_name'
+            has_company = bool(data.get("company_name") or data.get("name"))
+            if not has_company:
+                allowlist_validation.valid = False
+                allowlist_validation.errors.append(
+                    "Missing required analyze field(s): company_name (or name)"
+                )
             if not allowlist_validation.valid:
                 print(f"❌ CEO/analyze allowlist rejected: {allowlist_validation.errors}")
                 return _allowlist_violation_response(allowlist_validation.errors, "analyze")
@@ -938,17 +942,18 @@ def analyze_objectives():
         if not CEO_AGENT_AVAILABLE:
             return jsonify({"success": False, "error": "CEO agent not available"}), 503
 
+        company_name_raw = data.get("company_name") or data.get("name", "Company")
         normalized_scenario = _normalize_scenario_context(
             {
-                "company_name": data.get("company_name"),
-                "name": data.get("company_name"),
-                "dba_name": data.get("dba_name") or data.get("company_name"),
+                "company_name": company_name_raw,
+                "name": company_name_raw,
+                "dba_name": data.get("dba_name") or company_name_raw,
                 "industry": data.get("industry"),
                 "location": data.get("location"),
                 "budget": data.get("budget", 5000),
                 "timeline": data.get("timeline", 90),
             },
-            data.get("objectives"),
+            data.get("objectives") or data.get("objectives_text"),
         )
         _update_shared_scenario_context(
             normalized_scenario,
@@ -1078,18 +1083,68 @@ def analyze_objectives():
             for risk in risk_items
         ]
 
+        # ── Build domain-grouped sections for comprehensive CEO report ────────────
+        domain_map = {
+            "branding": {"icon": "🎨", "label": "Brand & Identity"},
+            "web_development": {"icon": "💻", "label": "Technology & Web"},
+            "legal": {"icon": "⚖️", "label": "Legal & Compliance"},
+            "martech": {"icon": "📊", "label": "Marketing Technology"},
+            "content": {"icon": "✍️", "label": "Content Strategy"},
+            "campaigns": {"icon": "🚀", "label": "Campaigns & Growth"},
+            "social_media": {"icon": "📱", "label": "Social Media"},
+            "security": {"icon": "🔒", "label": "Security & Risk"},
+        }
+        domain_sections: dict = {}
+        for task in identified_tasks:
+            raw_domain = (
+                task.get("required_expertise")
+                or task.get("expertise_required")
+                or task.get("agent_type")
+                or "strategy"
+            ).lower()
+            key = raw_domain.replace(" ", "_")
+            meta = domain_map.get(key, {"icon": "📋", "label": raw_domain.replace("_", " ").title()})
+            if key not in domain_sections:
+                domain_sections[key] = {
+                    "icon": meta["icon"],
+                    "label": meta["label"],
+                    "tasks": [],
+                    "priority_tasks": [],
+                    "budget": result.get("budget_allocated", {}).get(key, 0),
+                }
+            domain_sections[key]["tasks"].append(task)
+            if str(task.get("priority", "")).upper() in ("CRITICAL", "HIGH"):
+                domain_sections[key]["priority_tasks"].append(
+                    task.get("task_name", task.get("description", "Task"))
+                )
+
         executive_summary = (
-            f"CEO identified {len(identified_tasks)} strategic tasks for "
-            f"{normalized_scenario['company_name']} with "
-            f"{len(pending_approval_items)} payment approvals pending."
+            f"CEO has completed multidisciplinary intake analysis for "
+            f"{normalized_scenario['company_name']} ({normalized_scenario['industry']}). "
+            f"Identified {len(identified_tasks)} strategic tasks across {len(domain_sections)} "
+            f"execution domains. Budget: ${float(normalized_scenario['budget']):,.0f} | "
+            f"Timeline: {int(normalized_scenario['timeline'])} days."
         )
+
+        ceo_directives = [
+            f"Establish {normalized_scenario['company_name']} executive operations and governance structure",
+            f"Orchestrate {len(domain_sections)} specialized agent workstreams simultaneously",
+            "Set budget governance thresholds and approval workflows for all domains",
+            "Drive weekly executive reviews and milestone accountability across all teams",
+            "Ensure all deliverables align with strategic objectives and market positioning",
+        ]
 
         response_payload = {
             "success": True,
+            # ── Core data ──────────────────────────────────────────────────────────
+            "company_name": normalized_scenario["company_name"],
+            "industry": normalized_scenario["industry"],
+            "location": normalized_scenario["location"],
+            "budget": float(normalized_scenario["budget"]),
+            "timeline": result.get("target_completion_days", int(normalized_scenario["timeline"])),
             "tasks": identified_tasks,
             "budget_allocation": result.get("budget_allocated", {}),
             "risks": risk_items,
-            "timeline": result.get("target_completion_days", 90),
             "pending_approvals": pending_approval_items,
             "top_priorities": top_priorities,
             "immediate_actions": immediate_actions,
@@ -1098,7 +1153,15 @@ def analyze_objectives():
             "risk_summary": risk_lines[:5],
             "executive_report_markdown": result.get("final_executive_summary", ""),
             "execution_mode": "AI_PERFORMED",
-            # Prompt Expert enrichment metadata surfaced to the frontend
+            # ── CEO hierarchy report ───────────────────────────────────────────────
+            "ceo_directives": ceo_directives,
+            "domain_sections": domain_sections,
+            "opportunities": result.get("opportunities", []),
+            "milestones": result.get("milestones", []),
+            # ── Strategic recommendations & discovery questions ─────────────────
+            "recommendations": result.get("recommendations", []),
+            "discovery_questions": result.get("discovery_questions", []),
+            # ── Prompt Expert enrichment metadata ──────────────────────────────────
             "prompt_expert": {
                 "intent_summary": _pe_meta.get("intent_summary", ""),
                 "primary_domain": _pe_meta.get("primary_domain", ""),
@@ -1360,6 +1423,16 @@ def execute_agent(agent_type):
     """Execute a specific specialized agent"""
     normalized_agent_type = "branding" if agent_type.lower() == "designer" else agent_type
     data = getattr(g, "sanitized_json", request.json or {})
+
+    # Defensive guard: ensure data is always a dict
+    if not isinstance(data, dict):
+        data = {}
+
+    print(
+        f"🤖 agent/execute/{agent_type} — received keys: "
+        f"{sorted(data.keys()) if data else '(empty)'}"
+    )
+
     if UTILS_AVAILABLE:
         allowlist_validation = validate_payload_allowlist(
             data,
@@ -1368,10 +1441,17 @@ def execute_agent(agent_type):
             payload_name="agent_execute",
         )
         if not allowlist_validation.valid:
+            print(f"❌ agent/execute allowlist rejected (top-level): {allowlist_validation.errors}")
             return _allowlist_violation_response(allowlist_validation.errors, "agent_execute")
 
-        company_info_validation = validate_company_info_allowlist(data.get("company_info", {}))
+        # Use `or {}` so that JSON null also defaults to empty dict
+        raw_company_info = data.get("company_info") or {}
+        company_info_validation = validate_company_info_allowlist(raw_company_info)
         if not company_info_validation.valid:
+            print(
+                f"❌ agent/execute allowlist rejected (company_info): {company_info_validation.errors}"
+            )
+            print(f"   company_info received: {raw_company_info}")
             return _allowlist_violation_response(company_info_validation.errors, "agent_execute")
 
     try:
@@ -1401,6 +1481,10 @@ def _execute_executive_agent(agent_type: str, data: dict) -> dict:
         "deliverables": [],
     }
 
+    strategic_objectives = data.get("strategic_objectives") or [task]
+    budget_val = float(company_info.get("budget") or 5000)
+    timeline_val = int(company_info.get("timeline") or 90)
+
     if agent_type == "ceo" and CEO_AGENT_AVAILABLE:
         try:
             state = {
@@ -1408,20 +1492,39 @@ def _execute_executive_agent(agent_type: str, data: dict) -> dict:
                 "industry": industry,
                 "location": location,
                 "business_goals": [],
-                "strategic_objectives": [task],
+                "strategic_objectives": strategic_objectives,
+                # Budget management — required by ceo_analyze
+                "total_budget": budget_val,
+                "budget_allocated": {},
+                "budget_reserved_for_fees": 0,
+                "pending_approvals": [],
+                "approved_actions": [],
+                "rejected_actions": [],
+                "pending_payments": [],
+                # Timeline
+                "target_completion_days": timeline_val,
+                "current_day": 0,
+                "milestones": [],
+                # Agents
+                "active_agents": [],
+                "agent_outputs": [],
                 "agent_status": {},
                 "delegated_tasks": {},
+                # Tasks
                 "identified_tasks": [],
                 "assigned_tasks": {},
                 "completed_tasks": [],
                 "blocked_tasks": [],
+                # Risk
                 "risks": [],
                 "risk_mitigation_plans": {},
                 "opportunities": [],
                 "opportunity_analysis": [],
+                # Deliverables
                 "deliverables": [],
                 "status_reports": [],
                 "final_executive_summary": "",
+                # Governance
                 "guard_rail_violations": [],
                 "liability_warnings": [],
                 "compliance_status": {},

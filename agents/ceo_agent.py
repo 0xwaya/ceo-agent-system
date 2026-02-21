@@ -93,6 +93,10 @@ class CEOAgentState(TypedDict):
     status_reports: Annotated[list[str], operator.add]
     final_executive_summary: str
 
+    # CEO strategic output (set, not appended)
+    recommendations: list
+    discovery_questions: list
+
     # Workflow Control
     current_phase: str
     completed_phases: Annotated[list[str], operator.add]
@@ -132,118 +136,186 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
     print("\n\n🎯 EXECUTIVE DECISION - TASK DECOMPOSITION:")
     print("-" * 80)
 
-    # CEO identifies tasks (similar to old CFO, but with executive framing)
+    # ── Contextual task templates ────────────────────────────────────────────
+    industry = state.get("industry", "Business").strip()
+    company = state.get("company_name", "the company")
+    total_bud = float(state.get("total_budget", 5000) or 5000)
+    objectives_text = " ".join(str(o) for o in objectives).lower()
+
+    # Scale budgets proportionally so they fit inside the declared budget
+    def scaled(pct: float, min_val: float = 50, max_val: float = None) -> float:
+        val = round(total_bud * pct, -1)  # round to nearest $10
+        if max_val:
+            val = min(val, max_val)
+        return max(val, min_val)
+
+    # Detect vertical so we can tune descriptions
+    is_entertainment = any(
+        w in industry.lower() for w in ("entertain", "event", "music", "concert", "venue")
+    )
+    is_food = any(w in industry.lower() for w in ("food", "restaurant", "beverage", "cafe"))
+    is_retail = any(w in industry.lower() for w in ("retail", "shop", "store", "ecommerce"))
+    is_tech = any(w in industry.lower() for w in ("tech", "software", "saas", "app"))
+
+    # T003 — digital presence: generic, no AR unless explicitly requested
+    if is_entertainment:
+        t003_name = "Digital Presence & Event Ticketing Platform"
+        t003_desc = f"Build website, event calendar, and ticketing integration for {company}"
+    elif is_food:
+        t003_name = "Digital Presence — Website & Online Ordering"
+        t003_desc = (
+            f"Build website with menu, online ordering, and reservation system for {company}"
+        )
+    elif is_retail:
+        t003_name = "Digital Presence — E-Commerce & SEO"
+        t003_desc = (
+            f"Build e-commerce website with payment processing and search visibility for {company}"
+        )
+    elif is_tech:
+        t003_name = "Product Website & Developer Documentation"
+        t003_desc = f"Build marketing site, product docs, and onboarding flow for {company}"
+    else:
+        t003_name = "Digital Presence — Website & Online Visibility"
+        t003_desc = f"Build website, SEO foundation, and digital discovery channels for {company}"
+
+    # T004 — martech
+    if is_entertainment:
+        t004_desc = (
+            "Ticketing analytics, email marketing, audience CRM, and social scheduling tools"
+        )
+    elif is_tech:
+        t004_desc = "Product analytics, customer success tooling, and growth experimentation stack"
+    else:
+        t004_desc = "CRM, email marketing, analytics, and marketing automation setup"
+
+    # T005 — content
+    if is_entertainment:
+        t005_desc = (
+            "Event announcements, artist profiles, press releases, and social content calendar"
+        )
+    else:
+        t005_desc = "Create marketing content, photography plan, videos, and editorial calendar"
+
+    # T006 — campaigns
+    if is_entertainment:
+        t006_desc = "Multi-channel campaign: paid social, email blasts, influencer outreach, and pre-sale promotions"
+        t006_payment = "advertising_spend"
+    else:
+        t006_desc = "Multi-channel marketing campaign execution across paid and organic channels"
+        t006_payment = "advertising_spend"
+
     identified_tasks = [
         {
             "task_id": "T001",
             "task_name": "Legal Foundation & Compliance",
-            "description": "Establish legal entity, DBA registration, trademark protection",
+            "description": f"Establish legal entity, DBA registration, business licenses, and trademark protection for {company}",
             "required_expertise": "legal",
             "priority": "CRITICAL",
-            "executive_rationale": "Legal foundation protects company from liability and establishes market presence",
+            "executive_rationale": "Legal foundation protects the company from liability and establishes a legitimate market presence",
             "dependencies": [],
-            "estimated_budget": 500,
-            "requires_payment": True,  # Legal filing fees
+            "estimated_budget": scaled(0.10, 200, 800),
+            "requires_payment": True,
             "payment_type": "government_filing_fees",
             "estimated_days": 21,
-            "risk_level": "HIGH",  # Not doing this = major liability
+            "risk_level": "HIGH",
             "success_criteria": [
-                "DBA registered with local government",
-                "Trademark search completed",
+                "Legal entity registered",
+                "DBA or trademark filed",
                 "Business licenses obtained",
             ],
         },
         {
             "task_id": "T002",
             "task_name": "Brand Identity Development",
-            "description": "Establish visual identity, logo, brand guidelines",
+            # ── FIRST deliverable: starts in parallel with Legal ──
+            "description": f"Design logo, visual system, brand voice, and complete brand guidelines for {company}",
             "required_expertise": "branding",
             "priority": "CRITICAL",
-            "executive_rationale": "Brand identity drives customer perception and market differentiation",
-            "dependencies": ["T001"],
-            "estimated_budget": 120,  # Design tools subscription only
-            "requires_payment": False,  # No payment, just API usage
-            "estimated_days": 28,
+            "executive_rationale": "A strong brand identity is the foundation of customer perception and drives every downstream creative asset",
+            "dependencies": [],  # Runs in parallel with T001 — no blocking dependency
+            "estimated_budget": scaled(0.06, 80, 300),
+            "requires_payment": False,
+            "estimated_days": 14,
             "risk_level": "MEDIUM",
             "success_criteria": [
                 "Logo designed following golden ratio principles",
-                "Brand guidelines documented",
-                "Asset templates created",
+                "Full brand guidelines documented (colors, fonts, tone)",
+                "Brand asset pack created (print, digital, social formats)",
             ],
         },
         {
             "task_id": "T003",
-            "task_name": "Digital Presence - Website & AR",
-            "description": "Build website with AR countertop visualization",
+            "task_name": t003_name,
+            "description": t003_desc,
             "required_expertise": "web_development",
             "priority": "HIGH",
-            "executive_rationale": "Modern customers expect digital experiences; AR provides competitive advantage",
+            "executive_rationale": "Digital presence is the primary discovery channel for new customers; critical for revenue generation",
             "dependencies": ["T002"],
-            "estimated_budget": 35000,
-            "requires_payment": True,  # Development costs
+            "estimated_budget": scaled(0.20, 300, 5000),
+            "requires_payment": True,
             "payment_type": "service_subscription",
-            "estimated_days": 91,
+            "estimated_days": 45,
             "risk_level": "MEDIUM",
             "success_criteria": [
-                "Website deployed and functional",
-                "AR visualization working",
-                "Performance metrics: Lighthouse >90",
+                "Website live and functional",
+                "Mobile-responsive and fast-loading",
+                "SEO metadata and sitemap submitted",
             ],
         },
         {
             "task_id": "T004",
             "task_name": "Marketing Technology Stack",
-            "description": "CRM, analytics, automation setup",
+            "description": t004_desc,
             "required_expertise": "martech",
             "priority": "MEDIUM",
-            "executive_rationale": "Data-driven marketing maximizes ROI and tracks customer journey",
+            "executive_rationale": "Data-driven marketing maximizes ROI and provides actionable insights on customer journey",
             "dependencies": ["T003"],
-            "estimated_budget": 200,
-            "requires_payment": True,  # Software subscriptions
+            "estimated_budget": scaled(0.05, 50, 400),
+            "requires_payment": True,
             "payment_type": "software_subscription",
             "estimated_days": 14,
             "risk_level": "LOW",
             "success_criteria": [
-                "CRM configured and operational",
-                "Analytics tracking implemented",
-                "Marketing automation flows active",
+                "CRM configured with lead pipeline",
+                "Analytics tracking live",
+                "Marketing automation sequences active",
             ],
         },
         {
             "task_id": "T005",
             "task_name": "Content Strategy & Production",
-            "description": "Create marketing content, photography, videos",
+            "description": t005_desc,
             "required_expertise": "content",
             "priority": "MEDIUM",
-            "executive_rationale": "Quality content educates customers and builds trust",
+            "executive_rationale": "Quality content educates customers, builds authority, and supports organic discovery",
             "dependencies": ["T002"],
-            "estimated_budget": 150,
-            "requires_payment": False,  # Content tools only
-            "estimated_days": 42,
+            "estimated_budget": scaled(0.05, 50, 300),
+            "requires_payment": False,
+            "estimated_days": 30,
             "risk_level": "LOW",
             "success_criteria": [
-                "Content calendar established",
-                "Initial content produced",
-                "SEO strategy implemented",
+                "60-day content calendar created",
+                "Initial content assets produced",
+                "SEO keyword strategy documented",
             ],
         },
         {
             "task_id": "T006",
             "task_name": "Campaign Launch & Execution",
-            "description": "Multi-channel marketing campaign execution",
+            "description": t006_desc,
             "required_expertise": "campaigns",
             "priority": "HIGH",
-            "executive_rationale": "Strategic campaigns drive customer acquisition and revenue growth",
+            "executive_rationale": "Strategic campaigns drive customer acquisition, brand awareness, and initial revenue",
             "dependencies": ["T004", "T005"],
-            "estimated_budget": 3000,
-            "requires_payment": True,  # Ad spend
-            "payment_type": "advertising_spend",
+            "estimated_budget": scaled(0.30, 200, None),
+            "requires_payment": True,
+            "payment_type": t006_payment,
             "estimated_days": 60,
             "risk_level": "MEDIUM",
             "success_criteria": [
-                "Campaign launched across channels",
-                "Lead generation targets met",
-                "ROI tracking implemented",
+                "Campaign live across priority channels",
+                "Lead generation or ticket sales initiated",
+                "Performance tracking dashboard operational",
             ],
         },
     ]
@@ -322,11 +394,82 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
 
     state["budget_reserved_for_fees"] = api_budget
 
-    print(f"\n\n✅ CEO STRATEGIC ANALYSIS COMPLETE")
+    # ── Strategic Recommendations ────────────────────────────────────────────
+    budget_shortfall = total_budget_required > total_bud
+    recommendations = [
+        (
+            f"Run Legal (T001) and Brand Identity (T002) in parallel from Day 1 to compress "
+            f"the critical path by up to {identified_tasks[1].get('estimated_days', 14)} days."
+        ),
+        (
+            f"With a ${total_bud:,.0f} budget, prioritize owned-media channels "
+            f"(SEO, email, social) before paid advertising to extend runway and build compounding assets."
+        ),
+        (
+            "Establish clear success KPIs for each domain before deploying agents so ROI is "
+            "measurable from day 1 \u2014 track CAC, conversion rate, and brand recall."
+        ),
+        (
+            "Build a reusable content library in the first 30 days; assets created for the website "
+            "and brand kit should be repurposed across all marketing channels."
+        ),
+        (
+            f"Phase your technology investment: launch an MVP in 45 days, then iterate based on "
+            f"real customer feedback before committing to larger platform features."
+        ),
+    ]
+    if budget_shortfall:
+        recommendations.insert(
+            0,
+            f"\u26a0\ufe0f Budget alert: estimated task cost exceeds your declared budget by "
+            f"${total_budget_required - total_bud:,.0f}. "
+            "Consider deferring payment-gated tasks to Phase 2 or securing additional capital before launch.",
+        )
+
+    # ── CEO Discovery Questions (financial & operational state) ──────────────
+    discovery_questions = [
+        {
+            "category": "Financial",
+            "icon": "\ud83d\udcb0",
+            "question": "What is your current monthly revenue, or are you pre-revenue? "
+            "This determines how aggressively we can invest in growth vs. foundation.",
+        },
+        {
+            "category": "Financial",
+            "icon": "\ud83c\udfe6",
+            "question": "Beyond the stated project budget, what is your total operating runway "
+            "(months of capital)? This shapes our risk tolerance and phasing decisions.",
+        },
+        {
+            "category": "Operational",
+            "icon": "\ud83d\udc65",
+            "question": "Do you have existing staff, co-founders, or contractors we should factor "
+            "into task delegation, or will agents handle all execution?",
+        },
+        {
+            "category": "Operational",
+            "icon": "\ud83e\udd1d",
+            "question": "Are there existing vendor relationships, contracts, or partnerships "
+            "already in place that agents should be aware of before outreach?",
+        },
+        {
+            "category": "Market",
+            "icon": "\ud83c\udfaf",
+            "question": "Do you have paying customers or signed LOIs today? "
+            "Existing demand changes our prioritization \u2014 retention before acquisition.",
+        },
+    ]
+
+    state["recommendations"] = recommendations
+    state["discovery_questions"] = discovery_questions
+
+    print(f"\n\n\u2705 CEO STRATEGIC ANALYSIS COMPLETE")
     print(f"  Tasks Identified: {len(identified_tasks)}")
     print(f"  Pending User Approvals: {len(state['pending_approvals'])}")
     print(f"  CFO Budget (API/Tools): ${api_budget:,.0f}")
     print(f"  Requires User Approval: ${service_budget:,.0f}")
+    print(f"  Recommendations: {len(recommendations)}")
+    print(f"  Discovery Questions: {len(discovery_questions)}")
 
     return state
 

@@ -189,26 +189,52 @@ class ArtifactService:
                 )
 
             palette_path = run_dir / "brand_palette.css"
-            self._write_text(
-                palette_path,
-                "\n".join(
-                    [
-                        ":root {",
-                        "  --brand-marble-white: #F8F8F6;",
-                        "  --brand-brushed-gold: #D4AF37;",
-                        "  --brand-charcoal-black: #121212;",
-                        "  --brand-slate-gray: #5F6772;",
-                        "  --brand-midnight-navy: #1C2333;",
-                        "}",
-                    ]
-                ),
-            )
+            # Build dynamic palette CSS from actual brand_kit_reference colors
+            _bk = result.get("brand_kit_reference") or {}
+            _hex_map = (_bk.get("color_palette") or {}).get("hex") or {}
+            if not _hex_map:
+                # fallback: pull from first design concept
+                for _c in (result.get("design_concepts") or [])[:1]:
+                    _colors = _c.get("colors") or []
+                    _names = _c.get("color_names") or [f"color-{i}" for i in range(len(_colors))]
+                    _hex_map = dict(zip(_names, _colors))
+            _css_lines = [":root {"]
+            for _col_name, _col_hex in list(_hex_map.items())[:8]:
+                _var = "--brand-" + re.sub(r"[^a-z0-9]+", "-", _col_name.lower()).strip("-")
+                _css_lines.append(f"  {_var}: {_col_hex};")
+            if not _hex_map:
+                _css_lines += [
+                    "  --brand-primary: #667eea;",
+                    "  --brand-secondary: #764ba2;",
+                    "  --brand-accent: #f59e0b;",
+                    "  --brand-neutral: #f8f8f6;",
+                ]
+            _css_lines.append("}")
+            self._write_text(palette_path, "\n".join(_css_lines))
             artifacts.append(
                 self._artifact_entry(palette_path, "Brand Palette Tokens", "file", "text/css")
             )
 
             moodboard_path = run_dir / "brand_moodboard.svg"
-            self._write_text(moodboard_path, self._build_brand_moodboard_svg())
+            # Extract company name from brand_kit_reference (always populated by branding agent)
+            _mb_company = (
+                (result.get("brand_kit_reference") or {}).get("brand_name")
+                or result.get("company_name")
+                or result.get("brand_name")
+                or ""
+            )
+            # Extract palette colors from concepts' 'colors' list (hex strings)
+            _mb_palette = []
+            for concept in result.get("design_concepts") or []:
+                for col in concept.get("colors") or concept.get("color_palette") or []:
+                    if isinstance(col, dict):
+                        _mb_palette.append(col.get("hex") or col.get("value") or "")
+                    elif isinstance(col, str) and col.startswith("#"):
+                        _mb_palette.append(col)
+            self._write_text(
+                moodboard_path,
+                self._build_brand_moodboard_svg(_mb_company, _mb_palette or None),
+            )
             artifacts.append(
                 self._artifact_entry(moodboard_path, "Brand Moodboard", "image", "image/svg+xml")
             )
@@ -303,6 +329,94 @@ class ArtifactService:
                     stack_path, self._build_list_markdown("MarTech Stack", stack_items)
                 )
                 artifacts.append(self._artifact_entry(stack_path, "MarTech Stack", "markdown"))
+
+        if agent_type == "security":
+            deliverables = result.get("deliverables") or []
+            best_practices = result.get("best_practices") or []
+            recommendations = result.get("recommendations") or []
+            audit_path = run_dir / "security_audit_report.md"
+            audit_lines = ["# Security Audit Report", ""]
+            if best_practices:
+                audit_lines += (
+                    ["## Security Best Practices", ""] + [f"- {bp}" for bp in best_practices] + [""]
+                )
+            if recommendations:
+                audit_lines += (
+                    ["## Recommendations", ""] + [f"- {r}" for r in recommendations] + [""]
+                )
+            if deliverables:
+                audit_lines += ["## Deliverables", ""] + [f"- {d}" for d in deliverables] + [""]
+            self._write_text(audit_path, "\n".join(audit_lines))
+            artifacts.append(self._artifact_entry(audit_path, "Security Audit Report", "markdown"))
+
+            report_data = result.get("security_report") or result.get("report") or {}
+            if report_data:
+                report_path = run_dir / "security_report.json"
+                self._write_json(report_path, report_data)
+                artifacts.append(self._artifact_entry(report_path, "Security Report Data", "json"))
+
+            vuln_items = result.get("vulnerabilities") or result.get("risks_identified") or []
+            if vuln_items:
+                vuln_path = run_dir / "vulnerability_checklist.md"
+                self._write_text(
+                    vuln_path,
+                    self._build_list_markdown("Vulnerability Checklist", vuln_items),
+                )
+                artifacts.append(
+                    self._artifact_entry(vuln_path, "Vulnerability Checklist", "markdown")
+                )
+
+        if agent_type == "social_media":
+            deliverables = result.get("deliverables") or []
+            content_calendar = result.get("content_calendar") or []
+            campaign_ideas = result.get("campaign_ideas") or []
+            playbook = result.get("community_playbook") or ""
+
+            if content_calendar or deliverables:
+                calendar_items = content_calendar if content_calendar else deliverables
+                calendar_path = run_dir / "social_content_calendar.md"
+                cal_lines = ["# Social Media Content Calendar", ""]
+                for entry in calendar_items:
+                    if isinstance(entry, dict):
+                        platform = entry.get("platform", "")
+                        post = entry.get("post", entry.get("content", entry.get("caption", "")))
+                        date = entry.get("date", entry.get("day", entry.get("week", "")))
+                        label = f"({date})" if date else ""
+                        cal_lines.append(f"- **{platform}** {label}: {post}")
+                    else:
+                        cal_lines.append(f"- {entry}")
+                self._write_text(calendar_path, "\n".join(cal_lines))
+                artifacts.append(
+                    self._artifact_entry(calendar_path, "Social Content Calendar", "markdown")
+                )
+
+            if campaign_ideas:
+                campaigns_path = run_dir / "social_campaigns.md"
+                camp_lines = ["# Social Media Campaign Ideas", ""]
+                for c in campaign_ideas:
+                    if isinstance(c, dict):
+                        title = c.get("campaign", c.get("name", "Campaign"))
+                        platform = c.get("platform", "")
+                        obj = c.get("objective", "")
+                        camp_lines.append(f"## {title}")
+                        if platform:
+                            camp_lines.append(f"**Platform:** {platform}")
+                        if obj:
+                            camp_lines.append(f"**Objective:** {obj}")
+                        camp_lines.append("")
+                    else:
+                        camp_lines.append(f"- {c}")
+                self._write_text(campaigns_path, "\n".join(camp_lines))
+                artifacts.append(
+                    self._artifact_entry(campaigns_path, "Social Campaign Ideas", "markdown")
+                )
+
+            if playbook:
+                playbook_path = run_dir / "community_playbook.md"
+                self._write_text(playbook_path, f"# Community Playbook\n\n{playbook}")
+                artifacts.append(
+                    self._artifact_entry(playbook_path, "Community Playbook", "markdown")
+                )
 
         return artifacts
 
@@ -424,24 +538,32 @@ class ArtifactService:
                 return f"{match.group(1)}{match.group(2)}".upper()
         return ""
 
-    def _build_brand_moodboard_svg(self) -> str:
+    def _build_brand_moodboard_svg(self, company_name: str = "", palette: list = None) -> str:
+        """Build a dynamic brand moodboard SVG using the company's own name and palette."""
+        display_name = self._xml_escape(company_name) if company_name else "Your Brand"
+        # Build colour swatches from palette (up to 4) or use neutral defaults
+        default_colors = ["#F8F8F6", "#D4AF37", "#121212", "#5F6772"]
+        colors = (list(palette or [])[:4] + default_colors)[:4]
+        swatch_x = 120
+        swatches = ""
+        for c in colors:
+            hex_val = self._xml_escape(str(c))
+            swatches += (
+                f'<rect x="{swatch_x}" y="150" width="220" height="220" ' f'fill="{hex_val}"/>'
+            )
+            swatch_x += 240
         return (
             '<svg xmlns="http://www.w3.org/2000/svg" '
             'width="1200" height="700" viewBox="0 0 1200 700">'
             '<rect width="1200" height="700" fill="#101113"/>'
             '<rect x="70" y="70" width="1060" height="560" rx="24" fill="#F8F8F6"/>'
-            '<rect x="120" y="150" width="220" height="220" fill="#F8F8F6" stroke="#D4AF37"/>'
-            '<rect x="360" y="150" width="220" height="220" fill="#D4AF37"/>'
-            '<rect x="600" y="150" width="220" height="220" fill="#121212"/>'
-            '<rect x="840" y="150" width="220" height="220" fill="#5F6772"/>'
-            '<text x="120" y="450" font-size="44" fill="#121212" '
-            'font-weight="700">SurfaceCraft Studio</text>'
+            + swatches
+            + f'<text x="120" y="450" font-size="44" fill="#121212" '
+            f'font-weight="700">{display_name}</text>'
             '<text x="120" y="495" font-size="26" fill="#2E3138">'
-            "Marble White / Brushed Gold / Charcoal Black"
-            "</text>"
+            "Brand Moodboard \u2022 Colour Palette</text>"
             '<text x="120" y="560" font-size="22" fill="#555B66">'
-            "Luxury material brand moodboard • AI generated review board"
-            "</text>"
+            "AI-generated brand identity review board</text>"
             "</svg>"
         )
 

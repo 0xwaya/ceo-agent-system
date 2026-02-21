@@ -1,4 +1,4 @@
-# Architecture Documentation — Multi-Agent System v0.4
+# Architecture Documentation — Multi-Agent System v0.5
 
 ## Table of Contents
 
@@ -14,7 +14,7 @@
 
 ## Overview
 
-The Multi-Agent System is a professional-grade, enterprise-ready platform for orchestrating AI agents to execute complex business workflows. **Version 0.4** extends the 3-tier LangGraph with a CTO node, real-time LLM chat, and 3-panel dashboard redesign:
+The Multi-Agent System is a professional-grade, enterprise-ready platform for orchestrating AI agents to execute complex business workflows. **Version 0.5** extends v0.4 with a fully dynamic artifact pipeline, security/social domain artifacts, brand palette generation from live agent output, and scenario defaults versioning:
 
 - **Prompt Expert Agent**: Parses raw user commands into structured routing signals before the CEO sees them
 - **CTO Agent (Tier 1)**: `cto_llm_architecture_node` — architecture review, tech-stack decisions, `TIER1_NODE_MAP` registry
@@ -25,21 +25,26 @@ The Multi-Agent System is a professional-grade, enterprise-ready platform for or
 - **Role-gated tool registry**: `tools.py` enforces domain permissions before any tool executes
 - **Real-time LLM chat**: Per-agent conversational memory, SocketIO `ai_chat_request/response`, REST `/api/chat/message`
 - **3-Panel dashboard**: Fixed header · 240 px sidebar · flex centre · 340 px chat panel
+- **Artifact pipeline (v0.5)**: Every agent run saves domain-specific files; artifacts are rendered in report UI
 
 ### Key Improvements
 
-| Aspect | v0.1 | v0.2 | v0.3 | v0.4 |
-| --- | --- | --- | --- | --- |
-| State Management | Mutable dicts | Immutable Pydantic models | TypedDicts + Pydantic + `dispatch_plan` | Same + `chat_history`, `cto_*` fields |
-| Agent Coverage | 1 agent | CFO + Engineer + Researcher | 6 Tier-2 + 7 Tier-3 agents | + CTO (Tier 1), `TIER1_NODE_MAP` |
-| Routing | Hard-coded | Phase-based | LLM-driven `dispatch_plan` loop | Same + tab-driven UI |
-| Intent Parsing | None | None | **Prompt Expert** (Node 0) | Same |
-| LLM Architecture | Inline | Inline | Centralised `llm_nodes.py` | + `cto_llm_architecture_node` |
-| Tool Calling | Ad-hoc | Ad-hoc | Role-gated `tools.py` registry | Same |
-| Security Domain | None | None | Full Tier-2 subgraph | Same + security audit (2026-02-17) |
-| Chat | None | None | Keyword fallback only | **LLM chat** — per-agent memory, SocketIO, REST |
-| UI Layout | Single scroll | Single scroll | Single scroll | **3-panel** — sidebar · centre · chat |
-| Testing | Manual only | Test-ready | 33 tests | 33 + v0.4 feature tests |
+| Aspect | v0.1 | v0.2 | v0.3 | v0.4 | v0.5 |
+| --- | --- | --- | --- | --- | --- |
+| State Management | Mutable dicts | Immutable Pydantic models | TypedDicts + `dispatch_plan` | Same + `chat_history`, `cto_*` | Same |
+| Agent Coverage | 1 agent | CFO + Engineer + Researcher | 6 Tier-2 + 7 Tier-3 agents | + CTO (Tier 1) | Same |
+| Routing | Hard-coded | Phase-based | LLM `dispatch_plan` loop | Same + tab UI | Same |
+| Intent Parsing | None | None | **Prompt Expert** (Node 0) | Same | Same |
+| LLM Architecture | Inline | Inline | Centralised `llm_nodes.py` | + `cto_llm_architecture_node` | Same |
+| Tool Calling | Ad-hoc | Ad-hoc | Role-gated `tools.py` | Same | Same |
+| Security Domain | None | None | Full Tier-2 subgraph | Same + audit | + security artifacts |
+| Social Media | None | None | Tier-3 node | Same | + social artifacts |
+| Chat | None | None | Keyword fallback only | **LLM chat** — SocketIO + REST | Same |
+| UI Layout | Single scroll | Single scroll | Single scroll | **3-panel** | + 📎 artifact panels |
+| Artifacts | None | None | Generic JSON/MD only | Generic + branding SVGs | **Full domain artifacts** for all 9 types |
+| Brand Palette | None | None | None | Hardcoded | **Dynamic from live agent colors** |
+| Validation | None | None | Basic | Allowlist v1 | Allowlist v2 + null guard |
+| Testing | Manual only | Test-ready | 33 tests | 33 + v0.4 feature tests | 56 tests |
 
 ---
 

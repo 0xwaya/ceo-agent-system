@@ -93,13 +93,10 @@ def _run_mode_checks(environment: str) -> None:
                 f"[production] Expected blank budget in legacy template, got: {budget_value!r}"
             )
     else:
-        if company_value != "Amazon Granite LLC":
+        # Development defaults are intentionally blank — users fill in their own scenario.
+        if company_value != "":
             raise AssertionError(
-                f"[development] Expected dev companyName default, got: {company_value!r}"
-            )
-        if budget_value not in {"1000", "1000.0"}:
-            raise AssertionError(
-                f"[development] Expected dev budget default 1000, got: {budget_value!r}"
+                f"[development] Expected blank companyName default (granite defaults removed), got: {company_value!r}"
             )
 
     print(f"✓ {environment:<11} /graph, /admin, legacy index template")

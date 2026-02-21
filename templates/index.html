@@ -83,12 +83,12 @@
             <div class="v4-cfg-field">
               <label>Company Name</label>
               <input type="text" id="companyName"
-                value="{{ scenario_defaults.company_name | default('Amazon Granite LLC') }}" />
+                value="{{ scenario_defaults.company_name | default('') }}" />
             </div>
             <div class="v4-cfg-field">
               <label>DBA / Brand</label>
               <input type="text" id="dbaName"
-                value="{{ scenario_defaults.dba_name | default('SurfaceCraft Studio') }}" />
+                value="{{ scenario_defaults.dba_name | default('') }}" />
             </div>
             <div class="v4-cfg-field">
               <label>Industry</label>
@@ -111,13 +111,13 @@
             <div class="v4-cfg-field" id="industryOtherGroup" style="display:none">
               <label>Other Industry</label>
               <input type="text" id="industryOther"
-                value="{{ scenario_defaults.industry_other | default('Construction, Custom Countertops') }}"
+                value="{{ scenario_defaults.industry_other | default('') }}"
                 placeholder="Enter your industry" />
             </div>
             <div class="v4-cfg-field">
               <label>Location</label>
               <input type="text" id="location"
-                value="{{ scenario_defaults.location | default('Cincinnati, OH') }}" />
+                value="{{ scenario_defaults.location | default('') }}" />
             </div>
             <div class="v4-cfg-field">
               <label>Budget ($)</label>

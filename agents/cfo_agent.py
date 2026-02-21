@@ -133,9 +133,9 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
             "description": "AI Branding Agent designs visual identity system, logo, brand guidelines",
             "required_expertise": "branding",
             "priority": "CRITICAL",
-            "dependencies": ["T001"],  # Need legal name first
+            "dependencies": [],  # Runs in parallel with T001 — no blocking dependency
             "estimated_budget": 150,  # Design tools only (Adobe CC/Figma Pro: $55/mo + fonts/assets: $100)
-            "estimated_days": 28,
+            "estimated_days": 14,
             "success_criteria": [
                 "Logo designed by AI agent using design principles",
                 "Brand guidelines document complete (40+ pages)",
@@ -144,13 +144,13 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
         },
         {
             "task_id": "T003",
-            "task_name": "Website Development with AR Integration",
-            "description": "AI Web Dev Agent codes Next.js website with WebAR visualization",
+            "task_name": "Website Development & Digital Presence",
+            "description": "AI Web Dev Agent builds modern website with full SEO and mobile optimization",
             "required_expertise": "web_development",
             "priority": "HIGH",
             "dependencies": ["T002"],  # Need branding first
-            "estimated_budget": 500,  # Domain $15/yr + Vercel Hobby $0 + 8th Wall $99/mo x2 + Sanity $0 = ~$500
-            "estimated_days": 91,
+            "estimated_budget": 500,  # Domain $15/yr + Vercel Hobby $0 + hosting/tools = ~$500
+            "estimated_days": 45,
             "success_criteria": [
                 "Website coded and deployed by AI agent",
                 "Core Web Vitals >90 score achieved",

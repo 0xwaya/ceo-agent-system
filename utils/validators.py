@@ -57,6 +57,10 @@ def validate_company_info_allowlist(company_info: Dict[str, Any]) -> ValidationR
         "location",
         "budget",
         "timeline",
+        # Metadata fields tolerated from scenario sync
+        "updated_at",
+        "meta",
+        "objectives",
     }
 
     return validate_payload_allowlist(

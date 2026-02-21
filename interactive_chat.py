@@ -429,7 +429,7 @@ class InteractiveChatInterface:
             if "logo" in message_lower:
                 return "For your logo, I recommend following the Golden Ratio (1.618) for proportions and ensuring it works at all sizes from 16px to 16ft. Should we explore a minimalist modern approach or something more classic? I can create 4 design concepts for you."
             elif "color" in message_lower or "colour" in message_lower:
-                return "Color choice is crucial! Based on color psychology: Blue conveys trust (great for B2B), Red creates energy/urgency, Green suggests growth/eco-friendly. For SURFACECRAFT STUDIO, I'd suggest a sophisticated palette with Navy (#1A365D) for trust + Warm Gray (#D4C5B9) for craftsmanship. Thoughts?"
+                return "Color choice is crucial! Based on color psychology: Blue conveys trust (great for B2B), Red creates energy/urgency, Green suggests growth/eco-friendly. I'll analyze your brand values and industry positioning to suggest a palette that resonates with your target audience. Should I start with 3 direction options?"
             elif "brand" in message_lower:
                 return "Let's build a comprehensive brand strategy using the Brand Identity Prism framework. We'll define your Physique (how you look), Personality (your character), Culture (your values), Relationship (how you interact), Reflection (customer perception), and Self-image (customer aspiration). Where should we start?"
             else:
@@ -438,13 +438,13 @@ class InteractiveChatInterface:
         # Web Development Agent responses
         elif agent_type == "web_development":
             if "ar" in message_lower or "augmented" in message_lower:
-                return "For AR integration, I recommend 8th Wall Web for WebAR - no app download needed! Users can visualize countertops in their kitchen using just their phone browser. We'll use Three.js for 3D rendering and create photorealistic models of your stone varieties. Want to see the technical architecture?"
+                return "For AR/XR integration I can assess the right platform based on your use case — WebXR for browser-native, 8th Wall for no-app WebAR, or native ARKit/ARCore for mobile apps. What experience are you trying to create for your customers? I can spec the right approach and budget."
             elif "website" in message_lower or "site" in message_lower:
-                return "I'll build your website with Next.js 14 for optimal performance (SSR + SSG), integrate a headless CMS (Sanity), ensure Core Web Vitals >90, and make it fully responsive. Timeline: ~13 weeks, budget $25-35K. Should I break down the development phases?"
+                return "I'll build your website with Next.js for optimal performance (SSR + SSG), integrate a headless CMS, ensure Core Web Vitals >90, and make it fully responsive. Timeline varies by scope — a focused MVP is typically 4-6 weeks. Should I break down the development phases for your use case?"
             elif "performance" in message_lower or "speed" in message_lower:
                 return "Performance is critical! I target: LCP <2.5s, FID <100ms, CLS <0.1. We'll use edge CDN (Vercel), optimize images (WebP/AVIF), lazy-load components, and implement aggressive caching. Your mobile users will thank you!"
             else:
-                return "I specialize in Next.js, React, AR integration, performance optimization, and modern web architecture. What technical challenge can I solve for you?"
+                return "I specialize in Next.js, React, performance optimization, API integrations, and modern web architecture. What technical challenge can I solve for you?"
 
         # Legal Agent responses
         elif agent_type == "legal":
@@ -471,13 +471,13 @@ class InteractiveChatInterface:
         # Content Agent responses
         elif agent_type == "content":
             if "video" in message_lower:
-                return "For your brand video, I recommend a 2-3 minute piece with: (1) Hook in first 3 seconds, (2) Your origin story, (3) Craftsmanship showcase, (4) Customer testimonials, (5) Strong CTA. Budget: $8-12K for professional production with drone footage and motion graphics. Sound good?"
+                return "For a brand video, I recommend a 2-3 minute piece with: (1) Hook in the first 3 seconds, (2) Your origin story, (3) Product or service showcase, (4) Customer testimonials, (5) Strong CTA. Budget varies by production level — DIY with smartphone can work, professional crew $3-15K. What's your target channel and budget?"
             elif "photo" in message_lower or "photography" in message_lower:
-                return "Professional photography is essential! I'll create a shot list: wide establishing shots, detail close-ups, process documentation, before/after transformations, and lifestyle images. We need 50+ high-res images for website, social, and marketing. Budget: $3-5K for a full-day shoot."
+                return "Professional photography is essential for brand credibility. I'll create a shot list tailored to your industry: establishing shots, detail close-ups, team/culture images, and product-in-use lifestyle photos. Budget: $1-5K for a solid bank of assets. What will you primarily use the photos for?"
             elif "seo" in message_lower or "blog" in message_lower:
-                return "For SEO content, I use the pillar-cluster model: create comprehensive pillar pages (e.g., 'Countertop Installation Guide') and supporting cluster content (quartz vs granite, edge profiles, etc.). Target E-E-A-T: Experience, Expertise, Authoritativeness, Trust. Want keyword research?"
+                return "For SEO content, I use the pillar-cluster model: comprehensive pillar pages targeting your primary keywords, surrounded by cluster content on related subtopics. Target E-E-A-T: Experience, Expertise, Authoritativeness, Trust. Want me to run keyword research for your industry and location?"
             else:
-                return "I create video content, photography, case studies, blog posts, and social media assets. All optimized for engagement and SEO. What content do you need?"
+                return "I create video content, photography briefs, case studies, blog posts, and social media assets — all optimized for engagement and SEO. What content do you need?"
 
         # Campaign Agent responses
         elif agent_type == "campaigns":
@@ -486,22 +486,22 @@ class InteractiveChatInterface:
                 or "instagram" in message_lower
                 or "meta" in message_lower
             ):
-                return "For Meta (Facebook/Instagram) campaigns, I recommend: carousel ads showcasing different stone varieties, video ads featuring AR visualizer, and lead gen forms for quote requests. Budget: $2-3K/month, target ROAS >4:1. Should I draft the campaign structure?"
+                return "For Meta (Facebook/Instagram) campaigns, I recommend: carousel ads showcasing your product or service, video ads for brand storytelling, and lead gen forms for direct conversions. Budget: $1-5K/month to start, target ROAS >3:1. Should I draft a campaign structure for your objective?"
             elif "google" in message_lower or "search" in message_lower:
-                return "Google Ads strategy: (1) Search campaigns targeting 'granite countertops Cincinnati', 'quartz fabricator near me', (2) Local Services Ads for immediate leads, (3) Display remarketing. Budget: $3-5K/month. Quality Score >7 = lower CPCs. Want the keyword list?"
+                return "Google Ads for your business: (1) Search campaigns targeting high-intent keywords in your category and location, (2) Local Services Ads for immediate leads, (3) Display remarketing for site visitors. Quality Score >7 = lower CPCs. Want a keyword strategy for your industry?"
             elif "budget" in message_lower or "spend" in message_lower:
-                return "For campaign budgets, I follow the 70-20-10 rule: 70% proven channels, 20% testing, 10% experimental. With $25K budget over 90 days, that's ~$8K/month. I'd allocate: Google Ads $3.5K, Meta $2.5K, Local partnerships $1.5K, Contingency $500. Agree?"
+                return "For campaign budgets, I follow the 70-20-10 rule: 70% on proven channels, 20% testing, 10% experimental. I'll model the right allocation for your declared budget across channels and optimize weekly. What's your current budget range for paid media?"
             else:
-                return "I plan and execute multi-channel campaigns: Google Ads, Meta, LinkedIn, local partnerships. I optimize for ROAS, track attribution, and scale what works. What campaign are you planning?"
+                return "I plan and execute multi-channel campaigns: Google Ads, Meta, LinkedIn, email, and local partnerships. I optimize for ROAS, track attribution, and scale what works. What campaign are you planning?"
 
         # CFO Agent responses
         elif agent_type == "cfo":
             if "budget" in message_lower or "cost" in message_lower:
-                return "Let me break down the financial picture: Total project budget ~$95K across 6 domains. Largest investments: Web ($35K, 36%), Campaigns ($25K, 26%), Content ($15K, 16%). I maintain 15% contingency for unforeseen costs. Want the detailed budget allocation?"
+                return "I'll break down the financial picture based on your declared budget and the task domains we've identified. I maintain a 15% contingency buffer for unforeseen costs. Want a detailed allocation by domain based on your current objectives?"
             elif "timeline" in message_lower or "schedule" in message_lower:
-                return "Strategic timeline: Legal (Days 1-21) → Branding (22-49) → Web Dev (50-140) → MarTech (141-161) → Content (162-196) → Campaigns (197-287). Critical path: 287 days, but we can parallelize where dependencies allow. Need a Gantt chart?"
+                return "Strategic timeline is built around task dependencies: Legal & Brand Identity run in parallel first. Website follows brand assets. MarTech and Content stack on top of the website. Campaigns launch last on a fully-equipped platform. Want a visual Gantt breakdown?"
             elif "roi" in message_lower or "return" in message_lower:
-                return "Expected ROI over 12 months: Initial investment $95K, projected new revenue $350-500K from enhanced brand positioning, AR differentiator, and digital marketing. Target LTV:CAC ratio >3:1, payback period <6 months. Want the detailed financial model?"
+                return "Expected ROI depends on your industry, pricing, and conversion rates. I model projections based on CAC, LTV, and payback period. A reasonable target is LTV:CAC >3:1 and payback <6 months. Share your average sale value and I'll model a 12-month projection."
             else:
                 return "As CFO, I oversee strategic planning, budget allocation, risk management, and multi-agent coordination. I ensure your investment delivers maximum ROI. What strategic question can I answer?"
 

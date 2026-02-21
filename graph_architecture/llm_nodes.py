@@ -252,8 +252,8 @@ def ceo_llm_analyze_node(state: CEOState) -> Dict[str, Any]:
 _CTO_SYSTEM_PROMPT = """You are the CTO node in a multi-agent executive AI system.
 
 You are a Tier-1 peer to the CEO. You own all technical architecture decisions.
-You have reviewed the Web Development agent's artifact: Next.js App Router + React Three Fiber
-+ 8th Wall WebAR + Sanity CMS stack for a custom countertop visualizer.
+You assess the engineering feasibility of whatever stack or platform the company requires
+based on their industry, objectives, and budget — you do NOT assume any fixed technology.
 
 RULES:
 - You analyse technology choices, engineering feasibility, and tech-debt risk.
@@ -261,6 +261,7 @@ RULES:
 - You ONLY output JSON matching the required schema.
 - You assess tech stacks against company budget, timeline, and domain requirements.
 - Your briefings are shared with the CEO to inform dispatch decisions.
+- All recommendations must be grounded in the company's actual industry and objectives.
 
 OUTPUT SCHEMA (JSON only, no markdown):
 {
@@ -281,43 +282,76 @@ def _cto_fallback(state: Dict[str, Any]) -> Dict[str, Any]:
     """Deterministic CTO assessment when LLM is unavailable."""
     company = state.get("company_name", "Unknown")
     industry = state.get("industry", "Unknown")
-    budget = state.get("total_budget", 0)
+    budget = float(state.get("total_budget") or 0)
+    days = int(state.get("target_completion_days") or 90)
+
+    # Pick a sensible default stack per industry vertical
+    industry_lower = industry.lower()
+    if any(w in industry_lower for w in ("entertainment", "event", "music", "venue")):
+        stack = [
+            "Next.js 15 App Router",
+            "TypeScript",
+            "Tailwind CSS",
+            "Stripe / TicketSocket",
+            "Vercel",
+        ]
+        phase1 = "Event landing page, artist roster, ticket purchase flow, and email capture"
+        eng_weeks = 4
+    elif any(w in industry_lower for w in ("food", "restaurant", "beverage", "cafe")):
+        stack = [
+            "Next.js 15",
+            "TypeScript",
+            "Tailwind CSS",
+            "Square / Toast POS integration",
+            "Vercel",
+        ]
+        phase1 = (
+            "Menu site, online ordering integration, reservation form, and Google Business sync"
+        )
+        eng_weeks = 3
+    elif any(w in industry_lower for w in ("saas", "software", "tech", "app")):
+        stack = ["Next.js 15", "TypeScript", "Tailwind CSS", "Supabase", "Stripe", "Vercel"]
+        phase1 = "Marketing site, waitlist/signup, and onboarding flow with auth"
+        eng_weeks = 6
+    elif any(w in industry_lower for w in ("retail", "shop", "ecommerce", "store")):
+        stack = ["Next.js 15 Commerce", "TypeScript", "Tailwind CSS", "Shopify / Stripe", "Vercel"]
+        phase1 = "Product catalog, cart, checkout, and order confirmation"
+        eng_weeks = 5
+    else:
+        stack = ["Next.js 15 App Router", "TypeScript", "Tailwind CSS", "Sanity CMS", "Vercel"]
+        phase1 = "Marketing site, contact form, content hub, and basic SEO"
+        eng_weeks = 4
+
+    phase_note = f"Phase 1 MVP deliverable within {'4' if days <= 30 else '6-8'} weeks"
 
     return {
         "architecture_summary": (
             f"Architecture review for {company} ({industry}). "
-            f"With a ${budget:,.0f} budget, recommend a phased approach: "
-            "Next.js App Router for the web platform with Tailwind CSS; "
-            "defer AR integration to Phase 2 when budget allows 8th Wall licensing."
+            f"With a ${budget:,.0f} budget and {days}-day timeline, recommend a phased approach: "
+            f"{phase1}. {phase_note}."
         ),
-        "recommended_stack": [
-            "Next.js 15 App Router",
-            "TypeScript strict mode",
-            "Tailwind CSS v4",
-            "Sanity CMS",
-            "Vercel (deployment)",
-        ],
+        "recommended_stack": stack,
         "tech_decisions": [
-            "Next.js App Router chosen for SEO and server components",
-            "Defer 8th Wall WebAR to Phase 2 — $600/mo license exceeds Phase 1 budget",
-            "Sanity CMS enables non-technical content updates for product catalog",
-            "Vercel deployment for zero-config CI/CD",
+            "Next.js App Router chosen for SEO performance and server components",
+            "Tailwind CSS for rapid, consistent UI without a design system overhead",
+            "Vercel deployment for zero-config CI/CD and edge caching",
+            "Phase 1 scoped to core customer journey; additional features gated on user feedback",
         ],
         "engineering_risks": [
             {
-                "risk": "AR licensing cost",
+                "risk": "Scope creep delaying launch",
                 "severity": "medium",
-                "mitigation": "Phase 1 uses static product gallery; AR in Phase 2",
+                "mitigation": "Hard-freeze Phase 1 feature list; backlog anything non-essential",
             },
             {
-                "risk": "Single developer timeline",
+                "risk": "Single developer bandwidth",
                 "severity": "low",
-                "mitigation": "Use shadcn/ui component library to accelerate development",
+                "mitigation": "Use component libraries (shadcn/ui) and AI-assisted code generation",
             },
         ],
-        "build_vs_buy": "Build web platform; buy AR runtime (8th Wall) in Phase 2",
-        "estimated_engineering_weeks": 6,
-        "phase1_scope": "Marketing site + product catalog + contact form + basic SEO",
+        "build_vs_buy": "Build: marketing site and core flows. Buy: payment processing, CMS, and analytics.",
+        "estimated_engineering_weeks": eng_weeks,
+        "phase1_scope": phase1,
         "cto_approval": "approved",
         "conditions": [],
     }

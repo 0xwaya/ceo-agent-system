@@ -45,10 +45,10 @@ function getDefaultScenarioContext() {
     }
 
     return {
-        company_name: configDefaults.company_name || 'Amazon Granite LLC',
-        dba_name: configDefaults.dba_name || 'SurfaceCraft Studio',
-        industry: configDefaults.industry || 'Construction, Custom Countertops',
-        location: configDefaults.location || 'Cincinnati, OH',
+        company_name: configDefaults.company_name || '',
+        dba_name: configDefaults.dba_name || '',
+        industry: configDefaults.industry || '',
+        location: configDefaults.location || '',
         budget: Number.parseFloat(configDefaults.budget) || 1000,
         timeline: Number.parseInt(configDefaults.timeline, 10) || 30,
         objectives: Array.isArray(configDefaults.objectives) && configDefaults.objectives.length > 0
@@ -780,7 +780,15 @@ function interactWithAgent(agentId) {
         },
         body: JSON.stringify({
             task: `Generate report, proposals, recommendations, and deliverables for ${agent.name}`,
-            company_info: companyInfo
+            company_info: {
+                company_name: companyInfo.company_name,
+                name: companyInfo.company_name,
+                dba_name: companyInfo.dba_name,
+                industry: companyInfo.industry,
+                location: companyInfo.location,
+                budget: companyInfo.budget,
+                timeline: companyInfo.timeline
+            }
         })
     })
         .then(response => response.json())
