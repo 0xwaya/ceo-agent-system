@@ -196,7 +196,7 @@ ceo-agent-system/
 ```bash
 make test          # full pytest suite (56 tests)
 make smoke         # fast dashboard render smoke check
-make check         # lint + smoke + tests
+make consistency   # consistency gate for docs/runtime drift
 ```
 
 ---
@@ -230,7 +230,7 @@ make check         # lint + smoke + tests
 
 1. Fork the repo → create branch `feat/<name>`
 2. Add tests for new agent behavior in `tests/`
-3. Run `make check` — all 56 tests + smoke must stay green
+3. Run `make test && make smoke && make consistency` — tests + dashboard + consistency gate must stay green
 4. Open a PR
 
 ---

@@ -27,6 +27,7 @@ ENV/
 env/
 .venv
 .venv/
+.audit-venv/
 
 # IDE
 .vscode/
