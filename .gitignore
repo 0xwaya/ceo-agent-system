@@ -45,6 +45,7 @@ logs/
 
 # Environment Variables (CRITICAL - DO NOT COMMIT)
 .env*
+!.env.example
 !.env.encrypted
 *.key
 secrets/
