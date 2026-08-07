@@ -20,7 +20,7 @@
         Waiting for test results...
     </div>
 
-    <button onclick="testOrchestration()">Test Launch Full Orchestration</button>
+    <button onclick="testGraphExecution()">Test Launch Graph Execution</button>
     <button onclick="testExecuteAgent('branding')">Test Execute Branding Agent</button>
     <button onclick="testViewDetails('legal')">Test View Legal Agent Details</button>
 
@@ -40,51 +40,29 @@
             log('❌ Socket disconnected');
         });
 
-        socket.on('orchestration_started', (data) => {
-            log('🚀 Orchestration started: ' + JSON.stringify(data));
-        });
+        async function testGraphExecution() {
+            log('🧪 Testing graph execution...');
 
-        socket.on('phase', (data) => {
-            log('📊 Phase: ' + data.name + ' - ' + data.status);
-        });
-
-        socket.on('agent_deploying', (data) => {
-            log('🤖 Deploying ' + data.agent + ' agent');
-        });
-
-        socket.on('agent_deployed', (data) => {
-            log('✅ Agent deployed: ' + data.agent);
-        });
-
-        socket.on('orchestration_complete', (data) => {
-            log('🎉 Orchestration complete! Budget used: $' + data.budget_used);
-        });
-
-        socket.on('orchestration_error', (data) => {
-            log('❌ Orchestration error: ' + data.error);
-        });
-
-        async function testOrchestration() {
-            log('🧪 Testing orchestration...');
-
-            const companyInfo = {
+            const payload = {
                 company_name: 'Test Company',
                 dba_name: 'Test DBA',
                 industry: 'Technology',
-                location: 'New York'
+                location: 'New York',
+                objectives: ['Test objective 1', 'Test objective 2'],
             };
 
-            const objectives = [
-                'Test objective 1',
-                'Test objective 2'
-            ];
+            try {
+                const response = await fetch('http://localhost:5001/api/graph/execute', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
 
-            socket.emit('execute_full_orchestration', {
-                company_info: companyInfo,
-                objectives: objectives
-            });
-
-            log('📤 Orchestration request emitted');
+                const data = await response.json();
+                log('✅ Graph execution response: ' + JSON.stringify(data).substring(0, 200));
+            } catch (error) {
+                log('❌ Graph execution error: ' + error.message);
+            }
         }
 
         async function testExecuteAgent(agentType) {

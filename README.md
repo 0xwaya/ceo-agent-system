@@ -1,8 +1,8 @@
-# 👔 CEO Agent System — v0.5
+# 👔 Langraph Executive AI — Graph Orchestration Dashboard
 
-**LangGraph-powered multi-agent AI platform** — Prompt Expert → CEO/CTO → 6 Domain Directors → 7 Execution Specialists, with a full artifact pipeline and real-time dashboard.
+**LangGraph-powered multi-agent AI platform** — orchestrates executive strategy, domain directors, and specialist execution through a single graph endpoint.
 
-> **v0.5** — Dynamic artifact generation · Brand palette from live agent output · Security + Social Media domain artifacts · Scenario defaults versioning · Payload validation hardening
+> **Current release** — REST-first orchestration via `/api/graph/execute` · simplified dashboard flow · real-time chat fallback · artifact generation pipeline.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-blueviolet)](https://github.com/langchain-ai/langgraph)
@@ -26,6 +26,10 @@ open http://localhost:5001/        # Main dashboard
 open http://localhost:5001/admin   # Admin / agent runner
 open http://localhost:5001/graph   # LangGraph live view
 ```
+
+### API entrypoint
+`POST /api/graph/execute` is the canonical orchestration endpoint for running the multi-agent graph against the current scenario.
+
 
 ---
 
@@ -89,11 +93,12 @@ Given a company description, budget, and goals the system:
 ## 📊 Dashboard Features
 
 ### Main Dashboard (`/`)
-- **Live Feed** — animated progress/success/error cards as agents run
-- **Agents Tab** — run any of the 14 specialists individually
-- **Reports Tab** — full agent report with 📎 artifact preview panel
-- **Tasks Tab** — execution task tracker
-- **Log Tab** — raw execution log
+- **Live Feed** — single-page dashboard for company scenario creation and workflow execution
+- **Agents Tab** — inspect agent roster and run domain specialists
+- **Reports Tab** — view generated deliverables, recommendations, and budget summaries
+- **Tasks Tab** — task breakdown from the current graph execution
+- **Log Tab** — raw execution/log stream for progress tracking
+- **Header Voice Control** — quick voice toggle and microphone status in the top header
 
 ### Admin Dashboard (`/admin`)
 - Scenario builder: company info, budget, objectives
@@ -107,7 +112,8 @@ Given a company description, budget, and goals the system:
 
 ### Real-Time Chat (embedded)
 - Per-agent conversational memory
-- SocketIO `ai_chat_request/response` + REST `/api/chat/message`
+- SocketIO `ai_chat_request/response` for live chat
+- REST fallback via `/api/chat/message` and `/api/chat/clear`
 - **Strategic Debate Mode** — devil's advocate persona toggle
 
 ---
@@ -165,7 +171,6 @@ ceo-agent-system/
 ├── services/
 │   ├── artifact_service.py         # Artifact persistence + domain file generation
 │   ├── agent_service.py
-│   ├── orchestration_service.py
 │   └── report_service.py
 ├── agents/
 │   ├── base_agent.py
@@ -205,8 +210,8 @@ make check         # lint + smoke + tests
 
 | Version | Highlights |
 |---------|-----------|
-| **v0.5** | Dynamic artifact pipeline · Brand palette from live colors · Security & Social domain artifacts · Scenario defaults v2 · Payload validation hardening |
-| **v0.4** | CTO Agent (Tier 1) · Real-time LLM chat · 3-panel dashboard · Live feed cards · SocketIO |
+| **v0.4 (legacy)** | REST-native orchestration via `/api/graph/execute` · simplified dashboard controls · graph-driven execution path |
+| **v0.3** | CTO Agent (Tier 1) · real-time LLM chat · 3-panel dashboard · live feed cards · SocketIO |
 | **v0.3** | Prompt Expert (Node 0) · Conditional dispatch loop · 6 Tier-2 directors · 7 Tier-3 specialists · Centralised `llm_nodes.py` |
 | **v0.2** | CFO orchestrator · Multi-agent graph · LangGraph checkpointing |
 | **v0.1** | Single-domain marketing agent |

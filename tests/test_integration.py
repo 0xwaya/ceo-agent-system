@@ -3,7 +3,6 @@ Integration tests for SocketIO events
 """
 
 import pytest
-import time
 
 
 class TestSocketIOEvents:
@@ -11,38 +10,6 @@ class TestSocketIOEvents:
 
     def test_socket_connection(self, test_socketio_client):
         """Test Socket.IO connection"""
-        assert test_socketio_client.is_connected()
-
-    def test_orchestration_events(self, test_socketio_client):
-        """Test full orchestration event flow"""
-        # Emit orchestration request
-        test_socketio_client.emit(
-            "execute_full_orchestration",
-            {
-                "company_info": {"company_name": "Test Co", "industry": "Tech", "location": "CA"},
-                "objectives": ["Build brand", "Create website"],
-            },
-        )
-
-        # Give async handlers time to run; this path currently emits from a
-        # background thread and may not always be captured by the test client.
-        time.sleep(0.5)
-
-        # Validate the request path remains stable and the socket stays alive.
-        assert test_socketio_client.is_connected()
-
-    def test_agent_deployment_events(self, test_socketio_client):
-        """Test agent deployment events"""
-        # This would test if agent_deploying and agent_deployed events are emitted
-        # In a real scenario, you'd emit a request and wait for these events
-        pass
-
-    def test_error_handling_events(self, test_socketio_client):
-        """Test error event handling"""
-        # Emit invalid request
-        test_socketio_client.emit("execute_full_orchestration", {"invalid": "data"})
-
-        # Should not crash
         assert test_socketio_client.is_connected()
 
 

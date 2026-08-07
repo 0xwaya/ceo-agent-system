@@ -11,17 +11,27 @@ Integration instructions:
 
 import asyncio
 import base64
+import uuid
 from datetime import datetime
 from typing import Dict, Any
 
+from flask import request
 from flask_socketio import emit
-from services.voice_service import get_voice_service
 from logger import get_logger
+
+# Import socketio from the Flask app to register WebSocket handlers
+from app import socketio
 
 logger = get_logger(__name__)
 
-# Initialize voice service
-voice_service = get_voice_service()
+try:
+    from services.voice_service import get_voice_service
+
+    # Initialize voice service
+    voice_service = get_voice_service()
+except ImportError as e:
+    voice_service = None
+    logger.error(f"Voice service disabled: {e}")
 
 # Track active voice sessions
 active_voice_sessions: Dict[str, Any] = {}
@@ -50,6 +60,14 @@ def handle_voice_start(data):
     }
     """
     try:
+        if voice_service is None:
+            logger.error("Voice service unavailable: cannot start voice session")
+            emit(
+                "voice_error",
+                {"error": "Voice service unavailable", "timestamp": datetime.now().isoformat()},
+            )
+            return
+
         session_id = str(uuid.uuid4())
         user_id = request.sid
         language = data.get("language", "en-US")
@@ -87,6 +105,10 @@ def handle_audio_chunk(audio_data):
     Server processes and emits transcription events
     """
     try:
+        if voice_service is None:
+            logger.warning("Voice service unavailable: ignoring audio chunk")
+            return
+
         user_id = request.sid
         session = active_voice_sessions.get(user_id)
 
@@ -116,6 +138,10 @@ async def handle_audio_stream_start(data):
     This initiates a real-time transcription session
     """
     try:
+        if voice_service is None:
+            emit("voice_error", {"error": "Voice service unavailable"})
+            return
+
         user_id = request.sid
         session = active_voice_sessions.get(user_id)
 
@@ -314,6 +340,10 @@ def handle_voice_stats_request():
 
         if not session:
             emit("voice_stats", {"error": "No active session"})
+            return
+
+        if voice_service is None:
+            emit("voice_stats", {"error": "Voice service unavailable"})
             return
 
         stats = voice_service.get_session_stats(session["session_id"])

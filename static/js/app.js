@@ -730,7 +730,7 @@ async function analyzeObjectives() {
             updateBudgetDisplay(data.budget_allocation);
             updateStatus('Strategic analysis complete!', 'success');
             const domainCount = Object.keys(data.budget_allocation || {}).length || Object.keys(data.domain_sections || {}).length;
-            addLogEntry(`CEO: ${data.tasks.length} tasks across ${domainCount} domains | $${(data.budget||0).toLocaleString()} budget`, 'success');
+            addLogEntry(`CEO: ${data.tasks.length} tasks across ${domainCount} domains | $${(data.budget || 0).toLocaleString()} budget`, 'success');
 
             // Surface Prompt Expert intake result in chat
             const pe = data.prompt_expert || {};
@@ -796,18 +796,33 @@ function runFullOrchestration() {
             ? scenario.objectives
             : buildDefaultObjectives(companyInfo);
 
-        console.log('Emitting execute_full_orchestration with:', { company_info: companyInfo, objectives });
+        console.log('Starting graph orchestration with:', { company_info: companyInfo, objectives });
 
         // Chat notification - orchestration starting
-        addChatMessage(`🚀 Launching full orchestration for ${companyInfo.company_name}. This will execute all 6 agents sequentially...`, 'system');
+        addChatMessage(`🚀 Launching graph orchestration for ${companyInfo.company_name}. This will invoke the multi-agent execution path...`, 'system');
 
-        socket.emit('execute_full_orchestration', {
-            company_info: companyInfo,
-            objectives: objectives
+        const response = await fetch('/api/graph/execute', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                company_name: companyInfo.company_name,
+                dba_name: companyInfo.dba_name,
+                industry: companyInfo.industry,
+                location: companyInfo.location,
+                budget: companyInfo.budget,
+                timeline: companyInfo.timeline,
+                objectives: objectives,
+            }),
         });
 
-        addLogEntry('Orchestration request sent to server...', 'warning');
-        addChatMessage('📡 Orchestration request sent to CEO. Agents will execute in optimal order under CEO governance.', 'assistant');
+        const data = await response.json();
+        if (response.ok && data.success) {
+            addLogEntry('Graph execution request accepted by server.', 'success');
+            addChatMessage('✅ Graph execution request submitted. Check the dashboard for progress.', 'assistant');
+        } else {
+            addLogEntry(`Graph execution failed: ${data.error || response.statusText}`, 'error');
+            addChatMessage(`❌ Graph execution failed: ${data.error || response.statusText}`, 'error');
+        }
     } catch (error) {
         console.error('Orchestration error:', error);
         addLogEntry(`Error launching orchestration: ${error.message}`, 'error');
@@ -838,10 +853,26 @@ async function executeAgent(agentType) {
                 budget: scenario.budget,
                 timeline: scenario.timeline
             };
-            socket.emit('execute_full_orchestration', {
-                company_info: companyInfo,
-                objectives: scenario.objectives || []
+            const response = await fetch('/api/graph/execute', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    company_name: companyInfo.company_name,
+                    dba_name: companyInfo.dba_name,
+                    industry: companyInfo.industry,
+                    location: companyInfo.location,
+                    budget: companyInfo.budget,
+                    timeline: companyInfo.timeline,
+                    objectives: scenario.objectives || [],
+                }),
             });
+
+            const result = await response.json();
+            if (response.ok && result.success) {
+                addChatMessage('✅ CEO orchestration request accepted. Monitoring execution progress...', 'assistant');
+            } else {
+                addChatMessage(`❌ CEO orchestration failed: ${result.error || response.statusText}`, 'error');
+            }
             highlightAgent('ceo', 'executing');
         } catch (err) {
             addChatMessage(`❌ CEO orchestration failed to start: ${err.message}`, 'error');
@@ -1477,13 +1508,13 @@ function displayAgentReport(agentType, resultData, companyInfo) {
             <h4 style="color:#22d3ee;border-bottom:2px solid rgba(34,211,238,0.3);padding-bottom:8px;margin-bottom:14px;">📎 Generated Artifacts (${_artifacts.length})</h4>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;">
                 ${_artifacts.map(a => {
-                    const icon = a.type === 'image' ? '🖼️' : a.type === 'markdown' ? '📄' : a.type === 'json' ? '📊' : a.mime_type === 'text/css' ? '🎨' : a.mime_type === 'text/html' ? '🌐' : '📁';
-                    const href = a.url || ('/static/' + (a.path || ''));
-                    return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);border-radius:8px;text-decoration:none;color:#e2e8f0;font-size:12px;transition:background .2s;" onmouseover="this.style.background='rgba(34,211,238,0.13)'" onmouseout="this.style.background='rgba(34,211,238,0.06)'">
+            const icon = a.type === 'image' ? '🖼️' : a.type === 'markdown' ? '📄' : a.type === 'json' ? '📊' : a.mime_type === 'text/css' ? '🎨' : a.mime_type === 'text/html' ? '🌐' : '📁';
+            const href = a.url || ('/static/' + (a.path || ''));
+            return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:10px 12px;background:rgba(34,211,238,0.06);border:1px solid rgba(34,211,238,0.2);border-radius:8px;text-decoration:none;color:#e2e8f0;font-size:12px;transition:background .2s;" onmouseover="this.style.background='rgba(34,211,238,0.13)'" onmouseout="this.style.background='rgba(34,211,238,0.06)'">
                         <span style="font-size:18px;flex-shrink:0;">${icon}</span>
                         <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.title || a.filename || 'Artifact'}</span>
                     </a>`;
-                }).join('')}
+        }).join('')}
             </div>
             ${resultData.artifact_directory ? `<p style="margin:10px 0 0;font-size:11px;color:#64748b;">📁 Output directory: <code style="background:rgba(255,255,255,0.05);padding:2px 6px;border-radius:4px;">${resultData.artifact_directory}</code></p>` : ''}
         </div>`
@@ -1595,21 +1626,21 @@ function displayAnalysisReport(companyInfo, analysisData) {
     setTimeout(() => { reportDisplay.style.transform = 'scale(1)'; reportDisplay.style.opacity = '1'; }, 50);
 
     // ── data helpers ────────────────────────────────────────────────────────
-    const cn      = analysisData.company_name || companyInfo.company_name || 'Company';
-    const ind     = analysisData.industry     || companyInfo.industry     || '';
-    const loc     = analysisData.location     || companyInfo.location     || '';
-    const budget  = analysisData.budget       || companyInfo.budget       || 0;
-    const timeline = analysisData.timeline    || companyInfo.timeline     || 90;
-    const tasks   = analysisData.tasks        || [];
-    const risks   = analysisData.risks        || [];
+    const cn = analysisData.company_name || companyInfo.company_name || 'Company';
+    const ind = analysisData.industry || companyInfo.industry || '';
+    const loc = analysisData.location || companyInfo.location || '';
+    const budget = analysisData.budget || companyInfo.budget || 0;
+    const timeline = analysisData.timeline || companyInfo.timeline || 90;
+    const tasks = analysisData.tasks || [];
+    const risks = analysisData.risks || [];
     const budgetAllocation = analysisData.budget_allocation || {};
-    const domainSections   = analysisData.domain_sections  || {};
-    const ceoDirectives    = analysisData.ceo_directives   || [];
-    const opportunities    = analysisData.opportunities    || [];
-    const milestones       = analysisData.milestones       || [];
-    const recommendations  = analysisData.recommendations  || [];
+    const domainSections = analysisData.domain_sections || {};
+    const ceoDirectives = analysisData.ceo_directives || [];
+    const opportunities = analysisData.opportunities || [];
+    const milestones = analysisData.milestones || [];
+    const recommendations = analysisData.recommendations || [];
     const discoveryQuestions = analysisData.discovery_questions || [];
-    const totalAllocated   = Object.values(budgetAllocation).reduce((s, v) => s + (Number(v) || 0), 0);
+    const totalAllocated = Object.values(budgetAllocation).reduce((s, v) => s + (Number(v) || 0), 0);
     const pe = analysisData.prompt_expert || {};
 
     // Build domain sections from domainSections map OR group tasks ourselves
@@ -1618,10 +1649,10 @@ function displayAnalysisReport(companyInfo, analysisData) {
         : (() => {
             const ds = {};
             tasks.forEach(t => {
-                const key = (t.required_expertise || t.expertise_required || t.agent_type || 'strategy').toLowerCase().replace(/ /g,'_');
-                if (!ds[key]) ds[key] = { icon: '📋', label: key.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()), tasks: [], priority_tasks: [], budget: budgetAllocation[key] || 0 };
+                const key = (t.required_expertise || t.expertise_required || t.agent_type || 'strategy').toLowerCase().replace(/ /g, '_');
+                if (!ds[key]) ds[key] = { icon: '📋', label: key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), tasks: [], priority_tasks: [], budget: budgetAllocation[key] || 0 };
                 ds[key].tasks.push(t);
-                if (['CRITICAL','HIGH'].includes(String(t.priority||'').toUpperCase()))
+                if (['CRITICAL', 'HIGH'].includes(String(t.priority || '').toUpperCase()))
                     ds[key].priority_tasks.push(t.task_name || t.description || 'Task');
             });
             return ds;
@@ -1630,20 +1661,20 @@ function displayAnalysisReport(companyInfo, analysisData) {
     // ── Prompt Expert panel ─────────────────────────────────────────────────
     const peHTML = pe.intent_summary ? (() => {
         const flags = pe.routing_flags || {};
-        const activeFlags = Object.entries(flags).filter(([,v]) => v).map(([k]) => k);
-        const domains = [pe.primary_domain, ...(pe.secondary_domains||[])].filter(Boolean);
+        const activeFlags = Object.entries(flags).filter(([, v]) => v).map(([k]) => k);
+        const domains = [pe.primary_domain, ...(pe.secondary_domains || [])].filter(Boolean);
         return `<div style="margin-bottom:20px;padding:16px;
             background:linear-gradient(135deg,rgba(139,92,246,.09),rgba(59,130,246,.09));
             border-radius:12px;border-left:4px solid #8b5cf6;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                 <span>🧠</span>
                 <strong style="color:#7c3aed;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;">Research &amp; Prompt Agent ─ Intake</strong>
-                ${pe.confidence_score ? `<span style="margin-left:auto;background:rgba(139,92,246,.15);color:#7c3aed;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;">${Math.round(pe.confidence_score*100)}% confidence</span>` : ''}
+                ${pe.confidence_score ? `<span style="margin-left:auto;background:rgba(139,92,246,.15);color:#7c3aed;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;">${Math.round(pe.confidence_score * 100)}% confidence</span>` : ''}
             </div>
             <p style="margin:0 0 6px;color:#334155;font-size:.88rem;"><strong>Intent:</strong> ${pe.intent_summary}</p>
             ${domains.length ? `<p style="margin:0 0 4px;color:#64748b;font-size:.8rem;"><strong>Domains:</strong> ${domains.join(' → ')}</p>` : ''}
-            ${activeFlags.length ? `<p style="margin:0 0 4px;color:#64748b;font-size:.8rem;"><strong>Routing:</strong> ${activeFlags.map(f=>`<span style="background:rgba(139,92,246,.12);color:#6d28d9;padding:1px 6px;border-radius:4px;margin-right:4px;">${f}</span>`).join('')}</p>` : ''}
-            ${pe.ambiguities&&pe.ambiguities.length ? `<p style="margin:4px 0 0;color:#b45309;font-size:.78rem;">⚠️ ${pe.ambiguities.join(' • ')}</p>` : ''}
+            ${activeFlags.length ? `<p style="margin:0 0 4px;color:#64748b;font-size:.8rem;"><strong>Routing:</strong> ${activeFlags.map(f => `<span style="background:rgba(139,92,246,.12);color:#6d28d9;padding:1px 6px;border-radius:4px;margin-right:4px;">${f}</span>`).join('')}</p>` : ''}
+            ${pe.ambiguities && pe.ambiguities.length ? `<p style="margin:4px 0 0;color:#b45309;font-size:.78rem;">⚠️ ${pe.ambiguities.join(' • ')}</p>` : ''}
         </div>`;
     })() : '';
 
@@ -1656,10 +1687,10 @@ function displayAnalysisReport(companyInfo, analysisData) {
                 <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:6px 14px;border-radius:999px;font-weight:700;font-size:.82rem;box-shadow:0 2px 8px rgba(102,126,234,.35);">👔 CEO</div>
                 <span style="color:#94a3b8;font-size:1.1rem;">→</span>
                 ${chainAgents.map(k => {
-                    const s = domainSource[k];
-                    return `<div style="background:rgba(102,126,234,.1);color:#334155;padding:5px 11px;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid rgba(102,126,234,.25);">${s.icon||'📋'} ${s.label||k}</div>`;
-                }).join('<span style="color:#94a3b8;">·</span>')}
-                ${chainAgents.length < Object.keys(domainSource).length ? `<span style="color:#94a3b8;font-size:.78rem;">+${Object.keys(domainSource).length-chainAgents.length} more</span>` : ''}
+        const s = domainSource[k];
+        return `<div style="background:rgba(102,126,234,.1);color:#334155;padding:5px 11px;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid rgba(102,126,234,.25);">${s.icon || '📋'} ${s.label || k}</div>`;
+    }).join('<span style="color:#94a3b8;">·</span>')}
+                ${chainAgents.length < Object.keys(domainSource).length ? `<span style="color:#94a3b8;font-size:.78rem;">+${Object.keys(domainSource).length - chainAgents.length} more</span>` : ''}
             </div>
         </div>`;
 
@@ -1668,7 +1699,7 @@ function displayAnalysisReport(companyInfo, analysisData) {
         <div style="margin-bottom:20px;padding:16px;background:rgba(102,126,234,.05);border-radius:12px;border-left:4px solid #667eea;">
             <div style="font-weight:700;color:#667eea;margin-bottom:10px;font-size:.9rem;">📌 CEO Executive Directives</div>
             <ol style="margin:0;padding-left:20px;">
-                ${ceoDirectives.map(d=>`<li style="color:#334155;font-size:.88rem;padding:3px 0;">${d}</li>`).join('')}
+                ${ceoDirectives.map(d => `<li style="color:#334155;font-size:.88rem;padding:3px 0;">${d}</li>`).join('')}
             </ol>
         </div>` : '';
 
@@ -1677,7 +1708,7 @@ function displayAnalysisReport(companyInfo, analysisData) {
         <div style="margin-bottom:20px;padding:16px;background:rgba(16,185,129,.05);border-radius:12px;border-left:4px solid #10b981;">
             <div style="font-weight:700;color:#059669;margin-bottom:10px;font-size:.9rem;">💡 CEO Strategic Recommendations</div>
             <ol style="margin:0;padding-left:18px;">
-                ${recommendations.map(r=>`<li style="font-size:.86rem;color:#334155;padding:4px 0;line-height:1.5;">${r}</li>`).join('')}
+                ${recommendations.map(r => `<li style="font-size:.86rem;color:#334155;padding:4px 0;line-height:1.5;">${r}</li>`).join('')}
             </ol>
         </div>` : '';
 
@@ -1687,9 +1718,9 @@ function displayAnalysisReport(companyInfo, analysisData) {
             <div style="font-weight:700;color:#b45309;margin-bottom:10px;font-size:.9rem;">❓ CEO Discovery Questions</div>
             <p style="font-size:.8rem;color:#64748b;margin:0 0 10px;">Answering these in chat will help the CEO refine your execution plan:</p>
             <div style="display:flex;flex-direction:column;gap:8px;">
-                ${discoveryQuestions.map(q=>`
+                ${discoveryQuestions.map(q => `
                     <div style="padding:10px 12px;background:#fff;border-radius:8px;border:1px solid rgba(245,158,11,.25);">
-                        <span style="font-size:.7rem;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.05em;">${q.icon||''} ${q.category||''}</span>
+                        <span style="font-size:.7rem;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.05em;">${q.icon || ''} ${q.category || ''}</span>
                         <p style="margin:4px 0 0;font-size:.84rem;color:#334155;line-height:1.5;">${q.question}</p>
                     </div>`).join('')}
             </div>
@@ -1697,29 +1728,29 @@ function displayAnalysisReport(companyInfo, analysisData) {
 
     // ── Domain sections ─────────────────────────────────────────────────────
     const domainColors = {
-        branding:'#f59e0b', web_development:'#3b82f6', legal:'#10b981',
-        martech:'#8b5cf6', content:'#06b6d4', campaigns:'#ef4444',
-        social_media:'#ec4899', security:'#f97316', strategy:'#667eea'
+        branding: '#f59e0b', web_development: '#3b82f6', legal: '#10b981',
+        martech: '#8b5cf6', content: '#06b6d4', campaigns: '#ef4444',
+        social_media: '#ec4899', security: '#f97316', strategy: '#667eea'
     };
     const domainsHTML = Object.entries(domainSource).length ? `
         <div style="margin-bottom:20px;">
             <div style="font-weight:700;color:#334155;margin-bottom:12px;font-size:.9rem;">🗂️ Domain Execution Plans</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
                 ${Object.entries(domainSource).map(([key, sec]) => {
-                    const color = domainColors[key] || '#667eea';
-                    const taskList = (sec.tasks||[]).slice(0,3);
-                    const budget_d = sec.budget || budgetAllocation[key] || 0;
-                    return `<div style="padding:14px;background:#fff;border-radius:12px;border-top:3px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,.06);">
+        const color = domainColors[key] || '#667eea';
+        const taskList = (sec.tasks || []).slice(0, 3);
+        const budget_d = sec.budget || budgetAllocation[key] || 0;
+        return `<div style="padding:14px;background:#fff;border-radius:12px;border-top:3px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,.06);">
                         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
-                            <span style="font-size:1.2rem;">${sec.icon||'📋'}</span>
-                            <strong style="color:#1e293b;font-size:.88rem;">${sec.label||key}</strong>
+                            <span style="font-size:1.2rem;">${sec.icon || '📋'}</span>
+                            <strong style="color:#1e293b;font-size:.88rem;">${sec.label || key}</strong>
                             ${budget_d ? `<span style="margin-left:auto;background:rgba(16,185,129,.12);color:#059669;padding:2px 7px;border-radius:999px;font-size:.72rem;font-weight:700;">$${Number(budget_d).toLocaleString()}</span>` : ''}
                         </div>
-                        ${taskList.length ? `<ul style="list-style:none;padding:0;margin:0;">${taskList.map(t=>`<li style="font-size:.78rem;color:#64748b;padding:2px 0;">• ${t.task_name||t.description||''}</li>`).join('')}</ul>` : ''}
-                        ${(sec.tasks||[]).length>3 ? `<p style="margin:4px 0 0;font-size:.72rem;color:#94a3b8;">+${sec.tasks.length-3} more tasks</p>` : ''}
-                        ${sec.priority_tasks&&sec.priority_tasks.length ? `<p style="margin:6px 0 0;font-size:.72rem;color:${color};font-weight:600;">🔥 Priority: ${sec.priority_tasks[0]}</p>` : ''}
+                        ${taskList.length ? `<ul style="list-style:none;padding:0;margin:0;">${taskList.map(t => `<li style="font-size:.78rem;color:#64748b;padding:2px 0;">• ${t.task_name || t.description || ''}</li>`).join('')}</ul>` : ''}
+                        ${(sec.tasks || []).length > 3 ? `<p style="margin:4px 0 0;font-size:.72rem;color:#94a3b8;">+${sec.tasks.length - 3} more tasks</p>` : ''}
+                        ${sec.priority_tasks && sec.priority_tasks.length ? `<p style="margin:6px 0 0;font-size:.72rem;color:${color};font-weight:600;">🔥 Priority: ${sec.priority_tasks[0]}</p>` : ''}
                     </div>`;
-                }).join('')}
+    }).join('')}
             </div>
         </div>` : '';
 
@@ -1728,8 +1759,8 @@ function displayAnalysisReport(companyInfo, analysisData) {
         <div style="margin-bottom:20px;padding:14px;background:rgba(245,158,11,.06);border-radius:12px;border-left:4px solid #f59e0b;">
             <div style="font-weight:700;color:#b45309;margin-bottom:8px;font-size:.88rem;">⚠️ Identified Risks</div>
             <ul style="list-style:none;padding:0;margin:0;">
-                ${risks.slice(0,5).map(r=>`<li style="font-size:.82rem;color:#64748b;padding:3px 0;">• ${typeof r==='object'?(r.description||r.risk||JSON.stringify(r)):r}</li>`).join('')}
-                ${risks.length>5?`<li style="font-size:.78rem;color:#94a3b8;font-style:italic;">+${risks.length-5} more risks identified</li>`:''}
+                ${risks.slice(0, 5).map(r => `<li style="font-size:.82rem;color:#64748b;padding:3px 0;">• ${typeof r === 'object' ? (r.description || r.risk || JSON.stringify(r)) : r}</li>`).join('')}
+                ${risks.length > 5 ? `<li style="font-size:.78rem;color:#94a3b8;font-style:italic;">+${risks.length - 5} more risks identified</li>` : ''}
             </ul>
         </div>` : '';
 
@@ -1738,11 +1769,11 @@ function displayAnalysisReport(companyInfo, analysisData) {
         <div style="margin-bottom:20px;padding:14px;background:rgba(16,185,129,.05);border-radius:12px;border-left:4px solid #10b981;">
             <div style="font-weight:700;color:#059669;margin-bottom:8px;font-size:.88rem;">🏁 Milestones</div>
             <ul style="list-style:none;padding:0;margin:0;">
-                ${milestones.slice(0,5).map(m=>{
-                    const label = typeof m==='object'?(m.name||m.milestone||m.description||JSON.stringify(m)):m;
-                    const day = typeof m==='object'?m.day:'';
-                    return `<li style="font-size:.82rem;color:#334155;padding:3px 0;">${day?`<strong>Day ${day}:</strong> `:''} ${label}</li>`;
-                }).join('')}
+                ${milestones.slice(0, 5).map(m => {
+        const label = typeof m === 'object' ? (m.name || m.milestone || m.description || JSON.stringify(m)) : m;
+        const day = typeof m === 'object' ? m.day : '';
+        return `<li style="font-size:.82rem;color:#334155;padding:3px 0;">${day ? `<strong>Day ${day}:</strong> ` : ''} ${label}</li>`;
+    }).join('')}
             </ul>
         </div>` : '';
 
@@ -1751,7 +1782,7 @@ function displayAnalysisReport(companyInfo, analysisData) {
         <div style="margin-bottom:20px;padding:14px;background:rgba(59,130,246,.05);border-radius:12px;border-left:4px solid #3b82f6;">
             <div style="font-weight:700;color:#1d4ed8;margin-bottom:8px;font-size:.88rem;">💡 Opportunities</div>
             <ul style="list-style:none;padding:0;margin:0;">
-                ${opportunities.slice(0,4).map(o=>`<li style="font-size:.82rem;color:#334155;padding:3px 0;">• ${typeof o==='object'?(o.description||o.opportunity||JSON.stringify(o)):o}</li>`).join('')}
+                ${opportunities.slice(0, 4).map(o => `<li style="font-size:.82rem;color:#334155;padding:3px 0;">• ${typeof o === 'object' ? (o.description || o.opportunity || JSON.stringify(o)) : o}</li>`).join('')}
             </ul>
         </div>` : '';
 
@@ -1792,22 +1823,22 @@ function displayAnalysisReport(companyInfo, analysisData) {
 
             <!-- Artifacts panel -->
             ${(() => {
-                const _ceoArts = analysisData.artifacts || [];
-                if (!_ceoArts.length) return '';
-                return `<div style="margin-bottom:20px;padding:14px;background:rgba(34,211,238,.05);border-radius:12px;border-left:4px solid #22d3ee;">
+            const _ceoArts = analysisData.artifacts || [];
+            if (!_ceoArts.length) return '';
+            return `<div style="margin-bottom:20px;padding:14px;background:rgba(34,211,238,.05);border-radius:12px;border-left:4px solid #22d3ee;">
                     <div style="font-weight:700;color:#0891b2;margin-bottom:10px;font-size:.88rem;">📎 Generated CEO Artifacts (${_ceoArts.length})</div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
                         ${_ceoArts.map(a => {
-                            const icon = a.type === 'image' ? '🖼️' : a.type === 'markdown' ? '📄' : a.type === 'json' ? '📊' : '📁';
-                            const href = a.url || ('/static/' + (a.path || ''));
-                            return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(34,211,238,0.07);border:1px solid rgba(34,211,238,0.2);border-radius:7px;text-decoration:none;color:#334155;font-size:.78rem;">
+                const icon = a.type === 'image' ? '🖼️' : a.type === 'markdown' ? '📄' : a.type === 'json' ? '📊' : '📁';
+                const href = a.url || ('/static/' + (a.path || ''));
+                return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(34,211,238,0.07);border:1px solid rgba(34,211,238,0.2);border-radius:7px;text-decoration:none;color:#334155;font-size:.78rem;">
                                 <span>${icon}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.title || a.filename || 'File'}</span>
                             </a>`;
-                        }).join('')}
+            }).join('')}
                     </div>
                     ${analysisData.artifact_directory ? `<p style="margin:8px 0 0;font-size:.7rem;color:#94a3b8;">📁 ${analysisData.artifact_directory}</p>` : ''}
                 </div>`;
-            })()}
+        })()}
 
             <!-- Next Steps -->
             <div style="padding:14px;background:rgba(102,126,234,.06);border-radius:12px;border-left:4px solid #667eea;">

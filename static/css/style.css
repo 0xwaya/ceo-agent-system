@@ -1612,6 +1612,25 @@ body.v4-layout ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); bor
 .v4-val-ok  { color: var(--v4-green); }
 .v4-val-warn{ color: var(--v4-amber); }
 
+/* Header voice control */
+.v4-header-voice {
+  display: flex; align-items: center; gap: .5rem;
+  flex-shrink: 0; padding: .4rem .7rem;
+  border: 1px solid var(--v4-border); border-radius: 999px;
+  background: rgba(255,255,255,.04);
+}
+.v4-header-voice .v4-btn-outline {
+  padding: 4px 10px; border-radius: 999px;
+  font-size: .75rem;
+}
+.v4-header-voice .v4-btn-outline:hover {
+  border-color: rgba(102,126,234,.75); color: var(--v4-accent);
+}
+.voice-status {
+  font-size: .78rem; opacity: .85; color: var(--v4-muted);
+  white-space: nowrap;
+}
+
 /* Run button */
 .v4-run-btn {
   flex-shrink: 0; margin-left: auto;
