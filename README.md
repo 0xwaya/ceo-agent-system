@@ -30,7 +30,6 @@ open http://localhost:5001/graph   # LangGraph live view
 ### API entrypoint
 `POST /api/graph/execute` is the canonical orchestration endpoint for running the multi-agent graph against the current scenario.
 
-
 ---
 
 ## 🏗️ Architecture — 3-Tier Agent Hierarchy
