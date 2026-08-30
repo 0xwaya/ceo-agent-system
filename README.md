@@ -1,8 +1,10 @@
-# 👔 Langraph Executive AI — Graph Orchestration Dashboard
+# CEO Agent System
 
-**LangGraph-powered multi-agent AI platform** — orchestrates executive strategy, domain directors, and specialist execution through a single graph endpoint.
+**16-agent LangGraph executive hierarchy** that turns a company description + budget into strategy, parallel domain execution, and downloadable artifacts (branding, finance, security, web, campaigns…).
 
-> **Current release** — REST-first orchestration via `/api/graph/execute` · simplified dashboard flow · real-time chat fallback · artifact generation pipeline.
+> Most multi-agent demos stop at chat. This one produces reviewable files and a live ops dashboard.
+
+**Current release** — REST-first orchestration via `/api/graph/execute` · simplified dashboard flow · real-time chat fallback · artifact generation pipeline.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-blueviolet)](https://github.com/langchain-ai/langgraph)
@@ -25,6 +27,9 @@ python3 app.py
 open http://localhost:5001/        # Main dashboard
 open http://localhost:5001/admin   # Admin / agent runner
 open http://localhost:5001/graph   # LangGraph live view
+
+# Optional: full test suite
+make test          # 56 pytest tests
 ```
 
 ### API entrypoint
@@ -209,9 +214,8 @@ make check         # lint + smoke + tests
 
 | Version | Highlights |
 |---------|-----------|
-| **v0.4 (legacy)** | REST-native orchestration via `/api/graph/execute` · simplified dashboard controls · graph-driven execution path |
-| **v0.3** | CTO Agent (Tier 1) · real-time LLM chat · 3-panel dashboard · live feed cards · SocketIO |
-| **v0.3** | Prompt Expert (Node 0) · Conditional dispatch loop · 6 Tier-2 directors · 7 Tier-3 specialists · Centralised `llm_nodes.py` |
+| **v0.4 (current)** | REST-native orchestration via `/api/graph/execute` · simplified dashboard controls · graph-driven execution path |
+| **v0.3** | CTO Agent (Tier 1) · real-time LLM chat · 3-panel dashboard · live feed cards · SocketIO · Prompt Expert (Node 0) · 6 Tier-2 directors · 7 Tier-3 specialists |
 | **v0.2** | CFO orchestrator · Multi-agent graph · LangGraph checkpointing |
 | **v0.1** | Single-domain marketing agent |
 
@@ -245,7 +249,5 @@ make check         # lint + smoke + tests
 
 ---
 
-**Built with** LangGraph · Flask · OpenAI · Python 3.10+
+**Built with** LangGraph · Flask · OpenAI · Python 3.10+  
 **Domains** Branding · Web Dev · Legal · Finance · Security · Martech · Content · Campaigns · Social Media
-
----
