@@ -5,6 +5,7 @@ All configuration values, constants, and environment-based settings.
 """
 
 import os
+import secrets
 import warnings
 from enum import Enum
 from pathlib import Path
@@ -15,6 +16,7 @@ from pathlib import Path
 # ============================================================================
 
 PROJECT_ROOT = Path(__file__).parent
+APP_VERSION = "0.8.0"
 TEMPLATES_DIR = PROJECT_ROOT / "templates"
 STATIC_DIR = PROJECT_ROOT / "static"
 LOGS_DIR = PROJECT_ROOT / "logs"
@@ -45,11 +47,11 @@ if not _loaded_key:
             "Set a strong random key before running in production."
         )
     warnings.warn(
-        "SECRET_KEY is not set \u2014 using insecure development fallback. "
-        "Set the SECRET_KEY environment variable before deploying.",
+        "SECRET_KEY is not set \u2014 using an ephemeral random development key. "
+        "Sessions will expire on restart; set a persistent random key before deploying.",
         stacklevel=1,
     )
-    _loaded_key = _SECRET_KEY_DEFAULT
+    _loaded_key = secrets.token_hex(32)
 elif _loaded_key == _SECRET_KEY_DEFAULT and APP_ENV == Environment.PRODUCTION:
     raise EnvironmentError(
         "FATAL: SECRET_KEY is still the default development value. "
@@ -62,8 +64,8 @@ SECRET_KEY: str = _loaded_key
 # WEB SERVER CONFIGURATION
 # ============================================================================
 
-FLASK_HOST = os.getenv("FLASK_HOST", "0.0.0.0")
-FLASK_PORT = int(os.getenv("FLASK_PORT", 5000))
+FLASK_HOST = os.getenv("FLASK_HOST", "127.0.0.1")
+FLASK_PORT = int(os.getenv("FLASK_PORT", 5001))
 FLASK_THREADED = True
 
 

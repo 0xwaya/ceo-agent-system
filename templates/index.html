@@ -1,10 +1,13 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="account-id" content="{{ g.account.id if g.account is defined and g.account else '' }}">
+    <script src="/static/js/auth.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Langraph Executive AI Dashboard</title>
-    <link rel="stylesheet" href="/static/css/style.css?v=20260217" />
+    <link rel="stylesheet" href="/static/css/style.css?v={{ app_version | default('0.8.0') }}" />
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   </head>
   <body class="v4-layout">
@@ -13,7 +16,7 @@
       <div class="v4-logo">
         <span class="v4-logo-icon">🧠</span>
         <span class="v4-logo-name">Langraph Executive AI</span>
-        <span class="v4-version-badge">v0.4</span>
+        <span class="v4-version-badge">v{{ app_version | default('0.8.0') }}</span>
       </div>
 
       <!-- Agent status pills (click to jump to chat) -->
@@ -94,10 +97,12 @@
           id="voice-toggle-btn"
           class="v4-btn v4-btn-outline"
           type="button"
+          disabled
+          title="Voice integration is paused pending credentials"
         >
           🎙 Voice
         </button>
-        <span id="voice-status" class="voice-status">Offline</span>
+        <span id="voice-status" class="voice-status">Paused</span>
       </div>
 
       <button class="v4-run-btn" id="launchOrchestration" type="button">
@@ -218,6 +223,17 @@
                 🔍 Analyze
               </button>
             </div>
+            <div class="v4-cfg-actions">
+              <button class="btn btn-small" type="button" onclick="setScenarioMemory(true)">Enable scenario memory</button>
+              <button class="btn btn-small" type="button" onclick="setScenarioMemory(false)">Disable memory</button>
+              <button class="btn btn-small" type="button" onclick="deleteScenarioMemory()">Delete scenario memory</button>
+            </div>
+            <p>Memory is opt-in and local. Retrieved excerpts enter model prompts.</p>
+            <div id="jobControls" hidden>
+              <p id="jobState"></p>
+              <button class="btn btn-small" type="button" onclick="cancelCurrentJob()">Cancel job</button>
+              <button class="btn btn-small" type="button" onclick="proposeCurrentExport()">Propose local export</button>
+            </div>
           </div>
         </div>
 
@@ -269,7 +285,7 @@
               <span class="v4-ar-icon">⚖️</span>
               <div class="v4-ar-info">
                 <div class="v4-ar-name">Legal Agent</div>
-                <div class="v4-ar-role">Ohio Compliance</div>
+                <div class="v4-ar-role">Legal &amp; Compliance</div>
               </div>
               <span class="v4-ar-dot v4-dot-gray"></span>
             </div>
@@ -285,7 +301,7 @@
               <span class="v4-ar-icon">💻</span>
               <div class="v4-ar-info">
                 <div class="v4-ar-name">Web Dev Agent</div>
-                <div class="v4-ar-role">Next.js + AR Stack</div>
+                <div class="v4-ar-role">Web Architecture</div>
               </div>
               <span class="v4-ar-dot v4-dot-gray"></span>
             </div>
@@ -555,19 +571,12 @@
         }
       })();
     </script>
-    <script src="/static/js/app.js?v=20260217"></script>
-    <script src="/static/js/voice-interface.js?v=20260217"></script>
-    <script>
-      window.addEventListener("DOMContentLoaded", function () {
-        if (
-          typeof VoiceInterface === "function" &&
-          typeof socket !== "undefined"
-        ) {
-          const voiceInterface = new VoiceInterface(socket);
-          voiceInterface.initUI();
-          window.voiceInterface = voiceInterface;
-        }
-      });
-    </script>
+    <script src="/static/js/app.js?v={{ app_version | default('0.8.0') }}"></script>
+    {% if config.ACCOUNT_AUTH_ENABLED %}
+    <form method="post" action="/logout">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <button type="submit">Log out</button>
+    </form>
+    {% endif %}
   </body>
 </html>

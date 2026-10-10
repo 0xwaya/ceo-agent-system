@@ -4,6 +4,10 @@
 **Status**: ✅ Complete
 **Version**: 1.0.0
 
+Historical implementation record: v0.8 uses the unified `templates/index.html`
+and `static/js/app.js`. The older separate dashboard templates/scripts described
+below were retired; these notes are not the current setup instructions.
+
 ---
 
 ## 📋 Overview

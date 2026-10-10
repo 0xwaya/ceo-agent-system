@@ -12,7 +12,6 @@ Tests for:
 import json
 import pytest
 import sys
-import os
 from pathlib import Path
 
 # Ensure parent package is importable
@@ -91,12 +90,11 @@ class TestCTOLLMNode:
         assert "cto" in TIER1_NODE_MAP, "TIER1_NODE_MAP must have 'cto' key"
         assert "ceo" in TIER1_NODE_MAP, "TIER1_NODE_MAP must have 'ceo' key"
 
-    def test_cto_node_fallback_output(self, monkeypatch):
-        """When OpenAI is unavailable, the node must return deterministic fallback."""
-        # Monkeypatch ChatOpenAI so it raises immediately
+    def test_cto_node_reports_model_failure(self, monkeypatch):
+        """v0.6 must fail explicitly rather than return a template."""
         import graph_architecture.llm_nodes as llm_mod
 
-        monkeypatch.setattr(llm_mod, "_get_llm_node", lambda *a, **kw: None, raising=False)
+        monkeypatch.setattr(llm_mod, "_get_llm", lambda *a, **kw: None)
 
         from graph_architecture.llm_nodes import cto_llm_architecture_node
 
@@ -112,11 +110,8 @@ class TestCTOLLMNode:
             "active_agents": [],
             "ceo_analysis": {"dispatch_plan": []},
         }
-        result = cto_llm_architecture_node(state)
-        assert isinstance(result, dict), "CTO node must return a dict"
-        assert (
-            "cto_architecture_output" in result or "agent_outputs" in result
-        ), "CTO node result must include cto_architecture_output or agent_outputs"
+        with pytest.raises(RuntimeError, match="no preset"):
+            cto_llm_architecture_node(state)
 
 
 # ---------------------------------------------------------------------------
@@ -244,31 +239,9 @@ def _poll_socketio(sc, timeout: float = 3.0, interval: float = 0.2):
     return []
 
 
-# Flask-SocketIO's test_client does NOT capture events emitted from *threading*-
-# mode handlers (the handler runs in a thread-pool thread; emit() there does not
-# write to the test-client queue).  The same LLM-chat logic is covered by the
-# REST /api/chat/message tests above.  Mark as xfail so the intent is documented
-# and the suite stays green without hiding a real regression.
-_XFAIL_THREADING = pytest.mark.xfail(
-    reason=(
-        "Flask-SocketIO test_client cannot capture events emitted from "
-        "async_mode='threading' handler threads.  LLM chat is covered by "
-        "REST /api/chat/message tests."
-    ),
-    strict=False,
-)
-
-
 class TestChatSocketIO:
-    """SocketIO chat event tests.
+    """SocketIO event delivery using compatible Flask-SocketIO and Socket.IO versions."""
 
-    NOTE: With async_mode='threading' the handler runs in a thread-pool thread.
-    Events emitted from that thread are NOT added to the test-client queue, so
-    these tests are marked xfail.  The LLM pipeline itself is validated by the
-    REST endpoint tests in TestChatRESTEndpoints.
-    """
-
-    @_XFAIL_THREADING
     def test_ai_chat_request_emits_response(self, test_socketio_client):
         """Emitting ai_chat_request must trigger ai_chat_response."""
         from unittest.mock import patch
@@ -291,7 +264,6 @@ class TestChatSocketIO:
             "ai_chat_response" in event_names
         ), f"Expected 'ai_chat_response' event, got: {event_names}"
 
-    @_XFAIL_THREADING
     def test_ai_chat_response_has_message_field(self, test_socketio_client):
         """ai_chat_response payload must contain a 'message' string field."""
         from unittest.mock import patch
@@ -338,7 +310,7 @@ class TestIndexHTMLV4Layout:
     def test_version_badge_v04(self, client):
         resp = client.get("/")
         body = resp.data.decode("utf-8")
-        assert "v0.4" in body, "index.html must display 'v0.4' version badge"
+        assert "v0.8.0" in body, "index.html must display the current version badge"
 
     def test_three_panel_ids_present(self, client):
         resp = client.get("/")
@@ -361,7 +333,8 @@ class TestIndexHTMLV4Layout:
         # Scope search to the chat agent selector block only (avoids sidebar roster order)
         selector_start = body.find('id="chatAgentSelector"')
         assert selector_start != -1, "chatAgentSelector not found in page"
-        selector_section = body[selector_start : selector_start + 600]
+        selector_end = selector_start + 600
+        selector_section = body[selector_start:selector_end]
         positions = {
             "ceo": selector_section.find('data-agent="ceo"'),
             "cfo": selector_section.find('data-agent="cfo"'),

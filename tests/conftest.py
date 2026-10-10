@@ -5,23 +5,56 @@ Pytest configuration and fixtures for CEO Executive Agent tests
 import pytest
 import sys
 import os
+import importlib
 from pathlib import Path
 
 # Add parent directory to path so we can import app modules
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Load .env before importing app so OPENAI_API_KEY and other vars are available
-try:
-    from dotenv import load_dotenv
+# Tests must never load private credentials or make paid provider calls.
+os.environ["OPENAI_API_KEY"] = ""
+os.environ["SECRET_KEY"] = "offline-test-session-key"
+os.environ["ENABLE_AUTH"] = "False"
+os.environ["APP_ENV"] = "testing"
 
-    _env_path = Path(__file__).parent.parent / ".env"
-    if _env_path.exists():
-        load_dotenv(dotenv_path=_env_path, override=True)
-except ImportError:
-    pass
+app_module = importlib.import_module("app")
+app, socketio = app_module.app, app_module.socketio
 
-from app import app, socketio
-from flask import Flask
+
+@pytest.fixture(autouse=True)
+def block_live_model_calls(monkeypatch):
+    from langchain_openai import ChatOpenAI
+
+    def blocked(*args, **kwargs):
+        raise AssertionError("Live model calls are disabled in tests")
+
+    monkeypatch.setattr(ChatOpenAI, "invoke", blocked)
+
+
+@pytest.fixture(autouse=True)
+def isolate_runtime_state(monkeypatch, tmp_path):
+    import app as app_module
+    from services.artifact_service import ArtifactService
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("APP_RUNTIME_DIR", str(tmp_path / "runtime"))
+    monkeypatch.setattr(app_module, "_runtime", None)
+    monkeypatch.setattr(app_module, "_auth_store", None)
+    monkeypatch.setitem(app_module.app.config, "ACCOUNT_AUTH_ENABLED", False)
+    monkeypatch.setattr(
+        app_module,
+        "shared_runtime_state",
+        {
+            "scenario": app_module._get_default_scenario_for_environment(),
+            "scenarios": {},
+            "last_orchestration_report": None,
+        },
+    )
+    monkeypatch.setattr(app_module, "_CHAT_SESSIONS", {})
+    service = ArtifactService(tmp_path / "static")
+    monkeypatch.setattr(app_module, "artifact_service", service)
+    monkeypatch.setattr("services.agent_service.artifact_service", service)
+    monkeypatch.setattr("services.artifact_service.artifact_service", service)
 
 
 @pytest.fixture
@@ -61,7 +94,13 @@ def sample_agent_request():
     """Sample agent execution request"""
     return {
         "task": "Create brand identity",
-        "company_info": {"name": "Test Company", "industry": "Tech", "location": "California"},
+        "company_info": {
+            "name": "Test Company",
+            "industry": "Tech",
+            "location": "California",
+            "budget": 5000,
+            "timeline": 90,
+        },
     }
 
 

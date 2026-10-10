@@ -8,7 +8,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional, Literal
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
-from config import BudgetConfig, Constants
+from config import BudgetConfig
 
 
 # ============================================================================

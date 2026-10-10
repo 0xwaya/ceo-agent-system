@@ -4,21 +4,47 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 import json
+import hashlib
+import logging
+import os
 from pathlib import Path
 import re
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
+from flask import g, has_request_context, session
+from services.usage_service import active_usage
+
+logger = logging.getLogger(__name__)
+
+
+def execution_owner():
+    usage = active_usage.get()
+    if usage is not None:
+        return usage.job["owner"]
+    if has_request_context():
+        account = getattr(g, "account", None)
+        if account:
+            return account["id"]
+        if "_id" not in session:
+            session["_id"] = uuid4().hex
+        return session["_id"]
+    return None
 
 
 class ArtifactService:
-    """Persist generated agent outputs to static files for UI preview/review."""
+    """Persist private, owner-scoped outputs for authenticated review."""
 
     def __init__(self, static_root: Optional[Path] = None):
         if static_root is None:
-            static_root = Path(__file__).resolve().parents[1] / "static"
+            static_root = Path(
+                os.getenv(
+                    "APP_ARTIFACT_DIR", str(Path(__file__).resolve().parents[1] / "data/artifacts")
+                )
+            )
         self.static_root = Path(static_root)
         self.output_root = self.static_root / "generated_outputs"
-        self.output_root.mkdir(parents=True, exist_ok=True)
+        self.output_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        self.output_root.chmod(0o700)
 
     def persist_agent_execution(
         self,
@@ -40,12 +66,14 @@ class ArtifactService:
         )
 
         run_dir = self.output_root / agent_slug / f"{run_id}_{company_slug}"
-        run_dir.mkdir(parents=True, exist_ok=True)
+        run_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        run_dir.chmod(0o700)
 
         artifacts: List[Dict[str, Any]] = []
 
         metadata = {
             "run_id": run_id,
+            "owner": execution_owner(),
             "agent_type": agent_type,
             "agent_name": agent_name,
             "task": task,
@@ -78,14 +106,15 @@ class ArtifactService:
             )
             artifacts.append(self._artifact_entry(deliverables_path, "Deliverables", "markdown"))
 
-        artifacts.extend(self._create_domain_artifacts(agent_type, result, run_dir))
+        if result.get("execution_mode") != "local_artifacts":
+            artifacts.extend(self._create_domain_artifacts(agent_type, result, run_dir))
 
         bundle = {
             "run_id": run_id,
             "agent_type": agent_type,
             "agent_name": agent_name,
             "directory": str(run_dir.relative_to(self.static_root)),
-            "directory_url": f"/static/{run_dir.relative_to(self.static_root).as_posix()}",
+            "owner": metadata["owner"],
             "artifacts": artifacts,
         }
 
@@ -95,7 +124,7 @@ class ArtifactService:
         return bundle
 
     def list_artifact_runs(
-        self, agent_type: Optional[str] = None, limit: int = 50
+        self, agent_type: Optional[str] = None, limit: int = 50, owner: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """List persisted runs (newest first), optionally by agent type."""
         run_dirs = list(self.output_root.glob("*/*"))
@@ -108,36 +137,35 @@ class ArtifactService:
         run_dirs.sort(key=lambda item: item.stat().st_mtime, reverse=True)
 
         runs: List[Dict[str, Any]] = []
-        for run_dir in run_dirs[: max(limit, 1)]:
+        for run_dir in run_dirs:
             bundle_path = run_dir / "bundle.json"
-            metadata_path = run_dir / "metadata.json"
             if bundle_path.exists():
                 try:
-                    runs.append(json.loads(bundle_path.read_text(encoding="utf-8")))
+                    bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    logger.error("Unreadable artifact manifest: %s", bundle_path, exc_info=True)
                     continue
-                except Exception:
-                    pass
-
-            if metadata_path.exists():
-                try:
-                    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
-                except Exception:
-                    metadata = {}
-            else:
-                metadata = {}
-
-            runs.append(
-                {
-                    "run_id": metadata.get("run_id", run_dir.name),
-                    "agent_type": metadata.get("agent_type", run_dir.parent.name),
-                    "agent_name": metadata.get("agent_name", run_dir.parent.name),
-                    "directory": str(run_dir.relative_to(self.static_root)),
-                    "directory_url": f"/static/{run_dir.relative_to(self.static_root).as_posix()}",
-                    "artifacts": self._discover_files(run_dir),
-                }
-            )
-
+                if owner and bundle.get("owner") == owner:
+                    runs.append(bundle)
+                    if len(runs) >= max(limit, 1):
+                        break
         return runs
+
+    def authorized_file(self, relative, owner):
+        path = (self.static_root / relative).resolve()
+        if not owner or not path.is_relative_to(self.output_root.resolve()) or not path.is_file():
+            raise LookupError("Artifact unavailable")
+        try:
+            bundle = json.loads((path.parent / "bundle.json").read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            logger.warning("Artifact manifest unavailable", exc_info=True)
+            raise LookupError("Artifact unavailable") from exc
+        if bundle.get("owner") != owner:
+            raise LookupError("Artifact unavailable")
+        entry = next((item for item in bundle["artifacts"] if item["path"] == relative), None)
+        if not entry or hashlib.sha256(path.read_bytes()).hexdigest() != entry["sha256"]:
+            raise ValueError("Artifact receipt mismatch")
+        return path
 
     def _create_domain_artifacts(
         self, agent_type: str, result: Dict[str, Any], run_dir: Path
@@ -637,7 +665,9 @@ class ArtifactService:
             "extension": extension,
             "mime_type": mime_type or self._guess_mime(extension),
             "path": relative,
-            "url": f"/static/{relative}",
+            "url": f"/api/artifacts/file/{relative}",
+            "size_bytes": path.stat().st_size,
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
         }
 
     def _discover_files(self, run_dir: Path) -> List[Dict[str, Any]]:
@@ -666,9 +696,11 @@ class ArtifactService:
         path.write_text(
             json.dumps(data, indent=2, ensure_ascii=False, default=str), encoding="utf-8"
         )
+        path.chmod(0o600)
 
     def _write_text(self, path: Path, content: str) -> None:
         path.write_text(content, encoding="utf-8")
+        path.chmod(0o600)
 
     def _slugify(self, value: str) -> str:
         normalized = re.sub(r"[^a-zA-Z0-9]+", "-", (value or "").strip().lower())

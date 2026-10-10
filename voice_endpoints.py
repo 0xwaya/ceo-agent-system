@@ -321,7 +321,8 @@ async def process_agent_query(text: str, user_id: str, session: Dict[str, Any]):
             )
 
             logger.info(
-                f"Sent voice response from {agent_type}: {len(text)} chars, {len(audio_bytes)} bytes"
+                f"Sent voice response from {agent_type}: "
+                f"{len(text)} chars, {len(audio_bytes)} bytes"
             )
 
     except Exception as e:

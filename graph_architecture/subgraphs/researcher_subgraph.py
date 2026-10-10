@@ -20,10 +20,7 @@ from langgraph.graph import StateGraph, START, END
 
 from graph_architecture.schemas import (
     SharedState,
-    ResearcherSubgraphState,
     AgentRole,
-    Message,
-    MessageType,
     SummaryMessage,
     TaskStatus,
     RiskLevel,
@@ -60,7 +57,6 @@ def conduct_research_node(state: SharedState) -> Dict[str, Any]:
     logger.info("🔍 RESEARCHER: MARKET RESEARCH")
     logger.info("=" * 80)
 
-    objectives = state.get("strategic_objectives", [])
     industry = state.get("industry", "Unknown")
 
     # Simulate search queries (placeholder for actual web search)
@@ -85,8 +81,6 @@ def analyze_documents_node(state: SharedState) -> Dict[str, Any]:
     Internal - detailed analysis not sent to requester
     """
     logger.info("\n📚 RESEARCHER: DOCUMENT ANALYSIS")
-
-    search_queries = state.get("search_queries", [])
 
     # Simulate document analysis (placeholder)
     documents_analyzed = [
@@ -214,7 +208,13 @@ def evaluate_video_tooling_node(state: SharedState) -> Dict[str, Any]:
 
     findings = state.get("key_findings", [])
     findings.append(
-        f"Selected AI video tool for content creator workflow: {best_tool['name']} (score {best_tool['score']})"
+        (
+            "Selected AI video tool for content creator workflow: "
+            f"{best_tool['name']}"
+            " (score "
+            f"{best_tool['score']}"
+            ")"
+        )
     )
 
     assigned_tasks = dict(state.get("assigned_tasks", {}))
@@ -309,7 +309,6 @@ def generate_researcher_summary_node(state: SharedState) -> Dict[str, Any]:
     video_tool_assignment = state.get("video_tool_assignment", {})
     documents = state.get("documents_analyzed", [])
     citations = state.get("citations", [])
-    assumptions = state.get("assumptions", [])
 
     # Build executive summary (narrative, not data dump)
     summary_parts = [
@@ -351,12 +350,20 @@ def generate_researcher_summary_node(state: SharedState) -> Dict[str, Any]:
     summary_parts.extend(["", "🎬 AI VIDEO TOOLING DECISION:"])
     if selected_video_tool:
         summary_parts.append(
-            f"   • Selected: {selected_video_tool.get('name')} (score {selected_video_tool.get('score')})"
+            (
+                "   • Selected: "
+                f"{selected_video_tool.get('name')}"
+                " (score "
+                f"{selected_video_tool.get('score')}"
+                ")"
+            )
         )
         summary_parts.append(
             f"   • Assigned to: {video_tool_assignment.get('assigned_to', 'content_creator_agent')}"
         )
-        summary_parts.append("   • Purpose: AI-powered video generation + editing for content pipeline")
+        summary_parts.append(
+            "   • Purpose: AI-powered video generation + editing for content pipeline"
+        )
     else:
         summary_parts.append("   • Pending selection")
 
@@ -378,7 +385,11 @@ def generate_researcher_summary_node(state: SharedState) -> Dict[str, Any]:
 
     if selected_video_tool:
         recommendations.append(
-            f"Assign {selected_video_tool.get('name')} to content creator agent for video generation/editing"
+            (
+                "Assign "
+                f"{selected_video_tool.get('name')}"
+                " to content creator agent for video generation/editing"
+            )
         )
 
     # Create summary message for parent agent (CEO)

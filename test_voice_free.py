@@ -46,7 +46,7 @@ def test_free_tier():
 
         # End session and get stats
         stats = voice_service.end_session(session_id)
-        print(f"   ✅ Session ended successfully")
+        print("   ✅ Session ended successfully")
         print(f"      Duration: {stats.get('duration_seconds', 0):.2f} seconds")
 
         # Success summary

@@ -20,10 +20,7 @@ from langgraph.graph import StateGraph, START, END
 
 from graph_architecture.schemas import (
     SharedState,
-    CFOSubgraphState,
     AgentRole,
-    Message,
-    MessageType,
     SummaryMessage,
     TaskStatus,
 )
@@ -212,7 +209,6 @@ def generate_cfo_summary_node(state: SharedState) -> Dict[str, Any]:
         ((total_budget - budget_remaining) / total_budget * 100) if total_budget > 0 else 0
     )
 
-    costs = state.get("cost_analysis", {})
     compliance = state.get("compliance_checks", [])
     projections = state.get("budget_projections", [])
 
@@ -222,7 +218,7 @@ def generate_cfo_summary_node(state: SharedState) -> Dict[str, Any]:
         "CFO EXECUTIVE SUMMARY",
         "=" * 80,
         "",
-        f"💰 BUDGET STATUS:",
+        "💰 BUDGET STATUS:",
         f"   Budget Utilization: {utilization:.1f}%",
         f"   Remaining Funds: ${budget_remaining:,.2f}",
         "",

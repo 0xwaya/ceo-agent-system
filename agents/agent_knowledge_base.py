@@ -36,7 +36,10 @@ BRANDING_EXPERTISE = ExpertiseArea(
     name="Brand Strategy & Visual Identity Design",
     field="Branding",
     key_principles=[
-        "Brand Positioning Framework (Marty Neumeier): Unique, credible, sustainable differentiation",
+        (
+            "Brand Positioning Framework (Marty Neumeier): Unique, "
+            "credible, sustainable differentiation"
+        ),
         "Gestalt Principles: Visual perception - proximity, similarity, closure, continuity",
         "Golden Ratio (1.618): Mathematical beauty in logo proportions and layouts",
         "Color Psychology: Red (energy), Blue (trust), Green (growth), Purple (luxury)",
@@ -46,10 +49,16 @@ BRANDING_EXPERTISE = ExpertiseArea(
         "Consistency Principle: 7-12 touchpoints before brand recognition",
     ],
     frameworks=[
-        "Brand Identity Prism (Kapferer): Physique, Personality, Culture, Relationship, Reflection, Self-image",
+        (
+            "Brand Identity Prism (Kapferer): Physique, Personality, "
+            "Culture, Relationship, Reflection, Self-image"
+        ),
         "Golden Circle (Sinek): Why → How → What communication hierarchy",
         "AIDA Framework: Attention, Interest, Desire, Action in brand communication",
-        "Brand Equity Model (Keller): Salience, Performance, Imagery, Judgments, Feelings, Resonance",
+        (
+            "Brand Equity Model (Keller): Salience, Performance, "
+            "Imagery, Judgments, Feelings, Resonance"
+        ),
         "Design Thinking Process: Empathize, Define, Ideate, Prototype, Test",
         "Jobs To Be Done: Functional, emotional, social jobs brand fulfills",
     ],

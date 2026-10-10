@@ -39,7 +39,6 @@ from pathlib import Path
 import os
 import sys
 from typing import Dict, Optional
-import json
 
 
 class EncryptedEnvManager:
@@ -103,7 +102,10 @@ class EncryptedEnvManager:
         if self.key_file.exists() and not overwrite:
             print(f"❌ Encryption key already exists at {self.key_file}")
             print(
-                "   Use --overwrite to regenerate (WARNING: existing encrypted data will be unrecoverable)"
+                (
+                    "   Use --overwrite to regenerate (WARNING: existing "
+                    "encrypted data will be unrecoverable)"
+                )
             )
             return False
 
@@ -112,21 +114,21 @@ class EncryptedEnvManager:
         self.key_file.write_bytes(key)
         self.key_file.chmod(0o600)  # Restrict permissions
         print(f"✓ Generated encryption key: {self.key_file}")
-        print(f"  ⚠️  IMPORTANT: Store this key securely (e.g., password manager, secure vault)")
-        print(f"  ⚠️  NEVER commit .env.key to version control!")
+        print("  ⚠️  IMPORTANT: Store this key securely (e.g., password manager, secure vault)")
+        print("  ⚠️  NEVER commit .env.key to version control!")
 
         # Create sample .env if it doesn't exist
         if not self.env_file.exists():
             sample_env = self._generate_sample_env()
             self.env_file.write_text(sample_env)
             print(f"✓ Created sample .env file: {self.env_file}")
-            print(f"  → Edit this file with your actual API keys and credentials")
+            print("  → Edit this file with your actual API keys and credentials")
 
-        print(f"\n📋 Next steps:")
+        print("\n📋 Next steps:")
         print(f"   1. Edit {self.env_file} with your real credentials")
-        print(f"   2. Run: python3 tools/encrypted_env_demo.py encrypt")
-        print(f"   3. Commit .env.encrypted to version control")
-        print(f"   4. Store .env.key in secure secrets manager")
+        print("   2. Run: python3 tools/encrypted_env_demo.py encrypt")
+        print("   3. Commit .env.encrypted to version control")
+        print("   4. Store .env.key in secure secrets manager")
 
         return True
 
@@ -614,8 +616,8 @@ RATE_LIMIT=100 per minute
             Success status
         """
         if not self.key_file.exists():
-            print(f"❌ Encryption key not found. Run setup first:")
-            print(f"   python3 tools/encrypted_env_demo.py setup")
+            print("❌ Encryption key not found. Run setup first:")
+            print("   python3 tools/encrypted_env_demo.py setup")
             return False
 
         if not self.env_file.exists():
@@ -650,7 +652,7 @@ RATE_LIMIT=100 per minute
         """
         if not self.key_file.exists():
             print(f"❌ Encryption key not found at {self.key_file}")
-            print(f"   Retrieve the key from your secure storage and place it here")
+            print("   Retrieve the key from your secure storage and place it here")
             return False
 
         if not self.encrypted_file.exists():
@@ -671,12 +673,12 @@ RATE_LIMIT=100 per minute
             # Save decrypted file
             output_path.write_bytes(decrypted_content)
             print(f"✓ Decrypted {self.encrypted_file} → {output_path}")
-            print(f"  Environment variables are now available")
+            print("  Environment variables are now available")
 
             return True
         except Exception as e:
             print(f"❌ Decryption failed: {e}")
-            print(f"   Ensure you're using the correct encryption key")
+            print("   Ensure you're using the correct encryption key")
             return False
 
     def load_env(self, decrypt_first: bool = True) -> Dict[str, str]:
@@ -711,29 +713,43 @@ RATE_LIMIT=100 per minute
         print("📊 Encrypted Environment Configuration Status")
         print("=" * 60)
         print(f"Project root: {self.project_root}")
-        print(f"\nFiles:")
+        print("\nFiles:")
         print(
-            f"  .env.key:       {'✓ EXISTS' if self.key_file.exists() else '✗ MISSING'} (DO NOT COMMIT)"
+            (
+                "  .env.key:       "
+                f"{('✓ EXISTS' if self.key_file.exists() else '✗ MISSING')}"
+                " (DO NOT COMMIT)"
+            )
         )
         print(
-            f"  .env:           {'✓ EXISTS' if self.env_file.exists() else '✗ MISSING'} (DO NOT COMMIT)"
+            (
+                "  .env:           "
+                f"{('✓ EXISTS' if self.env_file.exists() else '✗ MISSING')}"
+                " (DO NOT COMMIT)"
+            )
         )
         print(
-            f"  .env.encrypted: {'✓ EXISTS' if self.encrypted_file.exists() else '✗ MISSING'} (SAFE TO COMMIT)"
+            (
+                "  .env.encrypted: "
+                f"{('✓ EXISTS' if self.encrypted_file.exists() else '✗ MISSING')}"
+                " (SAFE TO COMMIT)"
+            )
         )
 
         if self.env_file.exists():
             content = self.env_file.read_text()
-            lines = [l for l in content.splitlines() if l.strip() and not l.startswith("#")]
+            lines = [
+                line for line in content.splitlines() if line.strip() and not line.startswith("#")
+            ]
             print(f"\nEnvironment variables: {len(lines)} configured")
 
-        print(f"\n📋 Recommendations:")
+        print("\n📋 Recommendations:")
         if not self.key_file.exists():
-            print(f"   → Run 'setup' to generate encryption key")
+            print("   → Run 'setup' to generate encryption key")
         elif not self.encrypted_file.exists():
-            print(f"   → Run 'encrypt' to create encrypted file")
+            print("   → Run 'encrypt' to create encrypted file")
         else:
-            print(f"   ✓ Configuration is properly encrypted")
+            print("   ✓ Configuration is properly encrypted")
 
 
 def main():

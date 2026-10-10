@@ -597,7 +597,8 @@ CEO Agent is designed for extensibility. To add new features:
 1. **New Agent**: Create in `agents/` following `base_agent.py` pattern
 2. **New Tool**: Add to `tools/` with proper error handling
 3. **New Guard Rail**: Update `agents/agent_guard_rails.py`
-4. **New Dashboard Feature**: Update `templates/admin_dashboard.html` and `static/js/admin.js`
+4. **New Dashboard Feature**: Update `templates/index.html` and `static/js/app.js`.
+   The inactive duplicate dashboards and their scripts were retired in v0.8.
 
 ---
 

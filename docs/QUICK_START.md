@@ -2,7 +2,30 @@
 
 ## Main Entry Points
 
-After the reorganization, here are the ways to run the system:
+## Supported v0.8 local dashboard
+
+Use the current dashboard for explicit scenario-driven, metered local artifact
+execution. Keep the service localhost-only. Enable named authentication, use a
+random persistent `SECRET_KEY` of at least 32 characters, and provision your own
+admin with a hidden password prompt:
+
+**Activation on hold:** leave local login disabled for now. The account setup
+below is for the later, explicitly authorized SSH-tunnel testing stage.
+
+```bash
+.venv/bin/python -m flask --app app create-account --email <your-admin-email> --role admin
+.venv/bin/python app.py
+make check PYTHON=.venv/bin/python
+```
+
+Open `http://127.0.0.1:5001/login`. New artifacts are private in `data/artifacts/`;
+use the authenticated dashboard download links, not static file URLs.
+Tester provisioning and remote access are on hold. Voice is paused.
+
+**Legacy CLI reference below:** these compatibility entry points do not share
+the dashboard's authentication, metering or truthful execution contract, and
+some retain historical preset scenarios. They are not recommended for live
+testing or as proof that business actions were executed.
 
 ---
 
@@ -77,11 +100,11 @@ Then visit: **http://localhost:5001**
 - Real-time WebSocket updates
 - Visual dashboards and charts
 - Execute agents via API endpoints
-- Persist generated execution artifacts to `static/generated_outputs/`
+- Persist generated execution artifacts to private `data/artifacts/`
 - Show generated files with previews in the agent workspace panel
 - Debug console
 
-**Use case:** Production deployment, team collaboration
+**Use case:** Private local testing; not a public production deployment
 
 ---
 
@@ -180,14 +203,15 @@ python3 app.py
 # - Click individual agent buttons to deploy them
 # - View real-time progress
 # - Open "Run & View Output" for any agent to see generated files
-# - Review saved artifacts in static/generated_outputs/
+# - Review saved artifacts through owner-checked dashboard download links
 ```
 
 ### Artifact Review Flow
 
 1. Open `/admin` and run an agent via **Run & View Output**
 2. Inspect **Generated Files** in the workspace panel (preview + open links)
-3. Access saved output folder at `static/generated_outputs/<agent>/<run_id>_<company>/`
+3. Files are private in `data/artifacts/generated_outputs/<agent>/<run_id>_<company>/`;
+   use authenticated download links once login is activated.
 
 Generated bundle includes:
 - `metadata.json` (run context)

@@ -14,7 +14,6 @@ from models import (
     Task,
     TaskBreakdown,
     TaskPriority,
-    TaskStatus,
     BudgetTracker,
     BudgetAllocation,
     AgentExecutionRequest,
@@ -30,7 +29,7 @@ from exceptions import (
     InsufficientBudgetError,
 )
 from logger import OrchestrationLogger, get_agent_logger
-from config import BudgetConfig, AgentConfig
+from config import BudgetConfig
 
 
 # ============================================================================
@@ -512,7 +511,6 @@ class OrchestrationService:
 
         # Create state
         state = self.state_service.create_state(company_info)
-        state_id = self._generate_state_id(company_info.name)
 
         try:
             # Phase 1: Analysis

@@ -169,7 +169,10 @@ class SecurityBlockchainAgent:
                         severity="high",
                         area="backend",
                         title="Missing CSP header",
-                        detail="Add Content-Security-Policy with explicit script/style/connect sources.",
+                        detail=(
+                            "Add Content-Security-Policy with explicit "
+                            "script/style/connect sources."
+                        ),
                         file_path="app.py",
                     )
                 )
@@ -180,7 +183,10 @@ class SecurityBlockchainAgent:
                         severity="medium",
                         area="backend",
                         title="Cookie security flags not explicitly set",
-                        detail="Set SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE, and prod-only secure cookies.",
+                        detail=(
+                            "Set SESSION_COOKIE_HTTPONLY, SESSION_COOKIE_SAMESITE, and "
+                            "prod-only secure cookies."
+                        ),
                         file_path="app.py",
                     )
                 )
@@ -210,7 +216,10 @@ class SecurityBlockchainAgent:
                             severity="medium",
                             area="frontend",
                             title="Potential DOM injection sink",
-                            detail="Prefer textContent or sanitize untrusted values before assigning innerHTML.",
+                            detail=(
+                                "Prefer textContent or sanitize untrusted values before "
+                                "assigning innerHTML."
+                            ),
                             file_path=str(js_file.relative_to(project_root)),
                         )
                     )

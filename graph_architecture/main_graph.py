@@ -18,66 +18,26 @@ START → privacy_scrub → prompt_expert → ceo_analyze → dispatch_orchestra
 from __future__ import annotations
 
 import logging
-import sys
 import uuid
-from datetime import datetime
-from pathlib import Path
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
-
-# Allow running this file directly: python3 graph_architecture/main_graph.py
-# Adds the project root (parent of graph_architecture/) to sys.path so that
-# package imports like `from graph_architecture.schemas import ...` resolve.
-_project_root = Path(__file__).resolve().parent.parent
-if str(_project_root) not in sys.path:
-    sys.path.insert(0, str(_project_root))
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.base import BaseCheckpointSaver
 
 from graph_architecture.schemas import (
     CEOState,
-    SharedState,
-    AgentRole,
-    AgentTask,
     LLMRoutingDecision,
     create_initial_shared_state,
 )
-from graph_architecture.checkpointer import create_checkpointer, CheckpointManager
-from graph_architecture.guards import validate_agent_role, AuthorizationLevel, ViolationLogger
+from graph_architecture.checkpointer import create_checkpointer
 from graph_architecture.approval_nodes import (
     human_approval_node,
-    route_to_approval,
-    check_approval_status,
-    create_budget_approval_request,
 )
-from graph_architecture.prompt_expert import prompt_expert_node, build_routing_decision_from_expert
+from graph_architecture.prompt_expert import prompt_expert_node
 from graph_architecture.privacy import privacy_scrub_node
 from graph_architecture.llm_nodes import ceo_llm_analyze_node, TIER2_NODE_MAP
-from graph_architecture.subgraphs.cfo_subgraph import build_cfo_subgraph
-from graph_architecture.subgraphs.engineer_subgraph import build_engineer_subgraph
-from graph_architecture.subgraphs.researcher_subgraph import build_researcher_subgraph
-
-# New Tier-2 subgraphs — imported lazily so missing files don't break old runs
-try:
-    from graph_architecture.subgraphs.legal_subgraph import build_legal_subgraph
-
-    _HAS_LEGAL = True
-except ImportError:
-    _HAS_LEGAL = False
-
-try:
-    from graph_architecture.subgraphs.martech_subgraph import build_martech_subgraph
-
-    _HAS_MARTECH = True
-except ImportError:
-    _HAS_MARTECH = False
-
-try:
-    from graph_architecture.subgraphs.security_subgraph import build_security_subgraph
-
-    _HAS_SECURITY = True
-except ImportError:
-    _HAS_SECURITY = False
+from services.agent_service import run_agent_node
 
 logger = logging.getLogger(__name__)
 
@@ -109,20 +69,17 @@ def ceo_analyze_wrapper(state: CEOState) -> Dict[str, Any]:
     updated = ceo_llm_analyze_node(state)
 
     # Build dispatch_plan from prompt_expert_output if not already set
-    routing: Optional[LLMRoutingDecision] = state.get("llm_routing_decision")
+    routing_data = updated.get("llm_routing_decision")
+    routing = LLMRoutingDecision.model_validate(routing_data) if routing_data else None
     if routing is None:
-        expert_out = state.get("prompt_expert_output")
-        if expert_out:
-            routing = build_routing_decision_from_expert(expert_out)
-        else:
-            # Safe default: send to all three classic domains
-            routing = LLMRoutingDecision(
-                dispatch_plan=["cfo", "engineer", "researcher"],
-                can_parallelize=False,
-                requires_approval_before=[],
-            )
-
-    dispatch_plan = list(routing.dispatch_plan) if routing else ["cfo", "engineer", "researcher"]
+        raise RuntimeError("CEO did not produce a routing decision")
+    dispatch_plan = list(dict.fromkeys(routing.dispatch_plan))
+    unknown = set(dispatch_plan) - set(TIER2_NODE_MAP)
+    if unknown:
+        raise ValueError(f"Unsupported dispatch roles: {sorted(unknown)}")
+    if "cfo" in dispatch_plan:
+        dispatch_plan.remove("cfo")
+        dispatch_plan.insert(0, "cfo")
     logger.info(f"Dispatch plan: {dispatch_plan}")
 
     return {
@@ -189,59 +146,72 @@ def _advance_dispatch_index(state: CEOState) -> Dict[str, Any]:
 
 def cfo_subgraph_wrapper(state: CEOState) -> Dict[str, Any]:
     logger.info("\n💼 Invoking CFO Subgraph...")
-    result = build_cfo_subgraph().invoke(state)
+    result = run_agent_node("cfo", state)
     logger.info("✅ CFO Subgraph completed")
     return {**result, **_advance_dispatch_index(state)}
 
 
 def engineer_subgraph_wrapper(state: CEOState) -> Dict[str, Any]:
     logger.info("\n🛠️  Invoking Engineer Subgraph...")
-    result = build_engineer_subgraph().invoke(state)
+    result = _run_domain_specialists(
+        state,
+        "engineer",
+        {
+            "needs_ux_design": "ux_design",
+            "needs_web_development": "web_development",
+            "needs_software_review": "software_eng",
+        },
+    )
     logger.info("✅ Engineer Subgraph completed")
     return {**result, **_advance_dispatch_index(state)}
 
 
 def researcher_subgraph_wrapper(state: CEOState) -> Dict[str, Any]:
     logger.info("\n🔍 Invoking Researcher Subgraph...")
-    result = build_researcher_subgraph().invoke(state)
+    result = run_agent_node("researcher", state)
     logger.info("✅ Researcher Subgraph completed")
     return {**result, **_advance_dispatch_index(state)}
 
 
 def legal_subgraph_wrapper(state: CEOState) -> Dict[str, Any]:
     logger.info("\n⚖️  Invoking Legal Subgraph...")
-    if _HAS_LEGAL:
-        result = build_legal_subgraph().invoke(state)
-    else:
-        from graph_architecture.llm_nodes import legal_llm_compliance_node
-
-        result = legal_llm_compliance_node(state)
+    result = run_agent_node("legal", state)
     logger.info("✅ Legal Subgraph completed")
     return {**result, **_advance_dispatch_index(state)}
 
 
 def martech_subgraph_wrapper(state: CEOState) -> Dict[str, Any]:
     logger.info("\n📣 Invoking Martech Subgraph...")
-    if _HAS_MARTECH:
-        result = build_martech_subgraph().invoke(state)
-    else:
-        from graph_architecture.llm_nodes import martech_llm_strategy_node
-
-        result = martech_llm_strategy_node(state)
+    result = _run_domain_specialists(
+        state,
+        "martech",
+        {
+            "needs_branding": "branding",
+            "needs_content": "content",
+            "needs_campaign": "campaigns",
+            "needs_social_media": "social_media",
+        },
+    )
     logger.info("✅ Martech Subgraph completed")
     return {**result, **_advance_dispatch_index(state)}
 
 
 def security_subgraph_wrapper(state: CEOState) -> Dict[str, Any]:
     logger.info("\n🔒 Invoking Security Subgraph...")
-    if _HAS_SECURITY:
-        result = build_security_subgraph().invoke(state)
-    else:
-        from graph_architecture.llm_nodes import security_llm_audit_node
-
-        result = security_llm_audit_node(state)
+    result = run_agent_node("security", state)
     logger.info("✅ Security Subgraph completed")
     return {**result, **_advance_dispatch_index(state)}
+
+
+def _run_domain_specialists(state, domain, specialists):
+    result = run_agent_node(domain, state)
+    records = list(result["agent_outputs"])
+    for hint, agent_type in specialists.items():
+        if state.get("prompt_expert_output", {}).get(hint):
+            update = run_agent_node(agent_type, {**state, **result})
+            records.extend(update["agent_outputs"])
+            result.update(update)
+    return {**result, "agent_outputs": records}
 
 
 # ============================================================================
@@ -264,7 +234,7 @@ def ceo_consolidate_summaries_node(state: CEOState) -> Dict[str, Any]:
     final_decision = {
         "decision_id": f"final-{uuid.uuid4().hex[:6]}",
         "decision": "Accept all agent outputs and proceed to final report",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     return {"executive_decisions": [final_decision], "current_phase": "consolidation"}
 
@@ -290,8 +260,9 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
         f"AGENTS RAN    : {len(agent_outputs)}\n"
         f"CEO DECISIONS : {len(executive_decisions)}\n"
         f"BUDGET LEFT   : ${budget_remaining:,.2f}\n\n"
-        f"STATUS: All dispatched agents reported successfully.\n"
-        f"CEO SIGNATURE: Approved  |  {datetime.utcnow().date()}\n"
+        f"STATUS: Local planning artifacts generated; review required.\n"
+        f"EXTERNAL ACTIONS: None. No deployment, purchases, outreach or live research.\n"
+        f"REVIEW DATE: {datetime.now(timezone.utc).date()}\n"
         f"{'='*80}\n"
     )
 
@@ -300,7 +271,12 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
     return {
         "final_summary": final_summary,
         "current_phase": "complete",
-        "completed_phases": ["prompt_expert", "ceo_analyze", "dispatch", "consolidation"],
+        "completed_phases": [
+            "prompt_expert",
+            "ceo_analyze",
+            "dispatch",
+            "consolidation",
+        ],
     }
 
 
@@ -309,7 +285,9 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
 # ============================================================================
 
 
-def build_master_graph(checkpointer: Optional[BaseCheckpointSaver] = None) -> StateGraph:
+def build_master_graph(
+    checkpointer: Optional[BaseCheckpointSaver] = None,
+) -> StateGraph:
     """
     Build the complete 3-tier hierarchical multi-agent graph.
 
@@ -336,6 +314,7 @@ def build_master_graph(checkpointer: Optional[BaseCheckpointSaver] = None) -> St
     graph.add_node("privacy_scrub", privacy_scrub_node)  # Node 0 — PII guard
     graph.add_node("prompt_expert", prompt_expert_node)
     graph.add_node("ceo_analyze", ceo_analyze_wrapper)
+    graph.add_node("cto_review", lambda state: run_agent_node("cto", state))
     graph.add_node("dispatch_orchestrator", dispatch_orchestrator_node)
 
     # Tier-2 subgraph wrappers
@@ -355,7 +334,8 @@ def build_master_graph(checkpointer: Optional[BaseCheckpointSaver] = None) -> St
     graph.add_edge(START, "privacy_scrub")
     graph.add_edge("privacy_scrub", "prompt_expert")
     graph.add_edge("prompt_expert", "ceo_analyze")
-    graph.add_edge("ceo_analyze", "dispatch_orchestrator")
+    graph.add_edge("ceo_analyze", "cto_review")
+    graph.add_edge("cto_review", "dispatch_orchestrator")
 
     # Each subgraph cycles back to the dispatch orchestrator
     for domain_node in (
@@ -454,35 +434,38 @@ def execute_multi_agent_system(
         "current_dispatch_index": 0,
         "can_parallelize": False,
     }
+    ceo_state["thread_id"] = thread_id or ceo_state["thread_id"]
 
     checkpointer = None
     config = None
 
     if use_checkpointing:
         checkpointer = create_checkpointer("sqlite", "./data/checkpoints.sqlite")
-        thread = thread_id or f"thread-{uuid.uuid4().hex[:8]}"
+        thread = ceo_state["thread_id"]
         config = {"configurable": {"thread_id": thread}}
         logger.info(f"Using checkpointing with thread: {thread}")
 
-    graph = build_master_graph(checkpointer=checkpointer)
-
-    logger.info("\n🚀 STARTING MULTI-AGENT SYSTEM EXECUTION")
-    logger.info("=" * 80)
-
     try:
+        graph = build_master_graph(checkpointer=checkpointer)
+        logger.info("\n🚀 STARTING MULTI-AGENT SYSTEM EXECUTION")
+        logger.info("=" * 80)
         result = graph.invoke(ceo_state, config=config) if config else graph.invoke(ceo_state)
-    except Exception as exc:
-        if use_checkpointing and _is_checkpoint_capacity_error(exc):
-            logger.error(
-                "Checkpoint persistence failed (storage full); retrying without checkpointing."
-            )
-            result = build_master_graph(checkpointer=None).invoke(ceo_state)
-        else:
-            raise
+    finally:
+        if checkpointer is not None:
+            checkpointer.conn.close()
 
     logger.info("\n✅ EXECUTION COMPLETE")
     logger.info("=" * 80)
 
+    if result.get("current_phase") != "complete":
+        raise RuntimeError("Workflow paused or incomplete; no completion claim was made")
+    result["execution_mode"] = "local_artifacts"
+    result["external_actions_executed"] = False
+    result["artifacts"] = [
+        artifact
+        for output in result.get("agent_outputs", [])
+        for artifact in output.get("artifacts", [])
+    ]
     return result
 
 
@@ -501,7 +484,10 @@ if __name__ == "__main__":
             "Build enterprise sales team",
             "Establish market presence",
         ],
-        user_raw_input="Analyze our SaaS launch plan including financials, engineering, and marketing strategy.",
+        user_raw_input=(
+            "Analyze our SaaS launch plan including financials, "
+            "engineering, and marketing strategy."
+        ),
         use_checkpointing=True,
     )
 

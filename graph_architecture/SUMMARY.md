@@ -90,7 +90,7 @@ pip install -r graph_architecture/requirements.txt
 python3 graph_architecture/TUTORIAL.py
 
 # Run specific example
-python3 graph_architecture/main_graph.py
+python3 -m graph_architecture.main_graph
 ```
 
 ## 📖 Documentation

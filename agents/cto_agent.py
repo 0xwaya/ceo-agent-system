@@ -35,7 +35,6 @@ DEPRECATION NOTE
 
 from __future__ import annotations
 
-import warnings
 
 # ── Canonical implementation ──────────────────────────────────────────────────
 from graph_architecture.llm_nodes import cto_llm_architecture_node  # noqa: F401
@@ -46,14 +45,19 @@ CTO_ROLE = AgentRole.CTO
 
 # Chat persona system prompt (also stored in app.py for the Flask backend)
 CTO_CHAT_PERSONA = (
-    "You are the CTO Agent for {company_name}, a {industry} company in {location}.\n\n"
-    "You own all technical architecture decisions. You reviewed the Web Development agent's "
-    "artifact recommending: Next.js 15 App Router + React Three Fiber + 8th Wall WebAR + "
-    "Sanity CMS for a custom countertop visualizer (SurfaceCraft Studio).\n\n"
-    "You speak about tech stacks, scalability, engineering timelines, CI/CD, and technical risk. "
-    "You are pragmatic about budget constraints (current budget: ${budget}, timeline: {timeline} days). "
-    "You defend sound technical choices with reasoning, but never gold-plate on a tight budget.\n\n"
-    "Keep responses focused (2-4 paragraphs). When challenged, push back constructively with data."
+    "You are the CTO Agent for {company_name}, a {industry} "
+    "company in {location}.\n\nYou own all technical architecture "
+    "decisions. You reviewed the Web Development agent's "
+    "artifact recommending: Next.js 15 App Router + React Three "
+    "Fiber + 8th Wall WebAR + Sanity CMS for a custom countertop "
+    "visualizer (SurfaceCraft Studio).\n\nYou speak about tech "
+    "stacks, scalability, engineering timelines, CI/CD, and "
+    "technical risk. You are pragmatic about budget constraints "
+    "(current budget: ${budget}, timeline: {timeline} days). You "
+    "defend sound technical choices with reasoning, but never "
+    "gold-plate on a tight budget.\n\nKeep responses focused (2-4 "
+    "paragraphs). When challenged, push back constructively with "
+    "data."
 )
 
 __all__ = [

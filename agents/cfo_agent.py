@@ -17,16 +17,14 @@ management following best practices from top business schools (Harvard, Stanford
 
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
-from typing import Annotated, Dict, List, Any
+from typing import Annotated, Dict, List
 import operator
-from dataclasses import dataclass, field
 from agents.specialized_agents import (
     AgentFactory,
     BrandingAgentState,
     WebDevAgentState,
     LegalAgentState,
 )
-from agents.agent_knowledge_base import get_expertise, get_all_expertise_areas
 
 
 # ============================================================================
@@ -130,11 +128,15 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
         {
             "task_id": "T002",
             "task_name": "Brand Identity & Logo Design",
-            "description": "AI Branding Agent designs visual identity system, logo, brand guidelines",
+            ("description"): (
+                "AI Branding Agent designs visual identity system, logo, " "brand guidelines"
+            ),
             "required_expertise": "branding",
             "priority": "CRITICAL",
             "dependencies": [],  # Runs in parallel with T001 — no blocking dependency
-            "estimated_budget": 150,  # Design tools only (Adobe CC/Figma Pro: $55/mo + fonts/assets: $100)
+            (
+                "estimated_budget"
+            ): 150,  # Design tools only (Adobe CC/Figma Pro: $55/mo + fonts/assets: $100)
             "estimated_days": 14,
             "success_criteria": [
                 "Logo designed by AI agent using design principles",
@@ -145,7 +147,9 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
         {
             "task_id": "T003",
             "task_name": "Website Development & Digital Presence",
-            "description": "AI Web Dev Agent builds modern website with full SEO and mobile optimization",
+            ("description"): (
+                "AI Web Dev Agent builds modern website with full SEO and " "mobile optimization"
+            ),
             "required_expertise": "web_development",
             "priority": "HIGH",
             "dependencies": ["T002"],  # Need branding first
@@ -164,7 +168,9 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
             "required_expertise": "martech",
             "priority": "HIGH",
             "dependencies": ["T003"],  # Need website first
-            "estimated_budget": 200,  # HubSpot Free + GA4 Free + Calendly $10/mo + Mailchimp Free = ~$200 setup
+            (
+                "estimated_budget"
+            ): 200,  # HubSpot Free + GA4 Free + Calendly $10/mo + Mailchimp Free = ~$200 setup
             "estimated_days": 21,
             "success_criteria": [
                 "CRM configured and customized by AI agent",
@@ -175,11 +181,15 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
         {
             "task_id": "T005",
             "task_name": "Foundational Content Creation",
-            "description": "AI Content Agent writes copy, creates designs, develops content strategy",
+            ("description"): (
+                "AI Content Agent writes copy, creates designs, develops " "content strategy"
+            ),
             "required_expertise": "content",
             "priority": "MEDIUM",
             "dependencies": ["T002", "T003"],  # Need brand + website
-            "estimated_budget": 150,  # Canva Pro $13/mo + Unsplash+ $10/mo + AI writing tools $0-50 = ~$150
+            (
+                "estimated_budget"
+            ): 150,  # Canva Pro $13/mo + Unsplash+ $10/mo + AI writing tools $0-50 = ~$150
             "estimated_days": 35,
             "success_criteria": [
                 "Content strategy document created by AI",
@@ -191,7 +201,9 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
         {
             "task_id": "T006",
             "task_name": "Phase 1 Campaign Launch (90-day)",
-            "description": "AI Campaign Agent sets up, manages, and optimizes multi-channel campaigns",
+            ("description"): (
+                "AI Campaign Agent sets up, manages, and optimizes " "multi-channel campaigns"
+            ),
             "required_expertise": "campaigns",
             "priority": "MEDIUM",
             "dependencies": ["T003", "T004", "T005"],  # Need all assets ready
@@ -213,7 +225,10 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
         print(f"      Budget: ${task['estimated_budget']:,}")
         print(f"      Timeline: {task['estimated_days']} days")
         print(
-            f"      Dependencies: {', '.join(task['dependencies']) if task['dependencies'] else 'None'}"
+            (
+                "      Dependencies: "
+                f"{(', '.join(task['dependencies']) if task['dependencies'] else 'None')}"
+            )
         )
 
     # Budget allocation analysis (CFO core responsibility)
@@ -231,11 +246,17 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
     print(f"  Total Project Budget: ${total_budget:,.0f} (tools/platforms only)")
     print(f"  Total Estimated Cost: ${total_estimated:,.0f}")
     print(
-        f"  Remaining Reserve: ${total_budget - total_estimated:,.0f} ({((total_budget - total_estimated) / total_budget * 100):.1f}%)"
+        (
+            "  Remaining Reserve: $"
+            f"{total_budget - total_estimated:,.0f}"
+            " ("
+            f"{(total_budget - total_estimated) / total_budget * 100:.1f}"
+            "%)"
+        )
     )
-    print(f"\n  💡 NOTE: AI agents perform ALL design, development & marketing work")
-    print(f"     Budget covers only essential tools, platforms, and ad spend\n")
-    print(f"  Allocation by Domain:")
+    print("\n  💡 NOTE: AI agents perform ALL design, development & marketing work")
+    print("     Budget covers only essential tools, platforms, and ad spend\n")
+    print("  Allocation by Domain:")
     for domain, amount in sorted(budget_allocated.items(), key=lambda x: x[1], reverse=True):
         percentage = amount / total_estimated * 100
         print(f"    • {domain.upper():<20} ${amount:>8,} ({percentage:>5.1f}%)")
@@ -255,13 +276,19 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
             "risk": "Timeline Delays",
             "probability": "MEDIUM",
             "impact": "MEDIUM",
-            "mitigation": "Built-in slack time, parallel task execution where possible, weekly status reviews",
+            ("mitigation"): (
+                "Built-in slack time, parallel task execution where "
+                "possible, weekly status reviews"
+            ),
         },
         {
             "risk": "Scope Creep",
             "probability": "HIGH",
             "impact": "HIGH",
-            "mitigation": "Clear SOW for each agent, change request process, CFO approval for budget changes",
+            ("mitigation"): (
+                "Clear SOW for each agent, change request process, CFO "
+                "approval for budget changes"
+            ),
         },
         {
             "risk": "Quality Issues",
@@ -273,7 +300,9 @@ def analyze_strategic_objectives(state: CFOAgentState) -> dict:
             "risk": "Technology Failures",
             "probability": "LOW",
             "impact": "MEDIUM",
-            "mitigation": "Choose proven tech stack, have backup vendors, staging environment testing",
+            ("mitigation"): (
+                "Choose proven tech stack, have backup vendors, staging " "environment testing"
+            ),
         },
     ]
 
@@ -413,8 +442,13 @@ def deploy_specialized_agents(state: CFOAgentState) -> dict:
                         "budget_used": result["budget_used"],
                         "timeline_days": result["timeline_days"],
                         "deliverables": result.get("deliverables", []),
-                        "output_summary": f"DBA registration process complete: {len(result['filings_required'])} steps, "
-                        f"{len(result['compliance_checklist'])} compliance items",
+                        ("output_summary"): (
+                            "DBA registration process complete: "
+                            f"{len(result['filings_required'])}"
+                            " steps, "
+                            f"{len(result['compliance_checklist'])}"
+                            " compliance items"
+                        ),
                     }
                 )
 
@@ -455,8 +489,13 @@ def deploy_specialized_agents(state: CFOAgentState) -> dict:
                         "budget_used": design_result["budget_used"],
                         "timeline_days": design_result["timeline_days"],
                         "deliverables": design_result["deliverables"],
-                        "output_summary": f"Brand identity complete: {len(design_result['design_concepts'])} concepts, "
-                        f"{len(design_result['deliverables'])} deliverables",
+                        ("output_summary"): (
+                            "Brand identity complete: "
+                            f"{len(design_result['design_concepts'])}"
+                            " concepts, "
+                            f"{len(design_result['deliverables'])}"
+                            " deliverables"
+                        ),
                     }
                 )
 
@@ -494,8 +533,13 @@ def deploy_specialized_agents(state: CFOAgentState) -> dict:
                         "budget_used": result["budget_used"],
                         "timeline_days": result["timeline_days"],
                         "deliverables": result["deliverables"],
-                        "output_summary": f"Website architecture complete: {len(result['development_phases'])} phases, "
-                        f"{len(result['ar_features'])} AR features",
+                        ("output_summary"): (
+                            "Website architecture complete: "
+                            f"{len(result['development_phases'])}"
+                            " phases, "
+                            f"{len(result['ar_features'])}"
+                            " AR features"
+                        ),
                     }
                 )
 
@@ -644,8 +688,20 @@ Expertise: MIT Sloan + Harvard Business School + Stanford GSB frameworks
     print(executive_summary)
 
     # Generate status report
-    status_report = f"\n✓ Project analysis complete: {len(identified_tasks)} tasks, {len(agent_outputs)} agents deployed"
-    status_report += f"\n✓ Total investment: ${total_budget_used:,.0f} ({(total_budget_used/total_budget*100):.1f}% of budget)"
+    status_report = (
+        "\n✓ Project analysis complete: "
+        f"{len(identified_tasks)}"
+        " tasks, "
+        f"{len(agent_outputs)}"
+        " agents deployed"
+    )
+    status_report += (
+        "\n✓ Total investment: $"
+        f"{total_budget_used:,.0f}"
+        " ("
+        f"{total_budget_used / total_budget * 100:.1f}"
+        "% of budget)"
+    )
     status_report += f"\n✓ Timeline: {total_timeline} days (critical path)"
     status_report += f"\n✓ Deliverables: {deliverable_count} items across all domains"
 
@@ -767,7 +823,12 @@ if __name__ == "__main__":
     print(f"Agents Deployed: {len(final_state['active_agents'])}")
     print(f"Tasks Completed: {len(final_state['completed_tasks'])}")
     print(
-        f"Budget Utilized: ${sum(o['budget_used'] for o in final_state['agent_outputs']):,.0f} of ${final_state['total_budget']:,.0f}"
+        (
+            "Budget Utilized: $"
+            f"{sum((o['budget_used'] for o in final_state['agent_outputs'])):,.0f}"
+            " of $"
+            f"{final_state['total_budget']:,.0f}"
+        )
     )
 
     print("\n📄 Full executive summary has been generated above.")

@@ -2,6 +2,70 @@
 
 ## Executive Summary
 
+### v0.8.0 implementation status
+
+Implemented: opt-in scoped MemPalace lexical memory, persisted single-process jobs,
+interruption handling without replay, bounded request/job usage reservations and provider
+token accounting, and explicitly approved local ZIP exports with hash receipts.
+Named-account authentication, revocable server-side sessions, CSRF and same-origin
+Socket.IO checks, and private owner-scoped artifact manifests/downloads are implemented.
+Public static artifact URLs are denied. Ownerless historical files are preserved,
+not reassigned. No real tester account has been provisioned.
+See the README for setup, limits, endpoint contracts, and safe VM testing.
+No external action connector or live performance/cost benchmark has been enabled.
+Both dashboard launch paths persist the accepted job ID and poll durable status;
+reload recovery and memory enable/disable/delete were checked on localhost with
+provider credentials disabled. A failed model call stays failed rather than
+substituting preset output.
+
+The active dashboard now uses explicit scenario inputs, structured objective-linked
+planning, and model-backed local artifact execution. Simulated research sources,
+generated-code/test counters, and model-error templates are no longer on the active
+graph path. Persisted artifacts include file size and SHA-256 evidence. Analysis is
+planning; artifact creation is local execution; neither proves the proposed business
+action happened.
+Legacy template-based domain previews are excluded from v0.6 artifact bundles.
+
+No external connector is enabled. Legacy preset report endpoints are explicitly
+unavailable. Older examples below are architectural ideas, not implemented capabilities
+or current package/version recommendations.
+
+### Recommended next upgrades
+
+**Pending TODO: tester provisioning is on hold.** No account, whitelist,
+credentials, or remote access may be enabled without renewed owner approval.
+Private login activation is also on hold: local development defaults to
+login-disabled, localhost-only access. Re-enable named authentication before
+authorizing Oracle SSH-tunnel testing. Oracle availability has not been checked,
+and no tunnel, remote account or deployment has been created.
+The cross-account tester export-approval policy remains pending; reviewer export
+proposals/approvals are disabled until that policy is agreed. Admins may approve
+their own local exports. Public hosting remains blocked. Cloud voice is paused
+until credentials and a supported integration are available.
+
+Cleanup validation: the full offline suite has 111 passing tests and one
+optional voice skip; no expected failures remain. Broad Black and Flake8,
+JavaScript syntax and dependency consistency pass. The Socket.IO expected
+failures were resolved by compatible dependency versions, not suppressed.
+Dead preset execution/report paths, unused model fallbacks and the obsolete
+unmetered performance-smoke command were removed. Existing CLI compatibility
+modules still have callers and remain until those callers are migrated.
+This offline result is not a public-hosting or live-model-quality approval.
+
+1. Extend the local durable queue to leased multi-process workers before scaling beyond
+   one server process. Preserve the no-automatic-replay policy for ambiguous effects.
+2. Add latency benchmarks, account-level aggregate quotas, and provider invoice reconciliation.
+   Current token-derived cost uses operator-configured pricing, not billing receipts.
+3. Parallelize only independent branches after benchmark coverage; preserve CFO-before-
+   engineering dependencies and avoid returning full reducer state from subgraphs.
+4. Choose one external connector with explicit credentials, allowed actions, approval
+   boundaries, idempotency keys, audit receipts and retries. Do not turn generated prose
+   directly into financial, publishing or deployment actions.
+5. Integrate cited, read-only research before presenting market statistics as evidence.
+   Current research output is a model-generated hypothesis, not live competitive data.
+6. Review HTTPS/proxy configuration and deployment controls before public hosting.
+   Named accounts and owner-scoped artifacts do not replace an OS/network boundary.
+
 Transform your multi-agent system from **planning & simulation** to **autonomous execution** with real-world API integrations. This roadmap provides the essential stack, implementation steps, and best practices for enabling agents to perform actual tasks.
 
 ---

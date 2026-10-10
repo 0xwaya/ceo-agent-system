@@ -25,12 +25,9 @@ Governance Model:
 
 from langgraph.graph import START, END, StateGraph
 from typing_extensions import TypedDict
-from typing import Annotated, Dict, List, Any, Optional
+from typing import Annotated, Dict, List
 import operator
-from dataclasses import dataclass, field
 from datetime import datetime
-from agents.specialized_agents import AgentFactory
-from agents.agent_knowledge_base import get_expertise, get_all_expertise_areas
 
 
 # ============================================================================
@@ -140,7 +137,6 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
     industry = state.get("industry", "Business").strip()
     company = state.get("company_name", "the company")
     total_bud = float(state.get("total_budget", 5000) or 5000)
-    objectives_text = " ".join(str(o) for o in objectives).lower()
 
     # Scale budgets proportionally so they fit inside the declared budget
     def scaled(pct: float, min_val: float = 50, max_val: float = None) -> float:
@@ -198,7 +194,10 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
 
     # T006 — campaigns
     if is_entertainment:
-        t006_desc = "Multi-channel campaign: paid social, email blasts, influencer outreach, and pre-sale promotions"
+        t006_desc = (
+            "Multi-channel campaign: paid social, email blasts, "
+            "influencer outreach, and pre-sale promotions"
+        )
         t006_payment = "advertising_spend"
     else:
         t006_desc = "Multi-channel marketing campaign execution across paid and organic channels"
@@ -208,10 +207,17 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
         {
             "task_id": "T001",
             "task_name": "Legal Foundation & Compliance",
-            "description": f"Establish legal entity, DBA registration, business licenses, and trademark protection for {company}",
+            ("description"): (
+                "Establish legal entity, DBA registration, business "
+                "licenses, and trademark protection for "
+                f"{company}"
+            ),
             "required_expertise": "legal",
             "priority": "CRITICAL",
-            "executive_rationale": "Legal foundation protects the company from liability and establishes a legitimate market presence",
+            ("executive_rationale"): (
+                "Legal foundation protects the company from liability and "
+                "establishes a legitimate market presence"
+            ),
             "dependencies": [],
             "estimated_budget": scaled(0.10, 200, 800),
             "requires_payment": True,
@@ -228,10 +234,17 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             "task_id": "T002",
             "task_name": "Brand Identity Development",
             # ── FIRST deliverable: starts in parallel with Legal ──
-            "description": f"Design logo, visual system, brand voice, and complete brand guidelines for {company}",
+            ("description"): (
+                "Design logo, visual system, brand voice, and complete brand "
+                "guidelines for "
+                f"{company}"
+            ),
             "required_expertise": "branding",
             "priority": "CRITICAL",
-            "executive_rationale": "A strong brand identity is the foundation of customer perception and drives every downstream creative asset",
+            ("executive_rationale"): (
+                "A strong brand identity is the foundation of customer "
+                "perception and drives every downstream creative asset"
+            ),
             "dependencies": [],  # Runs in parallel with T001 — no blocking dependency
             "estimated_budget": scaled(0.06, 80, 300),
             "requires_payment": False,
@@ -249,7 +262,10 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             "description": t003_desc,
             "required_expertise": "web_development",
             "priority": "HIGH",
-            "executive_rationale": "Digital presence is the primary discovery channel for new customers; critical for revenue generation",
+            ("executive_rationale"): (
+                "Digital presence is the primary discovery channel for new "
+                "customers; critical for revenue generation"
+            ),
             "dependencies": ["T002"],
             "estimated_budget": scaled(0.20, 300, 5000),
             "requires_payment": True,
@@ -268,7 +284,10 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             "description": t004_desc,
             "required_expertise": "martech",
             "priority": "MEDIUM",
-            "executive_rationale": "Data-driven marketing maximizes ROI and provides actionable insights on customer journey",
+            ("executive_rationale"): (
+                "Data-driven marketing maximizes ROI and provides actionable "
+                "insights on customer journey"
+            ),
             "dependencies": ["T003"],
             "estimated_budget": scaled(0.05, 50, 400),
             "requires_payment": True,
@@ -287,7 +306,10 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             "description": t005_desc,
             "required_expertise": "content",
             "priority": "MEDIUM",
-            "executive_rationale": "Quality content educates customers, builds authority, and supports organic discovery",
+            ("executive_rationale"): (
+                "Quality content educates customers, builds authority, and "
+                "supports organic discovery"
+            ),
             "dependencies": ["T002"],
             "estimated_budget": scaled(0.05, 50, 300),
             "requires_payment": False,
@@ -305,7 +327,10 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             "description": t006_desc,
             "required_expertise": "campaigns",
             "priority": "HIGH",
-            "executive_rationale": "Strategic campaigns drive customer acquisition, brand awareness, and initial revenue",
+            ("executive_rationale"): (
+                "Strategic campaigns drive customer acquisition, brand "
+                "awareness, and initial revenue"
+            ),
             "dependencies": ["T004", "T005"],
             "estimated_budget": scaled(0.30, 200, None),
             "requires_payment": True,
@@ -334,7 +359,7 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
 
         if task.get("requires_payment"):
             print(f"    ⚠️  PAYMENT REQUIRED: {task['payment_type']}")
-            print(f"    🔒 Will require user approval before proceeding")
+            print("    🔒 Will require user approval before proceeding")
             payment_required_tasks.append(task["task_id"])
 
             # Add to pending approvals
@@ -352,17 +377,23 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             )
 
     # CEO makes budget allocation decision
-    print(f"\n\n💼 EXECUTIVE BUDGET DECISION:")
+    print("\n\n💼 EXECUTIVE BUDGET DECISION:")
     print(f"  Total Required: ${total_budget_required:,.0f}")
     print(f"  Available Budget: ${state.get('total_budget', 0):,.0f}")
     print(f"  Tasks Requiring Payment Approval: {len(payment_required_tasks)}")
 
     if total_budget_required > state.get("total_budget", 0):
         print(
-            f"  ⚠️  WARNING: Budget shortfall of ${total_budget_required - state.get('total_budget', 0):,.0f}"
+            (
+                "  ⚠️  WARNING: Budget shortfall of $"
+                f"{total_budget_required - state.get('total_budget', 0):,.0f}"
+            )
         )
         print(
-            f"  🎯 CEO Decision: Prioritize critical tasks, seek additional funding or scope reduction"
+            (
+                "  🎯 CEO Decision: Prioritize critical tasks, seek "
+                "additional funding or scope reduction"
+            )
         )
 
     # Update state with CEO decisions
@@ -402,8 +433,13 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             f"the critical path by up to {identified_tasks[1].get('estimated_days', 14)} days."
         ),
         (
-            f"With a ${total_bud:,.0f} budget, prioritize owned-media channels "
-            f"(SEO, email, social) before paid advertising to extend runway and build compounding assets."
+            (
+                "With a $"
+                f"{total_bud:,.0f}"
+                " budget, prioritize owned-media channels (SEO, email, "
+                "social) before paid advertising to extend runway and build "
+                "compounding assets."
+            )
         ),
         (
             "Establish clear success KPIs for each domain before deploying agents so ROI is "
@@ -414,16 +450,20 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
             "and brand kit should be repurposed across all marketing channels."
         ),
         (
-            f"Phase your technology investment: launch an MVP in 45 days, then iterate based on "
-            f"real customer feedback before committing to larger platform features."
+            "Phase your technology investment: launch an MVP in 45 days, then iterate based on "
+            "real customer feedback before committing to larger platform features."
         ),
     ]
     if budget_shortfall:
         recommendations.insert(
             0,
-            f"\u26a0\ufe0f Budget alert: estimated task cost exceeds your declared budget by "
-            f"${total_budget_required - total_bud:,.0f}. "
-            "Consider deferring payment-gated tasks to Phase 2 or securing additional capital before launch.",
+            (
+                "⚠️ Budget alert: estimated task cost exceeds your declared "
+                "budget by $"
+                f"{total_budget_required - total_bud:,.0f}"
+                ". Consider deferring payment-gated tasks to Phase 2 or "
+                "securing additional capital before launch."
+            ),
         )
 
     # ── CEO Discovery Questions (financial & operational state) ──────────────
@@ -463,7 +503,7 @@ def analyze_strategic_objectives(state: CEOAgentState) -> dict:
     state["recommendations"] = recommendations
     state["discovery_questions"] = discovery_questions
 
-    print(f"\n\n\u2705 CEO STRATEGIC ANALYSIS COMPLETE")
+    print("\n\n\u2705 CEO STRATEGIC ANALYSIS COMPLETE")
     print(f"  Tasks Identified: {len(identified_tasks)}")
     print(f"  Pending User Approvals: {len(state['pending_approvals'])}")
     print(f"  CFO Budget (API/Tools): ${api_budget:,.0f}")
@@ -512,19 +552,19 @@ def deploy_specialized_agents(state: CEOAgentState) -> dict:
                     }
                 )
 
-    print(f"\n📊 DEPLOYMENT STATUS:")
+    print("\n📊 DEPLOYMENT STATUS:")
     print(f"  Tasks Ready to Deploy: {len(approved_task_ids)}")
     print(f"  Tasks Blocked (Pending Approval): {len(blocked_task_ids)}")
 
     if blocked_task_ids:
-        print(f"\n  ⏸️  BLOCKED TASKS:")
+        print("\n  ⏸️  BLOCKED TASKS:")
         for task_id in blocked_task_ids:
             task = next(t for t in state["identified_tasks"] if t["task_id"] == task_id)
             print(f"    {task_id}: {task['task_name']} - ${task['estimated_budget']:,.0f}")
             print(f"      Reason: Awaiting user approval for {task.get('payment_type', 'payment')}")
 
     # Deploy agents for approved tasks only
-    print(f"\n\n🚀 DEPLOYING AGENTS FOR APPROVED TASKS:")
+    print("\n\n🚀 DEPLOYING AGENTS FOR APPROVED TASKS:")
 
     deployed_agents = []
     for task_id in approved_task_ids:
@@ -557,13 +597,13 @@ def deploy_specialized_agents(state: CEOAgentState) -> dict:
         }
     )
 
-    print(f"\n\n✅ AGENT DEPLOYMENT COMPLETE")
+    print("\n\n✅ AGENT DEPLOYMENT COMPLETE")
     print(f"  Agents Deployed: {len(deployed_agents)}")
     print(f"  Tasks Delegated: {len(approved_task_ids)}")
 
     if blocked_task_ids:
         print(f"\n  ⚠️  {len(blocked_task_ids)} task(s) awaiting user approval")
-        print(f"     User action required to proceed with payment-based services")
+        print("     User action required to proceed with payment-based services")
 
     return state
 
@@ -640,7 +680,7 @@ Identified Risks: {len(state.get('risks', []))}
             f"Probability: {risk.get('probability', 'MEDIUM')}"
         )
 
-    executive_summary += f"""
+    executive_summary += """
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CEO RECOMMENDATIONS

@@ -16,8 +16,6 @@ Follow along to understand each component and how they work together.
 """
 
 import logging
-from typing import Dict, Any
-import json
 
 # Configure logging
 logging.basicConfig(
@@ -145,7 +143,7 @@ def tutorial_2b_resume_from_checkpoint():
         print(f"Completed phases: {len(latest_state.get('completed_phases', []))}")
 
         # Resume execution
-        result = CheckpointRecovery.resume_from_checkpoint(graph, thread_id)
+        CheckpointRecovery.resume_from_checkpoint(graph, thread_id)
         print("\n✅ Resumed and completed!")
     else:
         print("❌ No checkpoint found")
@@ -274,7 +272,7 @@ def tutorial_4_approvals():
     # Generate batch summary
     summary = create_batch_approval_summary(state)
 
-    print(f"\n📋 Approval Summary:")
+    print("\n📋 Approval Summary:")
     print(f"   Total pending: {summary['total_pending']}")
     print(f"   Total cost: ${summary['total_cost']:,.2f}")
     print(f"   By risk level: {summary['by_risk_level']}")
@@ -404,11 +402,11 @@ def tutorial_6_debugging():
     thread_id = "debug-session"
     config = {"configurable": {"thread_id": thread_id}}
 
-    print(f"\n▶️  Executing with debug tracking...")
-    result = graph.invoke(ceo_state, config=config)
+    print("\n▶️  Executing with debug tracking...")
+    graph.invoke(ceo_state, config=config)
 
     # Get execution history
-    print(f"\n🔍 Analyzing execution history...")
+    print("\n🔍 Analyzing execution history...")
 
     history = []
     for state_snapshot in graph.get_state_history(config):
@@ -425,12 +423,12 @@ def tutorial_6_debugging():
         print(f"   {i}. Phase: {step['phase']}, Next: {step['next_node']}")
 
     # Export checkpoint
-    print(f"\n💾 Exporting checkpoint...")
+    print("\n💾 Exporting checkpoint...")
     from graph_architecture.checkpointer import export_checkpoint
 
     export_data = export_checkpoint(graph, thread_id, output_file="./data/exported_checkpoint.json")
 
-    print(f"   Exported to: ./data/exported_checkpoint.json")
+    print("   Exported to: ./data/exported_checkpoint.json")
     print(f"   State keys: {list(export_data.get('state', {}).keys())[:5]}...")
 
 

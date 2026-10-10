@@ -3,7 +3,9 @@
 // Initialize Socket.IO connection
 let socket;
 
-const SCENARIO_STORAGE_KEY = 'ceo_agent_scenario';
+const ACCOUNT_SCOPE = document.querySelector('meta[name="account-id"]').content || 'development';
+const SCENARIO_STORAGE_KEY = `ceo_agent_scenario:${ACCOUNT_SCOPE}`;
+const ACTIVE_JOB_STORAGE_KEY = `ceo_active_job:${ACCOUNT_SCOPE}`;
 const LEGACY_DASHBOARD_CONFIG = window.LEGACY_DASHBOARD_CONFIG || {};
 const SCENARIO_STORAGE_SCHEMA_VERSION = LEGACY_DASHBOARD_CONFIG.defaults?.scenario_schema_version || 1;
 const SCENARIO_DEFAULTS_VERSION = LEGACY_DASHBOARD_CONFIG.defaults?.scenario_defaults_version || (LEGACY_DASHBOARD_CONFIG.isProduction ? 'production' : 'development');
@@ -36,8 +38,8 @@ const state = {
     agents: [],
     tasks: [],
     budget: {
-        total: 1000,
-        remaining: 1000,
+        total: 0,
+        remaining: 0,
         allocated: {}
     },
     executionStatus: 'idle'
@@ -49,7 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize SocketIO
     try {
-        socket = io();
+        socket = io({auth: {csrf: document.querySelector('meta[name="csrf-token"]').content}});
         console.log('✅ SocketIO initialized');
     } catch (error) {
         console.error('❌ SocketIO initialization failed:', error);
@@ -96,8 +98,8 @@ function getDefaultScenario() {
         dba_name: configDefaults.dba_name || '',
         industry: configDefaults.industry || '',
         location: configDefaults.location || '',
-        budget: Number.parseFloat(configDefaults.budget) || 1000,
-        timeline: Number.parseInt(configDefaults.timeline, 10) || 30,
+        budget: Number.parseFloat(configDefaults.budget) || 0,
+        timeline: Number.parseInt(configDefaults.timeline, 10) || 0,
         objectives: Array.isArray(configDefaults.objectives) && configDefaults.objectives.length > 0
             ? configDefaults.objectives
             : [...DEFAULT_DEV_OBJECTIVES]
@@ -302,9 +304,15 @@ function applyScenarioToForm(scenario) {
 
     // Populate strategic objectives textarea if present
     const objectivesInput = document.getElementById('objectives');
-    if (objectivesInput && Array.isArray(scenario.objectives) && scenario.objectives.length > 0) {
+    if (objectivesInput && Array.isArray(scenario.objectives)) {
         objectivesInput.value = scenario.objectives.join('\n');
     }
+    state.budget.total = Number(scenario.budget) || 0;
+    state.budget.remaining = state.budget.total;
+    const totalDisplay = document.getElementById('totalBudget');
+    const remainingDisplay = document.getElementById('remainingBudget');
+    if (totalDisplay) totalDisplay.textContent = `$${state.budget.total.toLocaleString()}`;
+    if (remainingDisplay) remainingDisplay.textContent = `$${state.budget.remaining.toLocaleString()}`;
 }
 
 async function syncScenarioToBackend(scenario) {
@@ -323,11 +331,12 @@ async function syncScenarioToBackend(scenario) {
         };
         // Remove undefined keys
         Object.keys(safe).forEach(k => safe[k] === undefined && delete safe[k]);
-        await fetch('/api/scenario/current', {
+        const response = await fetch('/api/scenario/current', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(safe)
         });
+        if (!response.ok) throw new Error('Scenario synchronization failed');
     } catch (error) {
         console.warn('Scenario sync to backend failed:', error);
     }
@@ -335,6 +344,7 @@ async function syncScenarioToBackend(scenario) {
 
 function persistScenarioToStorage(options = {}) {
     const scenario = getScenarioFromForm();
+    state.budget.total = Number(scenario.budget) || 0;
     const envelope = buildScenarioEnvelope(scenario, {
         source: options.source || 'legacy_form',
         userModified: Boolean(options.userModified)
@@ -379,8 +389,11 @@ function initializeScenarioSync() {
     bindIndustrySelectorBehavior();
     hydrateScenarioFromStorage();
 
+    let syncTimer;
     const handleUserChange = () => {
-        persistScenarioToStorage({ syncBackend: true, userModified: true, source: 'user_change' });
+        persistScenarioToStorage({ syncBackend: false, userModified: true, source: 'user_change' });
+        clearTimeout(syncTimer);
+        syncTimer = setTimeout(() => syncScenarioToBackend(getScenarioFromForm()), 400);
     };
 
     ['companyName', 'dbaName', 'industry', 'industryOther', 'location', 'budget', 'timeline', 'objectives'].forEach((elementId) => {
@@ -518,7 +531,7 @@ function setupSocketListeners() {
             budget_allocation: data.budget_allocation || {},
             risks: data.risks || [],
             opportunities: data.opportunities || [],
-            timeline: data.timeline || 90,
+            timeline: data.timeline ?? 0,
             deliverables: data.deliverables || [],
             agent_outputs: data.agent_outputs || [],
             completed_tasks: data.completed_tasks || 0,
@@ -563,7 +576,45 @@ function setupSocketListeners() {
     // ── LLM Agent Chat reply ─────────────────────────────────────────────
     socket.on('ai_chat_response', function (data) {
         setChatStatus('');
-        if (data && data.message) addChatMessage(data.message, 'assistant');
+        if (data && data.message) addChatMessage(data.message, data.error ? 'error' : 'assistant');
+    });
+
+    socket.on('execution_started', (data) => {
+        state.activeThreadId = data.thread_id;
+        if (data.job_id) {
+            localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, data.job_id);
+            watchDurableJob(data.job_id);
+        }
+        updateStatus('Generating local artifacts...', 'running');
+        showProgressBar();
+    });
+    socket.on('phase_update', (data) => {
+        updateStatus(data.message, 'running');
+        updateProgress(data.progress);
+    });
+    socket.on('agent_update', (data) => {
+        highlightAgent(data.agent, data.status);
+        addLogEntry(data.message, 'info');
+    });
+    socket.on('execution_complete', (data) => {
+        if (state.activeThreadId && data.thread_id !== state.activeThreadId) return;
+        const result = data.result || {};
+        updateStatus('Local artifacts generated; no external actions executed.', 'success');
+        updateProgress(100);
+        displayAgentReport('ceo', {
+            agent_type: 'ceo',
+            status: 'artifacts_generated',
+            ...result,
+            deliverables: [],
+        }, getScenarioFromForm());
+        addChatMessage('Local artifact generation complete. Review the files in Reports. No publishing, purchases, deployment or outreach was performed.', 'assistant');
+        hideProgressBar();
+    });
+    socket.on('execution_error', (data) => {
+        updateStatus('Execution failed', 'error');
+        addLogEntry(data.error, 'error');
+        addChatMessage(`Execution failed: ${data.error}`, 'error');
+        hideProgressBar();
     });
 
     // ── Agent lifecycle → live feed cards ───────────────────────────────
@@ -761,7 +812,7 @@ async function analyzeObjectives() {
             addChatMessage(
                 `✅ **CEO Executive Analysis complete!**\n` +
                 `${data.tasks.length} tasks identified across ${domainCount} domains.\n` +
-                `Budget: $${(data.budget || 0).toLocaleString()} | Timeline: ${data.timeline || 90} days`,
+                `Budget: $${(data.budget || 0).toLocaleString()} | Timeline: ${data.timeline} days`,
                 'assistant'
             );
         } else {
@@ -779,7 +830,7 @@ async function analyzeObjectives() {
 }
 
 // Run full orchestration
-function runFullOrchestration() {
+async function runFullOrchestration() {
     console.log('🚀 Launch Full Orchestration button clicked');
     try {
         const scenario = persistScenarioToStorage();
@@ -809,14 +860,19 @@ function runFullOrchestration() {
                 dba_name: companyInfo.dba_name,
                 industry: companyInfo.industry,
                 location: companyInfo.location,
-                budget: companyInfo.budget,
-                timeline: companyInfo.timeline,
+                total_budget: companyInfo.budget,
+                target_days: companyInfo.timeline,
                 objectives: objectives,
             }),
         });
 
         const data = await response.json();
         if (response.ok && data.success) {
+            state.activeThreadId = data.thread_id;
+            if (data.job_id) {
+                localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, data.job_id);
+                watchDurableJob(data.job_id);
+            }
             addLogEntry('Graph execution request accepted by server.', 'success');
             addChatMessage('✅ Graph execution request submitted. Check the dashboard for progress.', 'assistant');
         } else {
@@ -861,14 +917,19 @@ async function executeAgent(agentType) {
                     dba_name: companyInfo.dba_name,
                     industry: companyInfo.industry,
                     location: companyInfo.location,
-                    budget: companyInfo.budget,
-                    timeline: companyInfo.timeline,
+                    total_budget: companyInfo.budget,
+                    target_days: companyInfo.timeline,
                     objectives: scenario.objectives || [],
                 }),
             });
 
             const result = await response.json();
             if (response.ok && result.success) {
+                state.activeThreadId = result.thread_id;
+                if (result.job_id) {
+                    localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, result.job_id);
+                    watchDurableJob(result.job_id);
+                }
                 addChatMessage('✅ CEO orchestration request accepted. Monitoring execution progress...', 'assistant');
             } else {
                 addChatMessage(`❌ CEO orchestration failed: ${result.error || response.statusText}`, 'error');
@@ -929,7 +990,7 @@ async function executeAgent(agentType) {
             console.log('Deliverables found:', data.result.deliverables);
 
             addLogEntry(`${agentType.toUpperCase()} Agent execution complete ✓`, 'success');
-            addLogEntry(`Budget used: $${data.result.budget_used || 0}`, 'success');
+            addLogEntry('Local artifacts generated. Actual provider spending is not measured.', 'info');
             if (data.result.deliverables && data.result.deliverables.length > 0) {
                 addLogEntry(`Deliverables: ${data.result.deliverables.length} items created`, 'success');
             }
@@ -938,9 +999,8 @@ async function executeAgent(agentType) {
 
             // Chat notification - agent complete
             const agentName = agentType.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-            const deliverableCount = data.result.deliverables ? data.result.deliverables.length : 0;
-            const budgetUsed = data.result.budget_used || 0;
-            addChatMessage(`✅ ${agentName} Agent completed! Generated ${deliverableCount} deliverables using $${budgetUsed} budget. Check the Execution Report for details.`, 'assistant');
+            const deliverableCount = data.result.artifacts?.length || 0;
+            addChatMessage(`✅ ${agentName} generated ${deliverableCount} local artifacts. No external actions were performed. Check the Execution Report for details.`, 'assistant');
 
             // IMPORTANT: Display report in the report area FIRST
             console.log('📊 Displaying report in main report area...');
@@ -1267,12 +1327,12 @@ function displayAgentReport(agentType, resultData, companyInfo) {
     console.log('✅ [displayAgentReport] Company info extracted:', { companyName, industry, location });
 
     // Format deliverables
-    const deliverables = resultData.deliverables || [];
+    const deliverables = Array.isArray(resultData.deliverables) ? resultData.deliverables : [];
     console.log('📦 [displayAgentReport] Processing deliverables:', deliverables);
 
     const deliverablesHTML = deliverables.length > 0
         ? `<ul class="report-deliverables">
-        ${deliverables.map(d => `<li>${d}</li>`).join('')}
+        ${deliverables.map(d => `<li>${typeof d === 'string' ? d : JSON.stringify(d)}</li>`).join('')}
        </ul>`
         : '<p style="opacity: 0.7; color: #94a3b8;">No deliverables available</p>';
 
@@ -1526,7 +1586,7 @@ function displayAgentReport(agentType, resultData, companyInfo) {
             <div class="report-header">
                 <span style="font-size: 2.5rem;">${agentIcon}</span>
                 <h3>${agentName} Agent Report</h3>
-                <span class="report-badge">✓ Completed</span>
+                <span class="report-badge">${resultData.execution_mode === 'local_artifacts' ? 'Local artifacts generated · Review required' : 'Report ready'}</span>
             </div>
 
             <div class="report-section" style="margin-bottom: 24px; padding: 16px; background: rgba(59, 130, 246, 0.08); border-radius: 10px; border-left: 4px solid #3b82f6;">
@@ -1539,8 +1599,8 @@ function displayAgentReport(agentType, resultData, companyInfo) {
 
         <div class="report-metrics">
             <div class="report-metric">
-                <div class="report-metric-label">Budget Used</div>
-                <div class="report-metric-value">$${resultData.budget_used || 0}</div>
+                <div class="report-metric-label">Provider Spending</div>
+                <div class="report-metric-value">${resultData.spend_verified === true ? '$' + resultData.budget_used : 'Not measured'}</div>
             </div>
             <div class="report-metric">
                 <div class="report-metric-label">Deliverables</div>
@@ -1630,7 +1690,7 @@ function displayAnalysisReport(companyInfo, analysisData) {
     const ind = analysisData.industry || companyInfo.industry || '';
     const loc = analysisData.location || companyInfo.location || '';
     const budget = analysisData.budget || companyInfo.budget || 0;
-    const timeline = analysisData.timeline || companyInfo.timeline || 90;
+    const timeline = analysisData.timeline ?? companyInfo.timeline ?? 'Not provided';
     const tasks = analysisData.tasks || [];
     const risks = analysisData.risks || [];
     const budgetAllocation = analysisData.budget_allocation || {};
@@ -1845,7 +1905,7 @@ function displayAnalysisReport(companyInfo, analysisData) {
                 <div style="font-weight:700;color:#667eea;margin-bottom:6px;font-size:.88rem;">👉 Next Steps</div>
                 <p style="color:#334155;line-height:1.7;font-size:.88rem;margin:0;">
                     Review domain plans above and execute individual agents from <strong>Available AI Agents</strong>,
-                    or click <strong>Launch Full Orchestration</strong> to run all domains in optimal parallel sequence under CEO governance.
+                    or click <strong>Launch Graph Execution</strong> to generate local planning artifacts for the selected domains. No external actions are performed.
                 </p>
             </div>
 
@@ -1903,7 +1963,7 @@ function displayOrchestrationReport(companyInfo, reportData) {
     const agentOutputs = reportData.agent_outputs || [];
     const completedTasks = reportData.completed_tasks || 0;
     const totalTasks = reportData.total_tasks || tasks.length;
-    const timeline = reportData.timeline || 90;
+    const timeline = reportData.timeline ?? 'Not provided';
     const budgetUsed = reportData.budget_used || totalAllocated;
     const totalBudget = reportData.total_budget || (budgetUsed + (reportData.budget_remaining || 0));
     const budgetRemaining = reportData.budget_remaining || Math.max(0, totalBudget - budgetUsed);
@@ -2290,7 +2350,7 @@ async function sendChatMessage() {
         industry: scenario.industry || '',
         location: scenario.location || '',
         budget: scenario.budget || 0,
-        timeline: scenario.timeline || 30,
+        timeline: scenario.timeline || 0,
         objectives: Array.isArray(scenario.objectives) ? scenario.objectives.slice(0, 10) : [],
     };
 
@@ -2316,12 +2376,12 @@ async function sendChatMessage() {
                 agent: _v4ActiveAgent || 'ceo',
                 debate_mode: _v4DebateMode,
                 scenario: scenarioCtx,
-                session_id: 'dashboard',
             }),
         });
         const data = await res.json();
         setChatStatus('');
-        addChatMessage(data.response || 'No response received.', 'assistant');
+        if (!res.ok || data.error) throw new Error(data.error || `Chat failed (${res.status})`);
+        addChatMessage(data.response, 'assistant');
     } catch (error) {
         setChatStatus('');
         addChatMessage(`Connection error: ${error.message}`, 'error');
@@ -2476,7 +2536,18 @@ function setChatStatus(status) {
 }
 
 // Clear chat
-function clearChat() {
+async function clearChat() {
+    try {
+        const response = await fetch('/api/chat/clear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ agent: _v4ActiveAgent || 'ceo' }),
+        });
+        if (!response.ok) throw new Error('Could not clear server chat history');
+    } catch (error) {
+        addChatMessage(error.message, 'error');
+        return;
+    }
     const messagesContainer = document.getElementById('chatMessages');
     if (!messagesContainer) return;
 
@@ -2673,45 +2744,6 @@ function addFeedCard(type, title, meta, body, metrics, actions) {
     }
 }
 
-// ── Override sendChatMessage to use LLM backend via SocketIO ─────────────────
-window.sendChatMessage = function () {
-    const chatInput = document.getElementById('chatInput');
-    const message = chatInput ? chatInput.value.trim() : '';
-    if (!message) return;
-
-    addChatMessage(message, 'user');
-    if (chatInput) chatInput.value = '';
-    setChatStatus('typing…');
-
-    // Build scenario context from sidebar form fields
-    const scenario = {
-        company_name: document.getElementById('companyName')?.value || '',
-        industry: document.getElementById('industry')?.value || '',
-        location: document.getElementById('location')?.value || '',
-        budget: parseFloat(document.getElementById('budget')?.value) || 5000,
-        timeline: parseInt(document.getElementById('timeline')?.value, 10) || 30,
-    };
-
-    if (typeof socket !== 'undefined' && socket && socket.connected) {
-        socket.emit('ai_chat_request', {
-            message,
-            agent: _v4ActiveAgent,
-            debate_mode: _v4DebateMode,
-            scenario,
-        });
-    } else {
-        // Fallback: REST endpoint
-        fetch('/api/chat/message', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, agent: _v4ActiveAgent, debate_mode: _v4DebateMode, scenario }),
-        })
-            .then(r => r.json())
-            .then(d => { addChatMessage(d.response || 'No response received.', 'assistant'); setChatStatus(''); })
-            .catch(e => { addChatMessage('Error: ' + e.message, 'error'); setChatStatus(''); });
-    }
-};
-
 // ── SocketIO event handlers (registered in setupSocketListeners above) ───────
 // Note: ai_chat_response, agent_deploying, agent_deployed, orchestration_complete
 // listeners are registered inside setupSocketListeners() to ensure socket is ready.
@@ -2726,7 +2758,7 @@ window.sendChatMessage = function () {
         addFeedCard(
             'success',
             '✅ ' + name + ' Report Ready',
-            (resultData.deliverables ? resultData.deliverables.length : 0) + ' deliverable(s) · $' + (resultData.budget_used || 0),
+            (resultData.artifacts || []).length + ' local artifact(s) · Review required · Spending not measured',
             null, null,
             [{ label: '📋 View Report', onclick: "switchTab('reports', document.querySelector(\"[data-tab='reports']\"))", primary: true }]
         );
@@ -2742,3 +2774,95 @@ window.toggleDebateMode = toggleDebateMode;
 window.addFeedCard = addFeedCard;
 
 console.log('✅ v0.4 three-panel layout and LLM chat initialized');
+
+async function runtimeRequest(path, body) {
+    const response = await fetch(path, body === undefined ? {} : {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    });
+    const data = await response.json();
+    if (!response.ok || data.success === false) throw new Error(data.error || `Request failed (${response.status})`);
+    return data;
+}
+
+async function setScenarioMemory(enabled) {
+    try {
+        if (enabled && !confirm('Save this agent/scenario conversation locally? Retrieved excerpts will be included in model prompts.')) return;
+        await runtimeRequest('/api/memory/policy', {
+            enabled, scenario: getScenarioFromForm(), agent: _v4ActiveAgent
+        });
+        addChatMessage(`Scenario memory ${enabled ? 'enabled' : 'disabled'} for ${_v4ActiveAgent}.`, 'system');
+    } catch (error) { addChatMessage(error.message, 'error'); }
+}
+
+async function deleteScenarioMemory() {
+    try {
+        if (!confirm('Delete retained memory for this agent and current scenario?')) return;
+        await runtimeRequest('/api/memory/clear', { scenario: getScenarioFromForm(), agent: _v4ActiveAgent });
+        await clearChat();
+        addChatMessage('Retained scenario memory deleted and disabled.', 'system');
+    } catch (error) { addChatMessage(error.message, 'error'); }
+}
+
+let jobPollTimer;
+async function watchDurableJob(identifier) {
+    clearTimeout(jobPollTimer);
+    try {
+        const { job } = await runtimeRequest(`/api/jobs/${encodeURIComponent(identifier)}`);
+        state.activeThreadId = identifier;
+        document.getElementById('jobControls').hidden = false;
+        document.getElementById('jobState').textContent =
+            `${job.status} · ${job.tokens}/${job.max_tokens} measured tokens · $${job.cost.toFixed(4)} rate-calculated / $${job.max_cost} limit · ${job.reserved_tokens} tokens / $${job.reserved_cost.toFixed(4)} reserved or uncertain`;
+        if (['queued', 'running'].includes(job.status)) {
+            updateStatus(`Job ${job.status}`, 'running');
+            jobPollTimer = setTimeout(() => watchDurableJob(identifier), 2000);
+        } else if (job.status === 'succeeded') {
+            updateStatus('Local artifacts generated; review required.', 'success');
+            displayAgentReport('ceo', { ...job.result, execution_mode: 'local_artifacts', deliverables: [] }, {
+                ...job.payload, budget: job.payload.total_budget, timeline: job.payload.target_days
+            });
+            hideProgressBar();
+        } else {
+            updateStatus(`${job.status}: ${job.error || 'No further work will be performed'}`, 'error');
+            hideProgressBar();
+        }
+    } catch (error) {
+        addChatMessage(`Job status unavailable: ${error.message}. Use the job status endpoint to retry.`, 'error');
+    }
+}
+
+async function cancelCurrentJob() {
+    try {
+        await runtimeRequest(`/api/jobs/${encodeURIComponent(state.activeThreadId)}/cancel`, {});
+        addChatMessage('Cancellation requested. An in-flight model call may finish; later calls will be blocked.', 'system');
+        watchDurableJob(state.activeThreadId);
+    } catch (error) { addChatMessage(error.message, 'error'); }
+}
+
+async function proposeCurrentExport() {
+    try {
+        const { job } = await runtimeRequest('/api/connectors/local-export', { source_job: state.activeThreadId });
+        if (!confirm(`Approve local ZIP export of job ${state.activeThreadId}? No network action is performed.`)) {
+            await runtimeRequest(`/api/jobs/${job.id}/cancel`, {});
+            return;
+        }
+        await runtimeRequest(`/api/jobs/${job.id}/approve`, {});
+        const check = async () => {
+            try {
+                const { job: exportJob } = await runtimeRequest(`/api/jobs/${job.id}`);
+                if (['queued', 'running'].includes(exportJob.status)) return setTimeout(check, 1000);
+                if (exportJob.status !== 'succeeded') throw new Error(exportJob.error || exportJob.status);
+                addChatMessage('Approved local export ready. Download from the job controls.', 'system');
+                const link = document.createElement('a');
+                link.href = `/api/jobs/${job.id}/download`;
+                link.textContent = 'Download approved ZIP';
+                document.getElementById('jobControls').appendChild(link);
+            } catch (error) { addChatMessage(error.message, 'error'); }
+        };
+        check();
+    } catch (error) { addChatMessage(error.message, 'error'); }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const job = localStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
+    if (job) watchDurableJob(job);
+});

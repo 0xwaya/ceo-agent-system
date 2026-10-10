@@ -11,7 +11,7 @@
 
 ```bash
 # Run the graph system (recommended — v0.3 dispatch loop)
-python3 graph_architecture/main_graph.py
+python3 -m graph_architecture.main_graph
 
 # Run CEO agent (legacy entry point)
 python3 ceo_agent.py

@@ -2,7 +2,6 @@
 Unit tests for agent modules
 """
 
-import pytest
 from app import app as flask_app
 
 

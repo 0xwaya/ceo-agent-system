@@ -23,9 +23,8 @@ RESPONSIBILITY: Financial stewardship, not strategic planning
 """
 
 from typing_extensions import TypedDict
-from typing import Annotated, Dict, List, Any
+from typing import Annotated, Dict
 import operator
-from dataclasses import dataclass
 from datetime import datetime
 
 
@@ -87,7 +86,7 @@ def monitor_api_costs(state: CFOAgentState) -> dict:
     total_spent = sum(cost.get("amount", 0) for cost in state.get("api_costs_incurred", []))
     remaining = api_budget - total_spent
 
-    print(f"\n📊 API Budget Status:")
+    print("\n📊 API Budget Status:")
     print(f"   Allocated: ${api_budget:,.2f}")
     print(f"   Spent: ${total_spent:,.2f}")
     print(f"   Remaining: ${remaining:,.2f}")
@@ -187,7 +186,7 @@ def analyze_payment_request(state: CFOAgentState) -> dict:
         print(f"  Financial Impact: {recommendation['financial_impact']}")
         print(f"  Risk: {recommendation['risk_assessment']}")
         print(f"  Recommendation: {recommendation['recommendation']}")
-        print(f"\n  ⚠️  NOTE: Final approval required from user")
+        print("\n  ⚠️  NOTE: Final approval required from user")
 
     return state
 
@@ -206,12 +205,12 @@ def track_legal_filing_fees(state: CFOAgentState) -> dict:
     legal_costs = state.get("legal_filing_costs", [])
     total_legal_fees = sum(cost.get("amount", 0) for cost in legal_costs)
 
-    print(f"\n📊 Legal Filing Fee Summary:")
+    print("\n📊 Legal Filing Fee Summary:")
     print(f"   Total Fees Paid: ${total_legal_fees:,.2f}")
     print(f"   Number of Filings: {len(legal_costs)}")
 
     if legal_costs:
-        print(f"\n   Recent Filings:")
+        print("\n   Recent Filings:")
         for cost in legal_costs[-5:]:  # Last 5 filings
             print(f"     • {cost.get('description', 'Filing')}: ${cost.get('amount', 0):,.2f}")
             print(f"       Date: {cost.get('date', 'Unknown')}")
@@ -229,7 +228,7 @@ def track_legal_filing_fees(state: CFOAgentState) -> dict:
                     "timestamp": datetime.now().isoformat(),
                 }
             )
-            print(f"\n   ⚠️  Alert: High filing fee detected - verification recommended")
+            print("\n   ⚠️  Alert: High filing fee detected - verification recommended")
 
     return state
 

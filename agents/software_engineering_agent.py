@@ -12,7 +12,6 @@ This agent analyzes codebases for:
 from dataclasses import dataclass
 from typing import List, Dict, Any, Optional
 from enum import Enum
-import re
 
 
 class CodeIssueLevel(Enum):
@@ -889,8 +888,20 @@ def main():
     summary = analysis["summary"]
     print(f"Total Issues: {summary['total_issues']}")
     print(
-        f"Critical: {summary['by_level'].get('critical', 0)} | High: {summary['by_level'].get('high', 0)} | "
-        + f"Medium: {summary['by_level'].get('medium', 0)} | Low: {summary['by_level'].get('low', 0)}\n"
+        (
+            "Critical: "
+            f"{summary['by_level'].get('critical', 0)}"
+            " | High: "
+            f"{summary['by_level'].get('high', 0)}"
+            " | "
+        )
+        + (
+            "Medium: "
+            f"{summary['by_level'].get('medium', 0)}"
+            " | Low: "
+            f"{summary['by_level'].get('low', 0)}"
+            "\n"
+        )
     )
 
     plan = agent.generate_improvement_plan(analysis)

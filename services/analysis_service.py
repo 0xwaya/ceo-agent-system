@@ -1,128 +1,118 @@
-"""
-Analysis Service - CFO Strategic Analysis
-Business logic for strategic objective analysis
-"""
+"""Scenario-specific strategic planning without preset business data."""
 
+import json
 import logging
-from typing import Dict, Any
+from typing import Any, Dict, List
 
+from pydantic import BaseModel, ConfigDict, Field
+
+from exceptions import AnalysisError
 from services.state_builder import CFOStateBuilder
-from agents.ceo_agent import analyze_strategic_objectives as ceo_analyze
-from utils.constants import AppConstants
-from exceptions import ValidationError, AnalysisError
+from graph_architecture.llm_nodes import _get_llm
+from graph_architecture.privacy import privacy_scrub_node
 
 logger = logging.getLogger(__name__)
 
 
-class AnalysisService:
-    """
-    Service for CFO strategic analysis operations
-    Handles business logic separate from API routes
-    """
+class StrategicTask(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-    def __init__(self):
-        """Initialize analysis service"""
-        self.state_builder = CFOStateBuilder()
+    task_id: str
+    task_name: str
+    description: str
+    required_expertise: str
+    objective_index: int = Field(ge=0)
+    priority: str
+    estimated_budget: float = Field(ge=0, allow_inf_nan=False)
+    estimated_days: int = Field(gt=0)
+    requires_payment: bool
 
-    def analyze_objectives(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Perform strategic analysis on company objectives
 
-        Args:
-            request_data: Validated request data from API
+class StrategicPlan(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
-        Returns:
-            Analysis results with tasks, budget allocation, risks
+    identified_tasks: List[StrategicTask] = Field(min_length=1)
+    risks: List[str]
+    recommendations: List[str]
+    discovery_questions: List[str]
+    executive_summary: str
 
-        Raises:
-            ValidationError: If request data is invalid
-            AnalysisError: If analysis fails
-        """
-        print("\n=== ANALYSIS SERVICE DEBUG ===")
-        print(f"Request data: {request_data}")
-        logger.info("Starting strategic analysis", extra={"data": request_data})
 
-        try:
-            # Create initial state
-            state = self.state_builder.create_from_request(request_data)
-
-            print(f"Created state keys: {list(state.keys())}")
-            print(f"company_name in state: {state.get('company_name')}")
-
-            logger.info(
-                "Created state: company=%s, industry=%s",
-                state.get("company_name"),
-                state.get("industry"),
-            )
-
-            # Validate state
-            is_valid, error_msg = self.state_builder.validate_state(state)
-            if not is_valid:
-                logger.error(f"State validation failed: {error_msg}")
-                raise ValidationError(error_msg)
-
-            logger.info("Running CEO strategic analysis...")
-            print("About to call analyze_strategic_objectives...")
-
-            # Execute analysis
-            result = ceo_analyze(state)
-
-            print("Analysis complete!")
-
-            tasks = result.get("identified_tasks", [])
-            budget_allocation = result.get("budget_allocated", {})
-            risks = result.get("risks", [])
-            timeline = result.get("target_completion_days", AppConstants.DEFAULT_TIMELINE_DAYS)
-
-            logger.info(
-                f"Analysis complete. Tasks: {len(tasks)}, "
-                f"Budget allocated: ${sum(budget_allocation.values()):.2f}"
-            )
-
-            return {
-                "success": True,
-                "tasks": tasks,
-                "budget_allocation": budget_allocation,
-                "risks": risks,
-                "timeline": timeline,
-                "message": AppConstants.MSG_ANALYSIS_COMPLETE,
-            }
-
-        except ValidationError:
-            logger.error("Validation failed", exc_info=True)
-            raise
-        except Exception as e:
-            logger.error(f"Analysis failed: {str(e)}", exc_info=True)
-            raise AnalysisError(f"Strategic analysis failed: {str(e)}")
-
-    def get_analysis_summary(self, state: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Get summary of analysis results
-
-        Args:
-            state: CFO agent state
-
-        Returns:
-            Summary dictionary
-        """
+def analyze_strategic_state(state: Dict[str, Any]) -> Dict[str, Any]:
+    """Produce a validated plan; never substitute a template after model failure."""
+    safe_state = {**state, **privacy_scrub_node(state)}
+    context = {
+        key: safe_state[key]
+        for key in (
+            "company_name",
+            "industry",
+            "location",
+            "total_budget",
+            "target_completion_days",
+            "strategic_objectives",
+        )
+    }
+    try:
+        llm = _get_llm(temperature=0.1, max_tokens=2500)
+        plan = llm.with_structured_output(StrategicPlan).invoke(
+            [
+                (
+                    "system",
+                    "Plan ONLY for the supplied scenario and objectives. Each task must "
+                    "reference a zero-based objective_index. Do not add unrelated standard "
+                    "business-launch tasks. Costs and durations are estimates, not spending "
+                    "or completed work. Task estimates in total must fit the budget and "
+                    "each task must fit the timeline. Ask discovery questions for missing "
+                    "facts; never invent research, revenue, customers or existing systems. "
+                    "No external tools are connected. Publishing, purchases, outreach and "
+                    "deployment require a future connector and explicit approval.",
+                ),
+                ("human", json.dumps(context)),
+            ]
+        )
+        if not isinstance(plan, StrategicPlan):
+            raise ValueError("Model did not return a valid strategic plan")
+        tasks = [task.model_dump() for task in plan.identified_tasks]
+        if len({task["task_id"] for task in tasks}) != len(tasks):
+            raise ValueError("Task IDs must be unique")
+        for task in tasks:
+            if task["objective_index"] >= len(state["strategic_objectives"]):
+                raise ValueError("Task references an objective outside this scenario")
+            if task["estimated_days"] > state["target_completion_days"]:
+                raise ValueError("Task estimate exceeds scenario timeline")
+            task["status"] = "planned"
+        allocation: Dict[str, float] = {}
+        for task in tasks:
+            domain = task["required_expertise"]
+            allocation[domain] = allocation.get(domain, 0) + task["estimated_budget"]
+        if sum(allocation.values()) > state["total_budget"]:
+            raise ValueError("Task estimates exceed scenario budget")
         return {
-            "total_tasks": len(state.get("identified_tasks", [])),
-            "total_budget": state.get("total_budget", 0),
-            "budget_allocated": sum(state.get("budget_allocated", {}).values()),
-            "budget_remaining": state.get("budget_remaining", 0),
-            "risks_identified": len(state.get("risks", [])),
-            "opportunities_identified": len(state.get("opportunities", [])),
-            "current_phase": state.get("current_phase", "unknown"),
-            "completion_percentage": self._calculate_completion(state),
+            **state,
+            "identified_tasks": tasks,
+            "budget_allocated": allocation,
+            "risks": [{"description": risk} for risk in plan.risks],
+            "recommendations": plan.recommendations,
+            "discovery_questions": [
+                {"category": "Scenario", "question": question}
+                for question in plan.discovery_questions
+            ],
+            "final_executive_summary": plan.executive_summary,
         }
+    except Exception as exc:
+        logger.error("Strategic planning failed", exc_info=True)
+        raise AnalysisError(
+            "Strategic planning failed; no preset analysis was substituted"
+        ) from exc
 
-    @staticmethod
-    def _calculate_completion(state: Dict[str, Any]) -> float:
-        """Calculate completion percentage"""
-        total_tasks = len(state.get("identified_tasks", []))
-        completed_tasks = len(state.get("completed_tasks", []))
 
-        if total_tasks == 0:
-            return 0.0
-
-        return round((completed_tasks / total_tasks) * 100, 2)
+class AnalysisService:
+    def analyze_objectives(self, request_data: Dict[str, Any]) -> Dict[str, Any]:
+        result = analyze_strategic_state(CFOStateBuilder.create_from_request(request_data))
+        return {
+            "success": True,
+            "tasks": result["identified_tasks"],
+            "budget_allocation": result["budget_allocated"],
+            "risks": result["risks"],
+            "timeline": result["target_completion_days"],
+        }

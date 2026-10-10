@@ -5,6 +5,7 @@ Run this to ensure dependencies are installed
 """
 
 import sys
+import importlib
 
 
 def check_dependencies():
@@ -13,28 +14,28 @@ def check_dependencies():
 
     # Check core dependencies
     try:
-        import flask
+        importlib.import_module("flask")
 
         print("✓ Flask installed")
     except ImportError:
         missing.append("flask")
 
     try:
-        import pydantic
+        importlib.import_module("pydantic")
 
         print("✓ Pydantic installed")
     except ImportError:
         missing.append("pydantic")
 
     try:
-        from cryptography.fernet import Fernet
+        importlib.import_module("cryptography.fernet")
 
         print("✓ Cryptography installed")
     except ImportError:
         missing.append("cryptography")
 
     try:
-        import dotenv
+        importlib.import_module("dotenv")
 
         print("✓ Python-dotenv installed")
     except ImportError:
@@ -42,7 +43,7 @@ def check_dependencies():
 
     if missing:
         print(f"\n❌ Missing dependencies: {', '.join(missing)}")
-        print(f"\nInstall missing packages:")
+        print("\nInstall missing packages:")
         print(f"  pip install {' '.join(missing)}")
         return False
 

@@ -10,6 +10,7 @@ Implements state persistence using LangGraph's checkpoint API with support for:
 """
 
 import logging
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 import uuid
@@ -72,18 +73,23 @@ def create_checkpointer(
     """
     if backend == "sqlite":
         if not SQLITE_AVAILABLE:
-            logger.warning(
-                "SQLite checkpointer not available. Falling back to MemorySaver. "
+            raise ImportError(
+                "SQLite checkpointer not available. "
                 "Install with: pip install langgraph-checkpoint-sqlite"
             )
-            return MemorySaver()
         path = connection_string or "./data/checkpoints.sqlite"
+        if path != ":memory:":
+            Path(path).parent.mkdir(parents=True, exist_ok=True)
         logger.info(f"Creating SQLite checkpointer at {path}")
         # Create connection and return checkpointer
         import sqlite3
 
         conn = sqlite3.connect(path, check_same_thread=False)
-        return SqliteSaver(conn)
+        try:
+            return SqliteSaver(conn)
+        except Exception:
+            conn.close()
+            raise
 
     elif backend == "postgres":
         if not POSTGRES_AVAILABLE:
@@ -93,7 +99,7 @@ def create_checkpointer(
             )
         if not connection_string:
             raise ValueError("PostgreSQL requires connection_string")
-        logger.info(f"Creating PostgreSQL checkpointer")
+        logger.info("Creating PostgreSQL checkpointer")
         return PostgresSaver.from_conn_string(connection_string)
 
     elif backend == "memory":

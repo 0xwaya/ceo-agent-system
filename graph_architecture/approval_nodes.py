@@ -10,21 +10,16 @@ Implements interrupt-based approvals for:
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 import uuid
 
-from langgraph.graph import END
-from langgraph.checkpoint.base import Checkpoint
 
 from graph_architecture.schemas import (
     SharedState,
     ApprovalRequest,
     AgentRole,
     RiskLevel,
-    TaskPriority,
-    Message,
-    MessageType,
 )
 
 logger = logging.getLogger(__name__)

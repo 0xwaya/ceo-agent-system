@@ -2,6 +2,12 @@
 
 ## Running Tests
 
+Run the full offline gate from the repository root with
+`make check PYTHON=.venv/bin/python`. It checks formatting, broad lint,
+documentation/workflow consistency, dashboard rendering, and the full suite.
+Tests do not use private provider credentials. `test_auth_artifacts.py` creates
+temporary synthetic accounts only; it does not provision a real tester.
+
 ### Install Test Dependencies
 ```bash
 pip3 install -r tests/requirements.txt
@@ -38,6 +44,9 @@ pytest tests/test_api_endpoints.py::TestAPIEndpoints::test_index_route -v
 - `test_api_endpoints.py` - API endpoint tests
 - `test_agents.py` - Agent module tests
 - `test_integration.py` - Integration and SocketIO tests
+- `test_auth_artifacts.py` - Login/CSRF, account revocation, roles, private downloads
+- `test_v06_wiring.py` - Explicit scenarios, truthful execution, durable launch wiring
+- `test_v07_runtime.py` - MemPalace, durable jobs, usage ceilings, approved local exports
 
 ## Test Categories
 
@@ -62,7 +71,8 @@ pytest tests/test_api_endpoints.py::TestAPIEndpoints::test_index_route -v
 ### Optional Voice Tests
 - `test_voice_free.py` requires Google Cloud speech/TTS packages.
 - If `google-cloud-speech` / `google-cloud-texttospeech` are not installed, pytest auto-skips this test.
-- Install optional voice dependencies to run it end-to-end.
+- Voice is paused pending credentials and implementation review. Do not install
+  its optional packages or run paid/cloud voice tests as part of the current gate.
 
 ## Coverage Goals
 

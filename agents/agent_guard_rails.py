@@ -14,15 +14,15 @@ Do NOT add new guard-rail logic here — use graph_architecture/guards.py instea
 
 import warnings
 
-warnings.warn(
-    "agents/agent_guard_rails.py is deprecated. " "Use graph_architecture/guards.py instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
+
+warnings.warn(
+    "agents/agent_guard_rails.py is deprecated. Use graph_architecture/guards.py instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 
 class AgentDomain(Enum):
@@ -627,7 +627,9 @@ FINANCIAL_GUARD_RAILS = {
         max_auto_approved_amount=0.0,  # NO auto-approval
         requires_user_confirmation=True,
         risk_level="HIGH",
-        liability_warning="Ad spend can be lost if campaigns underperform - requires ROI monitoring",
+        liability_warning=(
+            "Ad spend can be lost if campaigns underperform - requires " "ROI monitoring"
+        ),
     ),
     PaymentType.HARDWARE_PURCHASE: FinancialGuardRail(
         payment_type=PaymentType.HARDWARE_PURCHASE,
@@ -770,10 +772,16 @@ class AgentGuardRail:
             forbidden_keywords = forbidden_task.lower().split()
             if any(keyword in task_lower for keyword in forbidden_keywords if len(keyword) > 4):
                 raise ValueError(
-                    f"❌ SCOPE GUARD RAIL VIOLATION: Task outside agent's domain.\n"
-                    f"   Task: {task_description}\n"
-                    f"   Forbidden: {forbidden_task}\n"
-                    f"   This agent can only: {', '.join(self.scope_constraint.permitted_tasks[:3])}..."
+                    (
+                        "❌ SCOPE GUARD RAIL VIOLATION: Task outside agent's domain.\n "
+                        "  Task: "
+                        f"{task_description}"
+                        "\n   Forbidden: "
+                        f"{forbidden_task}"
+                        "\n   This agent can only: "
+                        f"{', '.join(self.scope_constraint.permitted_tasks[:3])}"
+                        "..."
+                    )
                 )
 
         return True
@@ -783,7 +791,6 @@ class AgentGuardRail:
         if not self.quality_standard or not self.quality_standard.validation_required:
             return True
 
-        deliverable_type = deliverable.get("type")
         quality_metrics = deliverable.get("quality_metrics", {})
 
         # Check each required metric
@@ -858,7 +865,9 @@ class AgentGuardRail:
                 "requires_user_approval": True,
                 "risk_level": guard_rail.risk_level,
                 "liability_warning": guard_rail.liability_warning,
-                "recommendation": "REQUIRES USER APPROVAL - Financial commitment pending user confirmation",
+                ("recommendation"): (
+                    "REQUIRES USER APPROVAL - Financial commitment pending user " "confirmation"
+                ),
             }
 
         # Check if amount exceeds auto-approval limit
@@ -868,7 +877,12 @@ class AgentGuardRail:
                 "approval_level": ApprovalLevel.USER_APPROVAL_REQUIRED,
                 "requires_user_approval": True,
                 "risk_level": "HIGH",
-                "liability_warning": f"Amount ${amount:,.2f} exceeds CFO auto-approval limit of ${guard_rail.max_auto_approved_amount:,.2f}",
+                ("liability_warning"): (
+                    "Amount $"
+                    f"{amount:,.2f}"
+                    " exceeds CFO auto-approval limit of $"
+                    f"{guard_rail.max_auto_approved_amount:,.2f}"
+                ),
                 "recommendation": "ESCALATE TO USER - Amount too high for auto-approval",
             }
 
@@ -879,7 +893,12 @@ class AgentGuardRail:
             "requires_user_approval": False,
             "risk_level": guard_rail.risk_level,
             "liability_warning": guard_rail.liability_warning,
-            "recommendation": f"APPROVE - CFO can authorize {payment_type.value} up to ${guard_rail.max_auto_approved_amount:,.2f}",
+            ("recommendation"): (
+                "APPROVE - CFO can authorize "
+                f"{payment_type.value}"
+                " up to $"
+                f"{guard_rail.max_auto_approved_amount:,.2f}"
+            ),
         }
 
     def get_payment_approval_workflow(
@@ -953,8 +972,8 @@ def validate_agent_output(domain: AgentDomain, output: Dict) -> Dict:
     deliverables = output.get("deliverables", [])
     if not deliverables:
         raise ValueError(
-            f"❌ OUTPUT VALIDATION FAILED: No deliverables produced.\n"
-            f"   Agent must produce production-ready outputs, not just recommendations."
+            "❌ OUTPUT VALIDATION FAILED: No deliverables produced.\n"
+            "   Agent must produce production-ready outputs, not just recommendations."
         )
 
     # Check for recommendation language (should be minimal)
@@ -991,15 +1010,16 @@ def create_execution_summary(domain: AgentDomain) -> str:
     for task in guard_rail.get_permitted_tasks():
         summary += f"   • {task}\n"
 
-    summary += f"""
-💰 BUDGET CONSTRAINT: ${guard_rail.budget_constraint.max_budget if guard_rail.budget_constraint else 0}
-   Allowed spending:
-"""
+    summary += (
+        "\n💰 BUDGET CONSTRAINT: $"
+        f"{(guard_rail.budget_constraint.max_budget if guard_rail.budget_constraint else 0)}"
+        "\n   Allowed spending:\n"
+    )
     if guard_rail.budget_constraint:
         for category in guard_rail.budget_constraint.allowed_categories:
             summary += f"   • {category}\n"
 
-    summary += f"""
+    summary += """
 📊 QUALITY STANDARDS:
 """
     if guard_rail.quality_standard:

@@ -4,7 +4,7 @@ LLM-Backed Node Implementations
 Each function here is:
   • A pure LangGraph node (receives state, returns partial state dict)
   • Backed by a constrained LLM call with a strict system prompt
-  • Equipped with a deterministic fallback if the LLM is unavailable
+  • Fail explicitly when the LLM is unavailable; no preset fallback output
   • Responsible for ONE domain only — no cross-domain decisions
 
 Design rules:
@@ -47,18 +47,11 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from graph_architecture.schemas import (
-    AgentRole,
     CEOState,
-    LLMRoutingDecision,
-    PromptExpertOutput,
-    RiskLevel,
     SharedState,
-    TaskDomain,
-    TaskPriority,
-    TaskStatus,
 )
 
 logger = logging.getLogger(__name__)
@@ -77,6 +70,7 @@ def _get_llm(temperature: float = 0.2, max_tokens: int = 1000):
     try:
         from config import OPENAI_API_KEY, OPENAI_MODEL
         from langchain_openai import ChatOpenAI
+        from services.usage_service import usage_callbacks
 
         if not OPENAI_API_KEY:
             raise ValueError("OPENAI_API_KEY not set")
@@ -86,40 +80,52 @@ def _get_llm(temperature: float = 0.2, max_tokens: int = 1000):
             temperature=temperature,
             max_tokens=max_tokens,
             api_key=OPENAI_API_KEY,
+            timeout=45,
+            max_retries=0,
+            callbacks=usage_callbacks(),
         )
     except Exception as exc:
-        logger.warning(f"LLM factory failed: {exc}. Nodes will use deterministic fallbacks.")
-        return None
+        logger.error("LLM is unavailable", exc_info=True)
+        raise RuntimeError("LLM is unavailable; no preset output was substituted") from exc
 
 
 def _call_structured(
     llm,
     system_prompt: str,
     user_message: str,
-    fallback_fn,
-    fallback_args: tuple = (),
 ) -> Dict[str, Any]:
     """
-    Helper: call LLM with system+user message, parse JSON, fall back on error.
+    Call the model and validate JSON; errors never substitute preset output.
     """
     if llm is None:
-        return fallback_fn(*fallback_args)
+        raise RuntimeError("LLM is unavailable; no preset output was substituted")
 
     try:
         from langchain_core.messages import HumanMessage, SystemMessage
 
         response = llm.invoke(
-            [SystemMessage(content=system_prompt), HumanMessage(content=user_message)]
+            [
+                SystemMessage(
+                    content=system_prompt + "\nUse only supplied scenario facts. "
+                    "No external actions, live research or code tests have been "
+                    "performed. Label estimates and hypotheses explicitly; never "
+                    "invent sources, market statistics, spending or completed work."
+                ),
+                HumanMessage(content=user_message),
+            ]
         )
         raw = response.content.strip()
         # Strip any markdown fences
         raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.MULTILINE)
         raw = re.sub(r"\s*```$", "", raw, flags=re.MULTILINE)
-        return json.loads(raw)
+        parsed = json.loads(raw)
+        if not isinstance(parsed, dict) or not parsed:
+            raise ValueError("Expected a non-empty JSON object")
+        return parsed
 
     except Exception as exc:
-        logger.warning(f"LLM call failed ({type(exc).__name__}): {exc}. Using fallback.")
-        return fallback_fn(*fallback_args)
+        logger.error("Structured LLM call failed", exc_info=True)
+        raise RuntimeError("Model output failed; no preset output was substituted") from exc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -153,36 +159,6 @@ OUTPUT SCHEMA (JSON only, no markdown):
 """
 
 
-def _ceo_fallback(state: CEOState) -> Dict[str, Any]:
-    """Deterministic CEO analysis when LLM is unavailable."""
-    expert_raw = state.get("prompt_expert_output", {})
-    objectives = state.get("strategic_objectives", [])
-    budget = state.get("total_budget", 0)
-
-    dispatch: list[str] = []
-    if expert_raw.get("requires_financial_analysis", budget > 0):
-        dispatch.append("cfo")
-    if expert_raw.get("requires_research", False):
-        dispatch.append("researcher")
-    if expert_raw.get("requires_engineering", False):
-        dispatch.append("engineer")
-    if expert_raw.get("requires_legal", False):
-        dispatch.append("legal")
-    if not dispatch:
-        dispatch = ["researcher"]
-
-    return {
-        "executive_summary": f"Processing {len(objectives)} objectives with budget ${budget:,.0f}.",
-        "dispatch_plan": dispatch,
-        "rationale": "Deterministic dispatch based on Prompt Expert domain flags.",
-        "can_parallelize": "cfo" not in dispatch and len(dispatch) > 1,
-        "risk_assessment": "low",
-        "estimated_total_cost": 0.0,
-        "key_risks": [],
-        "success_criteria": [f"Complete all strategic objectives within ${budget:,.0f} budget"],
-    }
-
-
 def ceo_llm_analyze_node(state: CEOState) -> Dict[str, Any]:
     """
     CEO LLM analysis node.
@@ -214,8 +190,6 @@ def ceo_llm_analyze_node(state: CEOState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_CEO_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_ceo_fallback,
-        fallback_args=(state,),
     )
 
     dispatch_plan: List[str] = result.get("dispatch_plan", ["researcher"])
@@ -249,112 +223,32 @@ def ceo_llm_analyze_node(state: CEOState) -> Dict[str, Any]:
 # CTO ARCHITECTURE & TECHNOLOGY REVIEW  (Tier 1 — peer to CEO)
 # ─────────────────────────────────────────────────────────────────────────────
 
-_CTO_SYSTEM_PROMPT = """You are the CTO node in a multi-agent executive AI system.
-
-You are a Tier-1 peer to the CEO. You own all technical architecture decisions.
-You assess the engineering feasibility of whatever stack or platform the company requires
-based on their industry, objectives, and budget — you do NOT assume any fixed technology.
-
-RULES:
-- You analyse technology choices, engineering feasibility, and tech-debt risk.
-- You NEVER execute code or write implementation files.
-- You ONLY output JSON matching the required schema.
-- You assess tech stacks against company budget, timeline, and domain requirements.
-- Your briefings are shared with the CEO to inform dispatch decisions.
-- All recommendations must be grounded in the company's actual industry and objectives.
-
-OUTPUT SCHEMA (JSON only, no markdown):
-{
-  "architecture_summary": "<2-3 sentence technical assessment>",
-  "recommended_stack": ["<tech>", ...],
-  "tech_decisions": ["<decision>", ...],
-  "engineering_risks": [{"risk": "<name>", "severity": "low|medium|high", "mitigation": "<action>"}],
-  "build_vs_buy": "<recommendation>",
-  "estimated_engineering_weeks": <int>,
-  "phase1_scope": "<MVP scope fitting available budget>",
-  "cto_approval": "approved|conditional|rejected",
-  "conditions": ["<condition if conditional>"]
-}
-"""
-
-
-def _cto_fallback(state: Dict[str, Any]) -> Dict[str, Any]:
-    """Deterministic CTO assessment when LLM is unavailable."""
-    company = state.get("company_name", "Unknown")
-    industry = state.get("industry", "Unknown")
-    budget = float(state.get("total_budget") or 0)
-    days = int(state.get("target_completion_days") or 90)
-
-    # Pick a sensible default stack per industry vertical
-    industry_lower = industry.lower()
-    if any(w in industry_lower for w in ("entertainment", "event", "music", "venue")):
-        stack = [
-            "Next.js 15 App Router",
-            "TypeScript",
-            "Tailwind CSS",
-            "Stripe / TicketSocket",
-            "Vercel",
-        ]
-        phase1 = "Event landing page, artist roster, ticket purchase flow, and email capture"
-        eng_weeks = 4
-    elif any(w in industry_lower for w in ("food", "restaurant", "beverage", "cafe")):
-        stack = [
-            "Next.js 15",
-            "TypeScript",
-            "Tailwind CSS",
-            "Square / Toast POS integration",
-            "Vercel",
-        ]
-        phase1 = (
-            "Menu site, online ordering integration, reservation form, and Google Business sync"
-        )
-        eng_weeks = 3
-    elif any(w in industry_lower for w in ("saas", "software", "tech", "app")):
-        stack = ["Next.js 15", "TypeScript", "Tailwind CSS", "Supabase", "Stripe", "Vercel"]
-        phase1 = "Marketing site, waitlist/signup, and onboarding flow with auth"
-        eng_weeks = 6
-    elif any(w in industry_lower for w in ("retail", "shop", "ecommerce", "store")):
-        stack = ["Next.js 15 Commerce", "TypeScript", "Tailwind CSS", "Shopify / Stripe", "Vercel"]
-        phase1 = "Product catalog, cart, checkout, and order confirmation"
-        eng_weeks = 5
-    else:
-        stack = ["Next.js 15 App Router", "TypeScript", "Tailwind CSS", "Sanity CMS", "Vercel"]
-        phase1 = "Marketing site, contact form, content hub, and basic SEO"
-        eng_weeks = 4
-
-    phase_note = f"Phase 1 MVP deliverable within {'4' if days <= 30 else '6-8'} weeks"
-
-    return {
-        "architecture_summary": (
-            f"Architecture review for {company} ({industry}). "
-            f"With a ${budget:,.0f} budget and {days}-day timeline, recommend a phased approach: "
-            f"{phase1}. {phase_note}."
-        ),
-        "recommended_stack": stack,
-        "tech_decisions": [
-            "Next.js App Router chosen for SEO performance and server components",
-            "Tailwind CSS for rapid, consistent UI without a design system overhead",
-            "Vercel deployment for zero-config CI/CD and edge caching",
-            "Phase 1 scoped to core customer journey; additional features gated on user feedback",
-        ],
-        "engineering_risks": [
-            {
-                "risk": "Scope creep delaying launch",
-                "severity": "medium",
-                "mitigation": "Hard-freeze Phase 1 feature list; backlog anything non-essential",
-            },
-            {
-                "risk": "Single developer bandwidth",
-                "severity": "low",
-                "mitigation": "Use component libraries (shadcn/ui) and AI-assisted code generation",
-            },
-        ],
-        "build_vs_buy": "Build: marketing site and core flows. Buy: payment processing, CMS, and analytics.",
-        "estimated_engineering_weeks": eng_weeks,
-        "phase1_scope": phase1,
-        "cto_approval": "approved",
-        "conditions": [],
-    }
+_CTO_SYSTEM_PROMPT = (
+    "You are the CTO node in a multi-agent executive AI "
+    "system.\n\nYou are a Tier-1 peer to the CEO. You own all "
+    "technical architecture decisions.\nYou assess the "
+    "engineering feasibility of whatever stack or platform the "
+    "company requires\nbased on their industry, objectives, and "
+    "budget — you do NOT assume any fixed technology.\n\nRULES:\n- "
+    "You analyse technology choices, engineering feasibility, "
+    "and tech-debt risk.\n- You NEVER execute code or write "
+    "implementation files.\n- You ONLY output JSON matching the "
+    "required schema.\n- You assess tech stacks against company "
+    "budget, timeline, and domain requirements.\n- Your briefings "
+    "are shared with the CEO to inform dispatch decisions.\n- All "
+    "recommendations must be grounded in the company's actual "
+    "industry and objectives.\n\nOUTPUT SCHEMA (JSON only, no "
+    'markdown):\n{\n  "architecture_summary": "<2-3 sentence '
+    'technical assessment>",\n  "recommended_stack": ["<tech>", '
+    '...],\n  "tech_decisions": ["<decision>", ...],\n  '
+    '"engineering_risks": [{"risk": "<name>", "severity": '
+    '"low|medium|high", "mitigation": "<action>"}],\n  '
+    '"build_vs_buy": "<recommendation>",\n  '
+    '"estimated_engineering_weeks": <int>,\n  "phase1_scope": '
+    '"<MVP scope fitting available budget>",\n  "cto_approval": '
+    '"approved|conditional|rejected",\n  "conditions": '
+    '["<condition if conditional>"]\n}\n'
+)
 
 
 def cto_llm_architecture_node(state: Dict[str, Any]) -> Dict[str, Any]:
@@ -388,8 +282,6 @@ def cto_llm_architecture_node(state: Dict[str, Any]) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_CTO_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_cto_fallback,
-        fallback_args=(state,),
     )
 
     tech_decisions: List[str] = result.get("tech_decisions", [])
@@ -452,56 +344,6 @@ OUTPUT SCHEMA (JSON only):
 """
 
 
-def _cfo_fallback(state: SharedState) -> Dict[str, Any]:
-    """Deterministic CFO summary when LLM is unavailable."""
-    budget = state.get("total_budget", 0)
-    allocated = sum(state.get("budget_allocated", {}).values())
-    spent = sum(state.get("budget_spent", {}).values())
-    remaining = budget - allocated
-
-    utilisation = (allocated / budget * 100) if budget > 0 else 0
-    current_day = max(state.get("current_day", 1), 1)
-    burn_rate = spent / current_day
-    days_remaining = state.get("target_completion_days", 90) - current_day
-    projected_total = spent + (burn_rate * days_remaining)
-    projected_overrun = max(projected_total - budget, 0)
-
-    health_score = max(0, min(100, int(100 - utilisation)))
-
-    risks = []
-    if utilisation > 80:
-        risks.append("BUDGET_UTILISATION: >80% allocated — monitor closely")
-    if projected_overrun > 0:
-        risks.append(f"OVERRUN_RISK: Projected overrun of ${projected_overrun:,.0f}")
-    if remaining < budget * 0.1:
-        risks.append("LOW_RESERVES: <10% budget remaining")
-
-    recommendation = "approve"
-    if projected_overrun > 0:
-        recommendation = "approve_with_conditions"
-    if remaining <= 0:
-        recommendation = "reject"
-
-    return {
-        "summary": (
-            f"Budget of ${budget:,.0f} is {utilisation:.0f}% allocated with "
-            f"${remaining:,.0f} remaining. "
-            + ("Overrun risk detected." if projected_overrun > 0 else "On track.")
-        ),
-        "key_numbers": {
-            "total_budget": budget,
-            "budget_utilisation_pct": round(utilisation, 1),
-            "burn_rate_per_day": round(burn_rate, 2),
-            "projected_overrun": round(projected_overrun, 2),
-            "budget_health_score": health_score,
-        },
-        "risks": risks,
-        "recommendation": recommendation,
-        "follow_up_required": len(risks) > 0,
-        "conditions": [],
-    }
-
-
 def cfo_llm_summarize_node(state: SharedState) -> Dict[str, Any]:
     """
     CFO LLM summariser node.
@@ -537,8 +379,6 @@ def cfo_llm_summarize_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_CFO_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_cfo_fallback,
-        fallback_args=(state,),
     )
 
     logger.info(f"  Recommendation:   {result.get('recommendation', 'N/A')}")
@@ -598,28 +438,6 @@ OUTPUT SCHEMA:
 """
 
 
-def _engineer_fallback(state: SharedState) -> Dict[str, Any]:
-    """Deterministic engineer output when LLM is unavailable."""
-    objectives = state.get("strategic_objectives", [])
-    return {
-        "implementation_summary": (
-            f"Technical implementation plan for {len(objectives)} objective(s). "
-            f"Full specification requires LLM availability."
-        ),
-        "tech_stack": ["Python", "FastAPI", "PostgreSQL", "React", "Docker"],
-        "architecture_pattern": "modular monolith → microservices migration path",
-        "key_components": [
-            {"name": "API Layer", "purpose": "External interface", "technology": "FastAPI"},
-            {"name": "Data Layer", "purpose": "Persistence", "technology": "PostgreSQL"},
-            {"name": "UI Layer", "purpose": "User interface", "technology": "React"},
-        ],
-        "prioritised_features": [],
-        "estimated_total_days": state.get("target_completion_days", 90),
-        "risks": ["LLM unavailable — specification is a template only"],
-        "deployment_notes": ["Containerise with Docker", "Use CI/CD pipeline"],
-    }
-
-
 def engineer_llm_architect_node(state: SharedState) -> Dict[str, Any]:
     """
     Engineer LLM architecture node.
@@ -662,8 +480,6 @@ def engineer_llm_architect_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_ENGINEER_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_engineer_fallback,
-        fallback_args=(state,),
     )
 
     logger.info(f"  Tech stack:      {result.get('tech_stack', [])}")
@@ -720,30 +536,6 @@ OUTPUT SCHEMA:
 """
 
 
-def _researcher_fallback(state: SharedState) -> Dict[str, Any]:
-    """Deterministic researcher output when LLM is unavailable."""
-    objectives = state.get("strategic_objectives", [])
-    industry = state.get("industry", "Unknown")
-    return {
-        "research_summary": (
-            f"Market research for {industry} industry covering {len(objectives)} objective(s). "
-            f"Full synthesis requires LLM availability."
-        ),
-        "key_findings": [
-            {
-                "finding": "LLM unavailable — manual research required",
-                "confidence": "low",
-                "source_type": "fallback",
-            }
-        ],
-        "market_insights": [],
-        "recommendations": ["Conduct manual market research", "Gather competitive intelligence"],
-        "assumptions": ["Industry is competitive", "Market conditions are standard"],
-        "data_gaps": ["Full market analysis", "Competitor pricing", "Customer segmentation"],
-        "overall_confidence": "low",
-    }
-
-
 def researcher_llm_synthesize_node(state: SharedState) -> Dict[str, Any]:
     """
     Researcher LLM synthesis node.
@@ -781,8 +573,6 @@ def researcher_llm_synthesize_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_RESEARCHER_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_researcher_fallback,
-        fallback_args=(state,),
     )
 
     logger.info(f"  Findings:             {len(result.get('key_findings', []))}")
@@ -817,73 +607,26 @@ def researcher_llm_synthesize_node(state: SharedState) -> Dict[str, Any]:
 # TIER-2 LLM NODE: LEGAL COMPLIANCE
 # =============================================================================
 
-_LEGAL_SYSTEM_PROMPT = """You are the Legal Agent node in a multi-agent LangGraph system.
-
-RULES:
-- You ONLY analyse legal and regulatory compliance relevant to the stated context.
-- You NEVER give binding legal advice — you produce compliance checklists.
-- You NEVER make financial or technical decisions.
-- You MUST cite the regulation category for each item (e.g., ORC § 1706, GDPR).
-- Output must be JSON matching the schema below.
-
-OUTPUT SCHEMA:
-{
-  "jurisdiction": "<primary jurisdiction>",
-  "compliance_summary": "<2-3 sentence overview>",
-  "required_filings": [
-    {"name": "<filing>", "authority": "<body>", "deadline": "<deadline or ongoing>", "cost_usd": <int>}
-  ],
-  "compliance_checklist": [
-    {"item": "<requirement>", "regulation": "<citation>", "status": "required|recommended|optional"}
-  ],
-  "risks": ["<risk description>", ...],
-  "recommendation": "proceed|proceed_with_conditions|halt_for_legal_review",
-  "estimated_filing_cost_usd": <float>
-}
-"""
-
-
-def _legal_fallback(state: SharedState) -> Dict[str, Any]:
-    """Deterministic legal baseline when LLM is unavailable."""
-    company = state.get("company_name", "Unknown")
-    location = state.get("location", "Unknown")
-    return {
-        "jurisdiction": location,
-        "compliance_summary": (
-            f"Standard compliance review for {company} in {location}. "
-            "Full analysis requires LLM availability."
-        ),
-        "required_filings": [
-            {
-                "name": "Business Registration",
-                "authority": "State",
-                "deadline": "At formation",
-                "cost_usd": 100,
-            },
-            {
-                "name": "EIN Registration",
-                "authority": "IRS",
-                "deadline": "At formation",
-                "cost_usd": 0,
-            },
-        ],
-        "compliance_checklist": [
-            {
-                "item": "Business entity registered",
-                "regulation": "State corporations code",
-                "status": "required",
-            },
-            {"item": "EIN obtained", "regulation": "IRS requirements", "status": "required"},
-            {
-                "item": "Operating agreement drafted",
-                "regulation": "State LLC code",
-                "status": "required",
-            },
-        ],
-        "risks": ["LLM unavailable — jurisdiction-specific risks not fully evaluated"],
-        "recommendation": "proceed_with_conditions",
-        "estimated_filing_cost_usd": 300.0,
-    }
+_LEGAL_SYSTEM_PROMPT = (
+    "You are the Legal Agent node in a multi-agent LangGraph "
+    "system.\n\nRULES:\n- You ONLY analyse legal and regulatory "
+    "compliance relevant to the stated context.\n- You NEVER give "
+    "binding legal advice — you produce compliance checklists.\n- "
+    "You NEVER make financial or technical decisions.\n- You MUST "
+    "cite the regulation category for each item (e.g., ORC § "
+    "1706, GDPR).\n- Output must be JSON matching the schema "
+    'below.\n\nOUTPUT SCHEMA:\n{\n  "jurisdiction": "<primary '
+    'jurisdiction>",\n  "compliance_summary": "<2-3 sentence '
+    'overview>",\n  "required_filings": [\n    {"name": '
+    '"<filing>", "authority": "<body>", "deadline": "<deadline '
+    'or ongoing>", "cost_usd": <int>}\n  ],\n  '
+    '"compliance_checklist": [\n    {"item": "<requirement>", '
+    '"regulation": "<citation>", "status": '
+    '"required|recommended|optional"}\n  ],\n  "risks": ["<risk '
+    'description>", ...],\n  "recommendation": '
+    '"proceed|proceed_with_conditions|halt_for_legal_review",\n  '
+    '"estimated_filing_cost_usd": <float>\n}\n'
+)
 
 
 def legal_llm_compliance_node(state: SharedState) -> Dict[str, Any]:
@@ -923,8 +666,6 @@ def legal_llm_compliance_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_LEGAL_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_legal_fallback,
-        fallback_args=(state,),
     )
 
     logger.info(f"  Jurisdiction:      {result.get('jurisdiction', 'N/A')}")
@@ -989,41 +730,6 @@ OUTPUT SCHEMA:
 """
 
 
-def _martech_fallback(state: SharedState) -> Dict[str, Any]:
-    """Deterministic martech baseline when LLM is unavailable."""
-    expert_raw = state.get("prompt_expert_output", {})
-    sub_agents: List[str] = []
-    if expert_raw.get("needs_branding", True):
-        sub_agents.append("branding")
-    if expert_raw.get("needs_content", True):
-        sub_agents.append("content")
-    if expert_raw.get("needs_campaign", False):
-        sub_agents.append("campaign")
-    if expert_raw.get("needs_social_media", False):
-        sub_agents.append("social_media")
-    if not sub_agents:
-        sub_agents = ["content"]
-
-    return {
-        "marketing_summary": "Standard digital marketing strategy covering core channels.",
-        "primary_channels": ["email", "social_media", "content_marketing", "seo"],
-        "target_audiences": [{"segment": "Primary", "characteristics": "Defined by objectives"}],
-        "sub_agents_required": sub_agents,
-        "sub_agent_tasks": {
-            "branding": "Develop brand identity guidelines" if "branding" in sub_agents else None,
-            "content": "Create content calendar and core assets"
-            if "content" in sub_agents
-            else None,
-            "campaign": "Plan launch campaign" if "campaign" in sub_agents else None,
-            "social_media": "Build social presence" if "social_media" in sub_agents else None,
-        },
-        "budget_recommendation_usd": state.get("total_budget", 0) * 0.20,
-        "timeline_weeks": 8,
-        "kpis": ["Brand awareness", "Lead generation", "Engagement rate"],
-        "risks": ["LLM unavailable — full strategy requires LLM"],
-    }
-
-
 def martech_llm_strategy_node(state: SharedState) -> Dict[str, Any]:
     """
     Tier-2 Martech LLM node.
@@ -1063,8 +769,6 @@ def martech_llm_strategy_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_MARTECH_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_martech_fallback,
-        fallback_args=(state,),
     )
 
     sub_agents_required: List[str] = result.get("sub_agents_required", [])
@@ -1130,40 +834,6 @@ OUTPUT SCHEMA:
 """
 
 
-def _security_fallback(state: SharedState) -> Dict[str, Any]:
-    """Deterministic security baseline when LLM is unavailable."""
-    return {
-        "audit_summary": "Standard security checklist applied. Full audit requires LLM availability.",
-        "scope": [
-            "authentication",
-            "api_endpoints",
-            "dependency_vulnerabilities",
-            "secrets_management",
-        ],
-        "findings": [
-            {
-                "severity": "high",
-                "area": "secrets_management",
-                "title": "API keys in environment — verify not committed to VCS",
-                "detail": "Ensure .env is in .gitignore and secrets are rotated regularly.",
-                "remediation": "Audit git history; use a secrets manager (e.g., AWS Secrets Manager)",
-            },
-            {
-                "severity": "medium",
-                "area": "dependencies",
-                "title": "Run dependency vulnerability scan",
-                "detail": "CVE exposure unknown without LLM analysis.",
-                "remediation": "Run `pip audit` or `safety check` and update flagged packages",
-            },
-        ],
-        "critical_count": 0,
-        "high_count": 1,
-        "overall_risk": "medium",
-        "proceed_recommendation": "proceed_after_fixes",
-        "blockchain_scope": False,
-    }
-
-
 def security_llm_audit_node(state: SharedState) -> Dict[str, Any]:
     """
     Tier-2 Security LLM node.
@@ -1210,8 +880,6 @@ def security_llm_audit_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_SECURITY_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=_security_fallback,
-        fallback_args=(state,),
     )
 
     logger.info(f"  Overall risk:       {result.get('overall_risk', 'N/A')}")
@@ -1288,32 +956,22 @@ def ux_design_llm_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_UX_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=lambda: {
-            "design_summary": "Standard UX specification (fallback).",
-            "design_system": "Material Design 3",
-            "accessibility_score": 70,
-            "key_components": ["Navigation", "Forms", "Dashboard", "Notifications"],
-            "color_palette_recommendation": "Follow brand guidelines",
-            "typography_recommendation": "Inter / Roboto — system fonts",
-            "user_flow_issues": [],
-            "deliverables": ["Wireframes", "Component library", "Accessibility report"],
-        },
     )
     return {"ux_design_output": result}
 
 
-_WEBDEV_SYSTEM_PROMPT = """You are the Web Development Agent node (Tier-3, within Engineer subgraph).
-
-Produce a web development implementation plan. Output JSON:
-{
-  "implementation_summary": "<2-3 sentences>",
-  "stack": {"frontend": "<tech>", "backend": "<tech>", "database": "<tech>", "hosting": "<tech>"},
-  "phases": [{"phase": "<name>", "duration_weeks": <int>, "deliverables": ["<item>"]}],
-  "ar_features": ["<ar feature if applicable>"],
-  "estimated_weeks": <int>,
-  "testing_strategy": "<brief>"
-}
-"""
+_WEBDEV_SYSTEM_PROMPT = (
+    "You are the Web Development Agent node (Tier-3, within "
+    "Engineer subgraph).\n\nProduce a web development "
+    "implementation plan. Output JSON:\n{\n  "
+    '"implementation_summary": "<2-3 sentences>",\n  "stack": '
+    '{"frontend": "<tech>", "backend": "<tech>", "database": '
+    '"<tech>", "hosting": "<tech>"},\n  "phases": [{"phase": '
+    '"<name>", "duration_weeks": <int>, "deliverables": '
+    '["<item>"]}],\n  "ar_features": ["<ar feature if '
+    'applicable>"],\n  "estimated_weeks": <int>,\n  '
+    '"testing_strategy": "<brief>"\n}\n'
+)
 
 
 def webdev_llm_node(state: SharedState) -> Dict[str, Any]:
@@ -1332,44 +990,21 @@ def webdev_llm_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_WEBDEV_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=lambda: {
-            "implementation_summary": "Standard web implementation plan (fallback).",
-            "stack": {
-                "frontend": "React",
-                "backend": "FastAPI",
-                "database": "PostgreSQL",
-                "hosting": "AWS",
-            },
-            "phases": [
-                {
-                    "phase": "Foundation",
-                    "duration_weeks": 4,
-                    "deliverables": ["Auth", "DB schema", "API skeleton"],
-                },
-                {"phase": "Core features", "duration_weeks": 8, "deliverables": ["Feature builds"]},
-                {"phase": "QA & launch", "duration_weeks": 2, "deliverables": ["Tests", "Deploy"]},
-            ],
-            "ar_features": [],
-            "estimated_weeks": 14,
-            "testing_strategy": "Unit + integration + e2e tests (pytest, Playwright)",
-        },
     )
     return {"webdev_output": result}
 
 
-_SOFTWARE_ENG_SYSTEM_PROMPT = """You are the Software Engineering Agent node (Tier-3, within Engineer subgraph).
-Specialise in code architecture review and quality improvement.
-
-Output JSON:
-{
-  "architecture_review": "<2-3 sentence summary>",
-  "patterns_recommended": ["<pattern>", ...],
-  "critical_issues": [{"issue": "<desc>", "file_hint": "<hint>", "fix": "<fix>"}],
-  "complexity_score": <1-10>,
-  "maintainability_score": <1-10>,
-  "top_recommendations": ["<rec>", ...]
-}
-"""
+_SOFTWARE_ENG_SYSTEM_PROMPT = (
+    "You are the Software Engineering Agent node (Tier-3, within "
+    "Engineer subgraph).\nSpecialise in code architecture review "
+    "and quality improvement.\n\nOutput JSON:\n{\n  "
+    '"architecture_review": "<2-3 sentence summary>",\n  '
+    '"patterns_recommended": ["<pattern>", ...],\n  '
+    '"critical_issues": [{"issue": "<desc>", "file_hint": '
+    '"<hint>", "fix": "<fix>"}],\n  "complexity_score": <1-10>,\n  '
+    '"maintainability_score": <1-10>,\n  "top_recommendations": '
+    '["<rec>", ...]\n}\n'
+)
 
 
 def software_eng_llm_node(state: SharedState) -> Dict[str, Any]:
@@ -1388,18 +1023,6 @@ def software_eng_llm_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_SOFTWARE_ENG_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=lambda: {
-            "architecture_review": "Standard software architecture review (fallback).",
-            "patterns_recommended": ["dependency_injection", "repository", "factory"],
-            "critical_issues": [],
-            "complexity_score": 5,
-            "maintainability_score": 6,
-            "top_recommendations": [
-                "Add type annotations throughout",
-                "Separate business logic from I/O",
-                "Add comprehensive test coverage",
-            ],
-        },
     )
     return {"software_eng_output": result}
 
@@ -1409,78 +1032,58 @@ def software_eng_llm_node(state: SharedState) -> Dict[str, Any]:
 # These run INSIDE the Martech subgraph, never directly from CEO.
 # =============================================================================
 
-_BRANDING_SYSTEM_PROMPT = """You are the Branding Agent — a senior brand strategist and creative director with expertise
-in visual identity, RISD design principles, and Nielsen Norman UX methodology.
-
-Your role is to create complete, actionable brand identities tailored to the specific company,
-industry, location, and strategic objectives provided. Be specific — no generic advice.
-
-Think through the brand architecture holistically:
-- Market positioning relative to industry competitors
-- Target audience psychographics and expectations
-- Visual identity that communicates the brand promise
-- Voice and tone that resonates with the target market
-- Practical deliverables the team can execute immediately
-
-Output valid JSON exactly matching this schema:
-{
-  "brand_summary": "<3-4 sentences: company positioning, what makes this brand distinctive, and the emotional promise to customers>",
-  "brand_positioning": "<one sharp positioning statement: '[Company] is the only [category] that [differentiator] for [audience]'>",
-  "brand_voice": {
-    "adjectives": ["<adj1>", "<adj2>", "<adj3>", "<adj4>"],
-    "tone": "<how it sounds in writing>",
-    "avoid": "<what to never say or sound like>"
-  },
-  "color_palette": {
-    "primary": "<hex>",
-    "secondary": "<hex>",
-    "accent": "<hex>",
-    "neutral": "<hex>",
-    "rationale": "<why these colors fit this industry and audience>"
-  },
-  "typography": {
-    "heading": "<font name>",
-    "body": "<font name>",
-    "accent": "<font name or none>",
-    "rationale": "<why this type system fits>"
-  },
-  "logo_concept": {
-    "style": "<wordmark | lettermark | combination | emblem>",
-    "description": "<detailed concept: shape, symbolism, layout>",
-    "icon_motif": "<visual metaphor or symbol used, if any>"
-  },
-  "brand_kit_reference": {
-    "primary_color": "<hex>",
-    "secondary_color": "<hex>",
-    "accent_color": "<hex>",
-    "font_heading": "<font>",
-    "font_body": "<font>",
-    "logo_style": "<style>",
-    "industry_palette_rationale": "<one sentence>"
-  },
-  "design_concepts": [
-    {
-      "name": "<concept name>",
-      "description": "<what this concept communicates>",
-      "color_application": "<how colors are applied>",
-      "use_case": "<where this concept is used: digital, print, signage, etc.>"
-    }
-  ],
-  "strategic_alignment": "<how this brand identity supports the company's stated strategic objectives>",
-  "deliverables": [
-    "<deliverable 1>",
-    "<deliverable 2>",
-    "<deliverable 3>",
-    "<deliverable 4>",
-    "<deliverable 5>"
-  ],
-  "implementation_priorities": [
-    {"priority": 1, "item": "<most urgent deliverable>", "timeline": "<timeframe>"},
-    {"priority": 2, "item": "<second most urgent>", "timeline": "<timeframe>"},
-    {"priority": 3, "item": "<third>", "timeline": "<timeframe>"}
-  ]
-}
-"""
+_BRANDING_SYSTEM_PROMPT = (
+    "You are the Branding Agent — a senior brand strategist and "
+    "creative director with expertise\nin visual identity, RISD "
+    "design principles, and Nielsen Norman UX methodology.\n\nYour "
+    "role is to create complete, actionable brand identities "
+    "tailored to the specific company,\nindustry, location, and "
+    "strategic objectives provided. Be specific — no generic "
+    "advice.\n\nThink through the brand architecture "
+    "holistically:\n- Market positioning relative to industry "
+    "competitors\n- Target audience psychographics and "
+    "expectations\n- Visual identity that communicates the brand "
+    "promise\n- Voice and tone that resonates with the target "
+    "market\n- Practical deliverables the team can execute "
+    "immediately\n\nOutput valid JSON exactly matching this "
+    'schema:\n{\n  "brand_summary": "<3-4 sentences: company '
+    "positioning, what makes this brand distinctive, and the "
+    'emotional promise to customers>",\n  "brand_positioning": '
+    "\"<one sharp positioning statement: '[Company] is the only "
+    "[category] that [differentiator] for [audience]'>\",\n  "
+    '"brand_voice": {\n    "adjectives": ["<adj1>", "<adj2>", '
+    '"<adj3>", "<adj4>"],\n    "tone": "<how it sounds in '
+    'writing>",\n    "avoid": "<what to never say or sound '
+    'like>"\n  },\n  "color_palette": {\n    "primary": "<hex>",\n   '
+    ' "secondary": "<hex>",\n    "accent": "<hex>",\n    '
+    '"neutral": "<hex>",\n    "rationale": "<why these colors fit '
+    'this industry and audience>"\n  },\n  "typography": {\n    '
+    '"heading": "<font name>",\n    "body": "<font name>",\n    '
+    '"accent": "<font name or none>",\n    "rationale": "<why '
+    'this type system fits>"\n  },\n  "logo_concept": {\n    '
+    '"style": "<wordmark | lettermark | combination | emblem>",\n '
+    '   "description": "<detailed concept: shape, symbolism, '
+    'layout>",\n    "icon_motif": "<visual metaphor or symbol '
+    'used, if any>"\n  },\n  "brand_kit_reference": {\n    '
+    '"primary_color": "<hex>",\n    "secondary_color": "<hex>",\n  '
+    '  "accent_color": "<hex>",\n    "font_heading": "<font>",\n   '
+    ' "font_body": "<font>",\n    "logo_style": "<style>",\n    '
+    '"industry_palette_rationale": "<one sentence>"\n  },\n  '
+    '"design_concepts": [\n    {\n      "name": "<concept name>",\n '
+    '     "description": "<what this concept communicates>",\n    '
+    '  "color_application": "<how colors are applied>",\n      '
+    '"use_case": "<where this concept is used: digital, print, '
+    'signage, etc.>"\n    }\n  ],\n  "strategic_alignment": "<how '
+    "this brand identity supports the company's stated strategic "
+    'objectives>",\n  "deliverables": [\n    "<deliverable 1>",\n   '
+    ' "<deliverable 2>",\n    "<deliverable 3>",\n    '
+    '"<deliverable 4>",\n    "<deliverable 5>"\n  ],\n  '
+    '"implementation_priorities": [\n    {"priority": 1, "item": '
+    '"<most urgent deliverable>", "timeline": "<timeframe>"},\n   '
+    ' {"priority": 2, "item": "<second most urgent>", '
+    '"timeline": "<timeframe>"},\n    {"priority": 3, "item": '
+    '"<third>", "timeline": "<timeframe>"}\n  ]\n}\n'
+)
 
 
 def branding_llm_node(state: SharedState) -> Dict[str, Any]:
@@ -1517,93 +1120,20 @@ def branding_llm_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_BRANDING_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=lambda: {
-            "brand_summary": f"Professional brand identity for {company} in the {industry} market.",
-            "brand_positioning": f"{company} is the trusted {industry} partner for quality and results.",
-            "brand_voice": {
-                "adjectives": ["Professional", "Trustworthy", "Innovative", "Approachable"],
-                "tone": "Confident and clear, never condescending",
-                "avoid": "Jargon, passive voice, generic corporate-speak",
-            },
-            "color_palette": {
-                "primary": "#1E3A5F",
-                "secondary": "#2563EB",
-                "accent": "#F59E0B",
-                "neutral": "#F8FAFC",
-                "rationale": "Deep navy conveys authority; blue trust; amber energy and optimism.",
-            },
-            "typography": {
-                "heading": "Inter",
-                "body": "Inter",
-                "accent": "none",
-                "rationale": "Clean and modern; highly legible across digital and print.",
-            },
-            "logo_concept": {
-                "style": "combination",
-                "description": "Wordmark with a clean geometric icon representing the industry",
-                "icon_motif": "Abstract form referencing the core business activity",
-            },
-            "brand_kit_reference": {
-                "primary_color": "#1E3A5F",
-                "secondary_color": "#2563EB",
-                "accent_color": "#F59E0B",
-                "font_heading": "Inter",
-                "font_body": "Inter",
-                "logo_style": "combination",
-                "industry_palette_rationale": "Professional palette suited for the industry and target audience.",
-            },
-            "design_concepts": [
-                {
-                    "name": "Primary Identity",
-                    "description": "Core brand expression for all primary touchpoints",
-                    "color_application": "Navy background, white type, amber accents",
-                    "use_case": "Website, pitch decks, business cards",
-                },
-                {
-                    "name": "Digital Variant",
-                    "description": "Optimized for screens and social media",
-                    "color_application": "White background, navy type, blue highlights",
-                    "use_case": "Social profiles, email headers, app icons",
-                },
-            ],
-            "strategic_alignment": "Brand identity built to support growth objectives and market positioning.",
-            "deliverables": [
-                "Logo files (SVG, PNG, PDF — light and dark variants)",
-                "Brand guidelines document (colors, type, usage rules)",
-                "Business card template",
-                "Social media profile kit (cover + avatar sizes)",
-                "Email signature template",
-            ],
-            "implementation_priorities": [
-                {"priority": 1, "item": "Logo and brand guidelines", "timeline": "Week 1-2"},
-                {
-                    "priority": 2,
-                    "item": "Digital presence (website + social)",
-                    "timeline": "Week 2-4",
-                },
-                {
-                    "priority": 3,
-                    "item": "Print collateral (cards, signage)",
-                    "timeline": "Week 4-6",
-                },
-            ],
-        },
     )
     return {"branding_output": result}
 
 
-_CONTENT_SYSTEM_PROMPT = """You are the Content Strategy Agent node (Tier-3, within Martech subgraph).
-
-Output JSON:
-{
-  "content_strategy_summary": "<2-3 sentences>",
-  "content_pillars": ["<pillar>", ...],
-  "content_calendar": [{"week": <int>, "type": "<type>", "topic": "<topic>", "channel": "<channel>"}],
-  "seo_focus_keywords": ["<keyword>", ...],
-  "distribution_channels": ["<channel>", ...],
-  "estimated_pieces_per_month": <int>
-}
-"""
+_CONTENT_SYSTEM_PROMPT = (
+    "You are the Content Strategy Agent node (Tier-3, within "
+    "Martech subgraph).\n\nOutput JSON:\n{\n  "
+    '"content_strategy_summary": "<2-3 sentences>",\n  '
+    '"content_pillars": ["<pillar>", ...],\n  "content_calendar": '
+    '[{"week": <int>, "type": "<type>", "topic": "<topic>", '
+    '"channel": "<channel>"}],\n  "seo_focus_keywords": '
+    '["<keyword>", ...],\n  "distribution_channels": '
+    '["<channel>", ...],\n  "estimated_pieces_per_month": <int>\n}\n'
+)
 
 
 def content_llm_node(state: SharedState) -> Dict[str, Any]:
@@ -1620,22 +1150,6 @@ def content_llm_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_CONTENT_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=lambda: {
-            "content_strategy_summary": "SEO-first content strategy across owned channels (fallback).",
-            "content_pillars": [
-                "Education",
-                "Industry insights",
-                "Case studies",
-                "Product updates",
-            ],
-            "content_calendar": [
-                {"week": 1, "type": "blog", "topic": "Industry overview", "channel": "website"},
-                {"week": 2, "type": "social", "topic": "Thought leadership", "channel": "linkedin"},
-            ],
-            "seo_focus_keywords": ["[to be defined]"],
-            "distribution_channels": ["blog", "linkedin", "email_newsletter"],
-            "estimated_pieces_per_month": 8,
-        },
     )
     return {"content_output": result}
 
@@ -1674,33 +1188,20 @@ def campaign_llm_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_CAMPAIGN_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=lambda: {
-            "campaign_summary": "Integrated digital launch campaign (fallback).",
-            "campaign_objectives": ["Awareness", "Lead generation"],
-            "target_audiences": [{"segment": "Primary", "size_estimate": "TBD"}],
-            "channels": ["google_ads", "linkedin_ads", "email"],
-            "budget_split_pct": {"google_ads": 50, "linkedin_ads": 30, "email": 20},
-            "creative_concepts": ["Product demo video", "Case study series"],
-            "projected_reach": 50000,
-            "projected_conversions": 500,
-        },
     )
     return {"campaign_output": result}
 
 
-_SOCIAL_MEDIA_SYSTEM_PROMPT = """You are the Social Media Agent node (Tier-3, within Martech subgraph).
-
-Output JSON:
-{
-  "social_summary": "<2-3 sentences>",
-  "platforms": ["<platform>", ...],
-  "posting_frequency": {"<platform>": "<frequency>"},
-  "content_themes": ["<theme>", ...],
-  "community_playbook": "<brief community management approach>",
-  "growth_tactics": ["<tactic>", ...],
-  "kpis": ["<kpi>", ...]
-}
-"""
+_SOCIAL_MEDIA_SYSTEM_PROMPT = (
+    "You are the Social Media Agent node (Tier-3, within Martech "
+    'subgraph).\n\nOutput JSON:\n{\n  "social_summary": "<2-3 '
+    'sentences>",\n  "platforms": ["<platform>", ...],\n  '
+    '"posting_frequency": {"<platform>": "<frequency>"},\n  '
+    '"content_themes": ["<theme>", ...],\n  "community_playbook": '
+    '"<brief community management approach>",\n  '
+    '"growth_tactics": ["<tactic>", ...],\n  "kpis": ["<kpi>", '
+    "...]\n}\n"
+)
 
 
 def social_media_llm_node(state: SharedState) -> Dict[str, Any]:
@@ -1717,23 +1218,6 @@ def social_media_llm_node(state: SharedState) -> Dict[str, Any]:
         llm=llm,
         system_prompt=_SOCIAL_MEDIA_SYSTEM_PROMPT,
         user_message=user_msg,
-        fallback_fn=lambda: {
-            "social_summary": "Organic social growth strategy across primary platforms (fallback).",
-            "platforms": ["linkedin", "twitter", "instagram"],
-            "posting_frequency": {
-                "linkedin": "3x/week",
-                "twitter": "daily",
-                "instagram": "4x/week",
-            },
-            "content_themes": ["Thought leadership", "Behind-the-scenes", "Product highlights"],
-            "community_playbook": "Respond to comments within 24h; engage in industry conversations",
-            "growth_tactics": [
-                "Hashtag strategy",
-                "Industry influencer engagement",
-                "Employee advocacy",
-            ],
-            "kpis": ["Follower growth", "Engagement rate", "Profile visits", "Link clicks"],
-        },
     )
     return {"social_media_output": result}
 

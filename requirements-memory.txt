@@ -1,0 +1,2 @@
+# Optional, reviewed official MemPalace revision; no model download or hooks at startup.
+mempalace @ git+https://github.com/MemPalace/mempalace.git@741254421c31fb8e511c429133f5148d29bd4073

@@ -20,10 +20,7 @@ from langgraph.graph import StateGraph, START, END
 
 from graph_architecture.schemas import (
     SharedState,
-    EngineerSubgraphState,
     AgentRole,
-    Message,
-    MessageType,
     SummaryMessage,
     TaskStatus,
 )
@@ -60,8 +57,6 @@ def design_architecture_node(state: SharedState) -> Dict[str, Any]:
     logger.info("=" * 80)
 
     objectives = state.get("strategic_objectives", [])
-    budget = state.get("total_budget", 0)
-    timeline = state.get("target_completion_days", 90)
 
     # Analyze technical requirements from objectives
     tech_requirements = []
@@ -120,7 +115,6 @@ def generate_code_node(state: SharedState) -> Dict[str, Any]:
     logger.info("\n💻 ENGINEER: CODE GENERATION")
 
     tech_stack = state.get("tech_stack", [])
-    tasks = state.get("identified_tasks", [])
 
     # Generate code files based on tech stack
     code_files = []
@@ -207,9 +201,8 @@ def run_tests_node(state: SharedState) -> Dict[str, Any]:
 
     logger.info(f"Tests Run: {total_tests}")
     logger.info(f"Average Coverage: {avg_coverage:.1f}%")
-    logger.info(
-        f"Status: {'✅ ALL PASSED' if all(t['status'] == 'passed' for t in test_results) else '❌ FAILURES DETECTED'}"
-    )
+    all_passed = all(t["status"] == "passed" for t in test_results)
+    logger.info(f"Status: {'✅ ALL PASSED' if all_passed else '❌ FAILURES DETECTED'}")
 
     return {"test_results": test_results, "current_node": "run_tests"}
 
@@ -223,7 +216,6 @@ def plan_deployment_node(state: SharedState) -> Dict[str, Any]:
     logger.info("\n🚀 ENGINEER: DEPLOYMENT PLANNING")
 
     tech_stack = state.get("tech_stack", [])
-    code_files = state.get("code_files", [])
 
     deployment_notes = []
 
@@ -296,14 +288,14 @@ def generate_engineer_summary_node(state: SharedState) -> Dict[str, Any]:
     logger.info("=" * 80)
     logger.info("ENGINEER EXECUTIVE SUMMARY")
     logger.info("=" * 80)
-    logger.info(f"\n🛠️  TECHNICAL STATUS:")
-    logger.info(f"   Architecture: Designed")
+    logger.info("\n🛠️  TECHNICAL STATUS:")
+    logger.info("   Architecture: Designed")
     logger.info(f"   Code: {len(code_files)} components ({total_loc} LOC)")
     logger.info(f"   Tests: {total_tests} passed ({avg_coverage:.1f}% coverage)")
-    logger.info(f"\n🔍 KEY FINDINGS:")
+    logger.info("\n🔍 KEY FINDINGS:")
     for finding in summary.key_findings:
         logger.info(f"   {finding}")
-    logger.info(f"\n💡 RECOMMENDATIONS:")
+    logger.info("\n💡 RECOMMENDATIONS:")
     for rec in summary.recommendations:
         logger.info(f"   • {rec}")
     logger.info("=" * 80 + "\n")
@@ -317,7 +309,13 @@ def generate_engineer_summary_node(state: SharedState) -> Dict[str, Any]:
 
     return {
         "agent_outputs": [agent_output],
-        "implementation_summary": f"Technical implementation complete: {len(code_files)} components, {total_tests} tests passed",
+        ("implementation_summary"): (
+            "Technical implementation complete: "
+            f"{len(code_files)}"
+            " components, "
+            f"{total_tests}"
+            " tests passed"
+        ),
         "current_node": "generate_summary",
     }
 

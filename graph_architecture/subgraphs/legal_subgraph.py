@@ -17,7 +17,7 @@ from typing import Any, Dict
 
 from langgraph.graph import END, START, StateGraph
 
-from graph_architecture.schemas import AgentRole, SharedState
+from graph_architecture.schemas import SharedState
 from graph_architecture.llm_nodes import legal_llm_compliance_node
 
 logger = logging.getLogger(__name__)

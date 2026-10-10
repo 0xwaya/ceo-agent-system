@@ -17,7 +17,6 @@ from exceptions import (
     GuardRailViolationError,
 )
 from logger import AgentLogger
-from config import AgentConfig
 
 
 class BaseAgent(ABC):

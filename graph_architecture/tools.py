@@ -20,7 +20,6 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import time
 import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional
@@ -340,7 +339,16 @@ def persist_output(
     tool = "persist_output"
     try:
         os.makedirs(output_dir, exist_ok=True)
-        filename = f"{output_dir}/{agent_role}_{output_type}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        filename = (
+            f"{output_dir}"
+            "/"
+            f"{agent_role}"
+            "_"
+            f"{output_type}"
+            "_"
+            f"{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            ".json"
+        )
         with open(filename, "w") as f:
             json.dump(content, f, indent=2, default=str)
         logger.info(f"Output persisted: {filename}")

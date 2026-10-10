@@ -4,7 +4,9 @@ Eliminates duplicate state creation code
 """
 
 from typing import Dict, Any, List, Optional
+import math
 from utils.constants import AppConstants
+from exceptions import ValidationError
 
 
 class CFOStateBuilder:
@@ -40,14 +42,14 @@ class CFOStateBuilder:
         """
         state = {
             # Top-level company info (NOT nested - matches CFOAgentState schema)
-            "company_name": company_name or AppConstants.DEFAULT_COMPANY_NAME,
-            "industry": industry or AppConstants.DEFAULT_INDUSTRY,
-            "location": location or AppConstants.DEFAULT_LOCATION,
+            "company_name": company_name or "",
+            "industry": industry or "",
+            "location": location or "",
             "business_goals": [],
             # Strategic objectives
-            "strategic_objectives": objectives or AppConstants.DEFAULT_OBJECTIVES.copy(),
+            "strategic_objectives": list(objectives) if objectives is not None else [],
             # Budget management
-            "total_budget": budget or AppConstants.DEFAULT_BUDGET,
+            "total_budget": budget if budget is not None else 0,
             "budget_allocated": {},
             "budget_reserved_for_fees": 0,
             "pending_approvals": [],
@@ -55,7 +57,7 @@ class CFOStateBuilder:
             "rejected_actions": [],
             "pending_payments": [],
             # Timeline
-            "target_completion_days": timeline or AppConstants.DEFAULT_TIMELINE_DAYS,
+            "target_completion_days": timeline if timeline is not None else 0,
             "current_day": 0,
             "milestones": [],
             # Multi-agent orchestration
@@ -104,18 +106,50 @@ class CFOStateBuilder:
             CFO agent state
         """
         # Extract company info (handle both nested and flat structures)
+        if not isinstance(request_data, dict):
+            raise ValidationError("Scenario must be an object")
         company_info = request_data.get("company_info", {})
+        if not isinstance(company_info, dict):
+            raise ValidationError("company_info must be an object")
+        values = {**company_info, **request_data}
+        budget = values.get("total_budget", values.get("budget"))
+        timeline = values.get("target_days", values.get("timeline"))
+        try:
+            if isinstance(budget, bool) or isinstance(timeline, bool):
+                raise ValueError
+            budget = float(budget)
+            timeline_number = float(timeline)
+            if not math.isfinite(timeline_number) or not timeline_number.is_integer():
+                raise ValueError
+            timeline = int(timeline_number)
+        except (TypeError, ValueError, OverflowError):
+            raise ValidationError("Budget and timeline must be explicit finite numbers")
 
-        return CFOStateBuilder.create_initial_state(
-            company_name=request_data.get("company_name")
-            or company_info.get("company_name")
-            or company_info.get("name"),
-            industry=request_data.get("industry") or company_info.get("industry"),
-            location=request_data.get("location") or company_info.get("location"),
-            budget=float(request_data.get("budget", AppConstants.DEFAULT_BUDGET)),
-            timeline=int(request_data.get("timeline", AppConstants.DEFAULT_TIMELINE_DAYS)),
-            objectives=request_data.get("objectives", []),
+        objectives = values.get("objectives", values.get("strategic_objectives", []))
+        if not isinstance(objectives, list) or any(
+            not isinstance(item, str) or not item.strip() for item in objectives
+        ):
+            raise ValidationError("Objectives must be a list of non-empty strings")
+        text_values = [
+            values.get("company_name", values.get("name", "")),
+            values.get("industry", ""),
+            values.get("location", ""),
+        ]
+        if any(not isinstance(value, str) or not value.strip() for value in text_values):
+            raise ValidationError("Company name, industry and location are required")
+
+        state = CFOStateBuilder.create_initial_state(
+            company_name=text_values[0].strip(),
+            industry=text_values[1].strip(),
+            location=text_values[2].strip(),
+            budget=budget,
+            timeline=timeline,
+            objectives=[item.strip() for item in objectives],
         )
+        valid, error = CFOStateBuilder.validate_state(state)
+        if not valid:
+            raise ValidationError(error)
+        return state
 
     @staticmethod
     def validate_state(state: Dict[str, Any]) -> tuple[bool, Optional[str]]:
@@ -143,12 +177,14 @@ class CFOStateBuilder:
                 return False, f"Missing required field: {field}"
 
         # Validate budget
-        if state["total_budget"] <= 0:
-            return False, "Budget must be greater than 0"
+        if not math.isfinite(state["total_budget"]) or state["total_budget"] <= 0:
+            return False, "Budget must be finite and greater than 0"
 
         # Validate timeline
         if state["target_completion_days"] <= 0:
             return False, "Timeline must be greater than 0"
+        if not state["strategic_objectives"]:
+            return False, "At least one objective is required"
 
         return True, None
 

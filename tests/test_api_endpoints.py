@@ -38,8 +38,19 @@ class TestAPIEndpoints:
         assert "capabilities" in first_agent
         assert "budget" in first_agent
 
-    def test_analyze_objectives_success(self, test_client, sample_company_info):
+    def test_analyze_objectives_success(self, test_client, sample_company_info, monkeypatch):
         """Test /api/ceo/analyze endpoint with valid data"""
+        monkeypatch.setattr(app_module, "_prompt_expert_node", lambda state: {})
+        monkeypatch.setattr(
+            app_module,
+            "ceo_analyze",
+            lambda state: {
+                **state,
+                "identified_tasks": [],
+                "budget_allocated": {},
+                "risks": [],
+            },
+        )
         response = test_client.post(
             "/api/ceo/analyze",
             data=json.dumps(sample_company_info),
@@ -66,8 +77,14 @@ class TestAPIEndpoints:
         # Should either succeed with defaults or return error
         assert response.status_code in [200, 400, 500]
 
-    def test_execute_agent_endpoint(self, test_client, sample_agent_request):
+    def test_execute_agent_endpoint(self, test_client, sample_agent_request, monkeypatch):
         """Test agent execution endpoint"""
+        monkeypatch.setattr(
+            "graph_architecture.llm_nodes.branding_llm_node",
+            lambda state: {
+                "branding_output": {"brand_summary": "Test Company identity"},
+            },
+        )
         response = test_client.post(
             "/api/agent/execute/branding",
             data=json.dumps(sample_agent_request),
@@ -98,6 +115,7 @@ class TestAPIEndpoints:
     def test_cors_headers(self, test_client):
         """Test CORS headers are present"""
         response = test_client.get("/api/agents/available")
+        assert response.status_code == 200
 
         # Check if CORS is configured (optional)
         # This test may fail if CORS is not explicitly set
@@ -174,7 +192,7 @@ class TestAPIEndpoints:
         self, test_client, monkeypatch
     ):
         """Production should blank legacy default state on migration."""
-        monkeypatch.setenv("ENVIRONMENT", "production")
+        monkeypatch.setenv("APP_ENV", "production")
 
         legacy_scenario = {
             "company_name": "Amazon Granite LLC",

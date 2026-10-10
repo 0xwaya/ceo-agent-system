@@ -52,6 +52,7 @@ def _extract_input_value(html: str, input_id: str) -> str | None:
 def _run_mode_checks(environment: str) -> None:
     app_module = _load_app_for_environment(environment)
     flask_app = app_module.app
+    flask_app.config["ACCOUNT_AUTH_ENABLED"] = False  # Render-only smoke; auth has separate tests.
 
     with flask_app.test_client() as client:
         graph_response = client.get("/graph")
@@ -86,7 +87,11 @@ def _run_mode_checks(environment: str) -> None:
     if environment == "production":
         if company_value != "":
             raise AssertionError(
-                f"[production] Expected blank companyName in legacy template, got: {company_value!r}"
+                (
+                    "[production] Expected blank companyName in legacy template, "
+                    "got: "
+                    f"{company_value!r}"
+                )
             )
         if budget_value != "":
             raise AssertionError(
@@ -96,7 +101,11 @@ def _run_mode_checks(environment: str) -> None:
         # Development defaults are intentionally blank — users fill in their own scenario.
         if company_value != "":
             raise AssertionError(
-                f"[development] Expected blank companyName default (granite defaults removed), got: {company_value!r}"
+                (
+                    "[development] Expected blank companyName default (granite "
+                    "defaults removed), got: "
+                    f"{company_value!r}"
+                )
             )
 
     print(f"✓ {environment:<11} /graph, /admin, legacy index template")

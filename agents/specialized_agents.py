@@ -27,13 +27,6 @@ v0.5 — All agents upgraded with:
 
 import warnings
 
-warnings.warn(
-    "agents/specialized_agents.py is deprecated. "
-    "Use graph_architecture/llm_nodes.py Tier-3 nodes instead.",
-    DeprecationWarning,
-    stacklevel=2,
-)
-
 from typing import Dict, List, Any
 from typing_extensions import TypedDict
 from dataclasses import dataclass
@@ -51,11 +44,16 @@ from agents.security_blockchain_agent import SecurityBlockchainAgent
 from agents.agent_guard_rails import (
     AgentGuardRail,
     AgentDomain,
-    validate_agent_output,
     create_execution_summary,
 )
 from utils.openai_codex_tooling import OpenAICodexTooling
 
+warnings.warn(
+    "agents/specialized_agents.py is deprecated. "
+    "Use graph_architecture/llm_nodes.py Tier-3 nodes instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 # ============================================================================
 # SHARED BEST-PRACTICE LIBRARY — v0.5
@@ -422,46 +420,101 @@ def _build_dynamic_brand_svgs(initials: str, display_name: str, palette: dict) -
 
     return {
         "proposal_01_monogram": (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
-            f'<rect width="200" height="200" fill="{p}"/>'
-            f'<circle cx="100" cy="100" r="88" fill="none" stroke="{a}" stroke-width="2.5"/>'
-            f'<text x="100" y="118" font-family="Georgia,serif" font-size="{64 if len(init)<=2 else 46}" font-weight="700" '
-            f'fill="{a}" text-anchor="middle" letter-spacing="-3">{init}</text>'
-            f'<text x="100" y="156" font-family="Georgia,serif" font-size="10" font-weight="400" '
-            f'fill="{n}" text-anchor="middle" letter-spacing="3">{dn}</text>'
-            f"</svg>"
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 '
+                '200" width="200" height="200"><rect width="200" '
+                'height="200" fill="'
+                f"{p}"
+                '"/><circle cx="100" cy="100" r="88" fill="none" stroke="'
+                f"{a}"
+                '" stroke-width="2.5"/><text x="100" y="118" '
+                'font-family="Georgia,serif" font-size="'
+                f"{(64 if len(init) <= 2 else 46)}"
+                '" font-weight="700" fill="'
+                f"{a}"
+                '" text-anchor="middle" letter-spacing="-3">'
+                f"{init}"
+                '</text><text x="100" y="156" font-family="Georgia,serif" '
+                'font-size="10" font-weight="400" fill="'
+                f"{n}"
+                '" text-anchor="middle" letter-spacing="3">'
+                f"{dn}"
+                "</text></svg>"
+            )
         ),
         "proposal_02_serif_wordmark": (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
-            f'<rect width="360" height="120" fill="{n}"/>'
-            f'<text x="180" y="62" font-family="Georgia,serif" font-size="{38 if len(dn)<=10 else 28}" font-weight="700" '
-            f'fill="{p}" text-anchor="middle" letter-spacing="2">{dn}</text>'
-            f'<rect x="40" y="72" width="280" height="1.5" fill="{a}"/>'
-            f'<text x="180" y="94" font-family="Georgia,serif" font-size="12" font-weight="400" '
-            f'fill="{s}" text-anchor="middle" letter-spacing="5">STUDIO</text>'
-            f"</svg>"
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 '
+                '120" width="360" height="120"><rect width="360" '
+                'height="120" fill="'
+                f"{n}"
+                '"/><text x="180" y="62" font-family="Georgia,serif" '
+                'font-size="'
+                f"{(38 if len(dn) <= 10 else 28)}"
+                '" font-weight="700" fill="'
+                f"{p}"
+                '" text-anchor="middle" letter-spacing="2">'
+                f"{dn}"
+                '</text><rect x="40" y="72" width="280" height="1.5" fill="'
+                f"{a}"
+                '"/><text x="180" y="94" font-family="Georgia,serif" '
+                'font-size="12" font-weight="400" fill="'
+                f"{s}"
+                '" text-anchor="middle" '
+                'letter-spacing="5">STUDIO</text></svg>'
+            )
         ),
         "proposal_03_sans_prestige": (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 120" width="360" height="120">'
-            f'<rect width="360" height="120" fill="{p}"/>'
-            f'<polygon points="50,20 80,60 50,100 20,60" fill="none" stroke="{a}" stroke-width="2"/>'
-            f'<polygon points="50,34 66,60 50,86 34,60" fill="{a}"/>'
-            f'<text x="210" y="55" font-family="Arial,Helvetica,sans-serif" font-size="{26 if len(dn)<=10 else 18}" '
-            f'font-weight="700" fill="{n}" text-anchor="middle" letter-spacing="3">{dn}</text>'
-            f'<text x="210" y="82" font-family="Arial,Helvetica,sans-serif" font-size="11" '
-            f'font-weight="300" fill="{a}" text-anchor="middle" letter-spacing="7">OFFICIAL</text>'
-            f"</svg>"
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 '
+                '120" width="360" height="120"><rect width="360" '
+                'height="120" fill="'
+                f"{p}"
+                '"/><polygon points="50,20 80,60 50,100 20,60" fill="none" '
+                'stroke="'
+                f"{a}"
+                '" stroke-width="2"/><polygon points="50,34 66,60 50,86 '
+                '34,60" fill="'
+                f"{a}"
+                '"/><text x="210" y="55" '
+                'font-family="Arial,Helvetica,sans-serif" font-size="'
+                f"{(26 if len(dn) <= 10 else 18)}"
+                '" font-weight="700" fill="'
+                f"{n}"
+                '" text-anchor="middle" letter-spacing="3">'
+                f"{dn}"
+                '</text><text x="210" y="82" '
+                'font-family="Arial,Helvetica,sans-serif" font-size="11" '
+                'font-weight="300" fill="'
+                f"{a}"
+                '" text-anchor="middle" '
+                'letter-spacing="7">OFFICIAL</text></svg>'
+            )
         ),
         "proposal_04_monoline_emblem": (
-            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200">'
-            f'<rect width="200" height="200" fill="{n}"/>'
-            f'<circle cx="100" cy="100" r="88" fill="none" stroke="{p}" stroke-width="1.5"/>'
-            f'<circle cx="100" cy="100" r="80" fill="none" stroke="{a}" stroke-width="0.8"/>'
-            f'<text x="100" y="108" font-family="Georgia,serif" font-size="{56 if len(init)<=2 else 40}" font-weight="400" '
-            f'fill="{p}" text-anchor="middle">{init}</text>'
-            f'<text x="100" y="168" font-family="Arial,sans-serif" font-size="9" '
-            f'fill="{s}" text-anchor="middle" letter-spacing="4">EST. 2024</text>'
-            f"</svg>"
+            (
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 '
+                '200" width="200" height="200"><rect width="200" '
+                'height="200" fill="'
+                f"{n}"
+                '"/><circle cx="100" cy="100" r="88" fill="none" stroke="'
+                f"{p}"
+                '" stroke-width="1.5"/><circle cx="100" cy="100" r="80" '
+                'fill="none" stroke="'
+                f"{a}"
+                '" stroke-width="0.8"/><text x="100" y="108" '
+                'font-family="Georgia,serif" font-size="'
+                f"{(56 if len(init) <= 2 else 40)}"
+                '" font-weight="400" fill="'
+                f"{p}"
+                '" text-anchor="middle">'
+                f"{init}"
+                '</text><text x="100" y="168" font-family="Arial,sans-serif" '
+                'font-size="9" fill="'
+                f"{s}"
+                '" text-anchor="middle" letter-spacing="4">EST. '
+                "2024</text></svg>"
+            )
         ),
     }
 
@@ -515,7 +568,6 @@ class BrandingAgent(SpecializedAgent):
         print("=" * 70)
 
         company_info = state.get("company_info", {})
-        company_name = company_info.get("name", "Client")
         industry = company_info.get("industry", "General")
 
         research_findings = [
@@ -524,14 +576,18 @@ class BrandingAgent(SpecializedAgent):
             "✅ AI RESEARCHED: Color psychology - Trust (blue), Energy (red), Growth (green)",
             "✅ AI EVALUATED: Typography trends for {industry} - sans-serif vs serif",
             "✅ AI AUDITED: Competitor visual landscape to identify differentiation opportunities",
-            f"✅ AI ASSESSED: Cultural semiotics for {company_info.get('location', 'target market')} resonance",
+            (
+                "✅ AI ASSESSED: Cultural semiotics for "
+                f"{company_info.get('location', 'target market')}"
+                " resonance"
+            ),
         ]
 
         print("Research Methodology (AI applies RISD + Stanford d.school principles):")
         for finding in research_findings:
             print(f"  {finding}")
 
-        print(f"\n💰 Budget Used: $0 (AI research - no consultant fees)")
+        print("\n💰 Budget Used: $0 (AI research - no consultant fees)")
 
         return {
             "research_findings": research_findings,
@@ -603,17 +659,24 @@ class BrandingAgent(SpecializedAgent):
                 "scale": "Perfect Fourth (1.333): 12 / 16 / 21 / 28 / 37 / 50 / 67px",
             },
             "logo_svgs": svg_logos,
-            "typography_note": "Serif for brand weight; sans for digital clarity; pair tested at all scales",
+            ("typography_note"): (
+                "Serif for brand weight; sans for digital clarity; pair " "tested at all scales"
+            ),
             "strategic_alignment": strategic_objectives[:3] if strategic_objectives else [],
         }
 
         c1, c2, c3 = palette["color_names"][0], palette["color_names"][1], palette["color_names"][2]
-        h1, h2, h3 = palette["primary"], palette["secondary"], palette["accent"]
+        h1, h3 = palette["primary"], palette["accent"]
 
         concepts = [
             {
                 "concept_name": f"Proposal 01 — {brand_name} Signature Monogram",
-                "description": f"{brand_name} ({initials}) sculpted monogram with couture-style spacing",
+                ("description"): (
+                    f"{brand_name}"
+                    " ("
+                    f"{initials}"
+                    ") sculpted monogram with couture-style spacing"
+                ),
                 "svg_key": "proposal_01_monogram",
                 "colors": [h1, h3, palette["neutral"]],
                 "color_names": [c1, c2, c3],
@@ -649,7 +712,9 @@ class BrandingAgent(SpecializedAgent):
             },
             {
                 "concept_name": f"Proposal 03 — {brand_name} Modern Sans",
-                "description": f"Refined sans-serif wordmark with geometric icon mark and responsive lockups",
+                ("description"): (
+                    "Refined sans-serif wordmark with geometric icon mark and " "responsive lockups"
+                ),
                 "svg_key": "proposal_03_sans_prestige",
                 "colors": [h1, palette["neutral"], h3],
                 "color_names": [c1, palette["color_names"][3], c2],
@@ -686,19 +751,41 @@ class BrandingAgent(SpecializedAgent):
         ]
 
         print(
-            f"\n✨ AI GENERATED {len(concepts)} design concepts tailored for {brand_name} ({industry})"
+            (
+                "\n✨ AI GENERATED "
+                f"{len(concepts)}"
+                " design concepts tailored for "
+                f"{brand_name}"
+                " ("
+                f"{industry}"
+                ")"
+            )
         )
         for principle in self.knowledge_base.key_principles[:4]:
             print(f"  ✅ {principle}")
-        print(f"\n💡 All designs created by AI — no agency or freelancer fees")
+        print("\n💡 All designs created by AI — no agency or freelancer fees")
 
         recommendations = [
-            f"✅ AI RECOMMENDATION: Proposal 01 ({initials} Monogram) as primary mark, Proposal 03 for digital-first",
+            (
+                "✅ AI RECOMMENDATION: Proposal 01 ("
+                f"{initials}"
+                " Monogram) as primary mark, Proposal 03 for digital-first"
+            ),
             f"🎨 Palette locked: {c1} + {c2} + {c3} as core identity for {industry}",
             "🔤 Typography path: test one elegant serif and one modern sans before final lock",
             "⏱️ Timeline: 2-3 weeks for finalization, production exports, and rollout kit",
-            f"📦 AI DELIVERS: 4 polished {brand_name} logo proposals, social avatars, favicon set, brand sheet",
-            f"🎯 Strategy aligned with {len(strategic_objectives)} objective(s) for {industry} market positioning",
+            (
+                "📦 AI DELIVERS: 4 polished "
+                f"{brand_name}"
+                " logo proposals, social avatars, favicon set, brand sheet"
+            ),
+            (
+                "🎯 Strategy aligned with "
+                f"{len(strategic_objectives)}"
+                " objective(s) for "
+                f"{industry}"
+                " market positioning"
+            ),
         ]
 
         return {
@@ -706,11 +793,24 @@ class BrandingAgent(SpecializedAgent):
             "design_concepts": concepts,
             "recommendations": recommendations,
             "deliverables": [
-                f"✅ AI-DESIGNED: 4 polished {brand_name} logo systems (monogram, serif, sans, emblem)",
-                f"✅ AI-CREATED: {palette['name']} colour standard — {' / '.join(palette['color_names'][:3])}",
+                (
+                    "✅ AI-DESIGNED: 4 polished "
+                    f"{brand_name}"
+                    " logo systems (monogram, serif, sans, emblem)"
+                ),
+                (
+                    "✅ AI-CREATED: "
+                    f"{palette['name']}"
+                    " colour standard — "
+                    f"{' / '.join(palette['color_names'][:3])}"
+                ),
                 "✅ AI-PRODUCED: Typography pairing draft with serif + sans decision framework",
                 f"✅ AI-GENERATED: Social profile kit and web-ready {initials} logo exports",
-                f"✅ AI-RENDERED: Brand mockups for signage, print, and digital hero — {palette['style']}",
+                (
+                    "✅ AI-RENDERED: Brand mockups for signage, print, and "
+                    "digital hero — "
+                    f"{palette['style']}"
+                ),
             ],
             "action_plan_30_60_90": _build_30_60_90_plan(
                 agent_name=self.name,
@@ -875,7 +975,7 @@ class WebDevelopmentAgent(SpecializedAgent):
             context={"task_description": task_desc, "requirements": requirements},
         )
 
-        print(f"Applying MIT 6.170 Software Studio Principles:")
+        print("Applying MIT 6.170 Software Studio Principles:")
         print(f"  Task: {task_desc}")
 
         tech_stack = [
@@ -895,7 +995,7 @@ class WebDevelopmentAgent(SpecializedAgent):
         for tech in tech_stack:
             print(f"  {tech}")
 
-        print(f"\n💰 Budget: Domain ($12) + Hosting ($0-100) + 8th Wall ($99/mo) = ~$500 total")
+        print("\n💰 Budget: Domain ($12) + Hosting ($0-100) + 8th Wall ($99/mo) = ~$500 total")
 
         if codex_tooling.get("used"):
             print("\n🤖 OpenAI Codex tooling assistance: enabled")
@@ -1192,7 +1292,6 @@ class LegalComplianceAgent(SpecializedAgent):
         print(f"\n⚖️ {self.name} - DBA REGISTRATION")
         print("=" * 70)
 
-        task_desc = state.get("task_description", "")
         jurisdiction = state.get("jurisdiction", "Ohio")
 
         print(f"Applying Harvard Law + SBA Legal Framework for {jurisdiction}")
@@ -1268,11 +1367,14 @@ class LegalComplianceAgent(SpecializedAgent):
             "RISK: Inconsistent name usage - Must use DBA consistently in all materials",
             "RISK: Missing publication deadline - Calendar alert for newspaper filing",
             "RISK: Insurance gap - Notify carriers immediately to maintain coverage",
-            "RISK: Contract validity - Ensure contracts executed as 'Amazon Granite LLC dba Surfacecraft Studio'",
+            (
+                "RISK: Contract validity - Ensure contracts executed as "
+                "'Amazon Granite LLC dba Surfacecraft Studio'"
+            ),
             "RISK: Banking delays - DBA process may take 2-3 weeks for bank account",
         ]
 
-        print(f"\n✓ Complete DBA registration roadmap prepared")
+        print("\n✓ Complete DBA registration roadmap prepared")
         print(f"✓ {len(compliance_checklist)} compliance items identified")
         print(f"✓ {len(risks_identified)} risks assessed and mitigation plans created")
 
@@ -1392,12 +1494,18 @@ class LegalComplianceAgent(SpecializedAgent):
             ),
             "best_practices": [
                 "DBA before brand launch: file first, design second to avoid costly rebrand",
-                "Trademark vs DBA: DBA is county/state-level only — USPTO trademark = nationwide protection",
+                (
+                    "Trademark vs DBA: DBA is county/state-level only — USPTO "
+                    "trademark = nationwide protection"
+                ),
                 "Contracts: always execute as 'Amazon Granite LLC dba SurfaceCraft Studio'",
                 "Insurance: certificate of insurance with DBA name required before most B2B work",
                 "Mechanic's lien: Ohio requires preliminary notice for lien rights preservation",
                 "GDPR/CCPA for websites with leads: privacy policy + consent management required",
-                "Annual compliance check: DBA renewal, license renewal, insurance audit every January",
+                (
+                    "Annual compliance check: DBA renewal, license renewal, "
+                    "insurance audit every January"
+                ),
                 "Trademark monitoring: set Google Alerts for brand name from day 1 of filing",
             ],
         }
@@ -1598,7 +1706,10 @@ class MartechAgent(SpecializedAgent):
             "best_practices": [
                 "First-party data is the only reliable signal post-cookie deprecation (2024)",
                 "UTM taxonomy: standardize before first campaign, rebuild attribution is costly",
-                "HubSpot vs Salesforce: HubSpot for SMB (<200 contacts/day), Salesforce for enterprise",
+                (
+                    "HubSpot vs Salesforce: HubSpot for SMB (<200 contacts/day), "
+                    "Salesforce for enterprise"
+                ),
                 "Email deliverability: warm new sending domain for 4 weeks before bulk sends",
                 "GA4 migration: set up server-side tagging for accurate conversion data",
                 "Marketing automation: start simple (3-5 step welcomes), expand after validation",
@@ -1681,7 +1792,7 @@ class ContentAgent(SpecializedAgent):
         for asset in assets_created:
             print(f"  ✅ {asset}")
 
-        print(f"\n💰 Budget: $150 (Canva Pro $13/mo + stock images $50)")
+        print("\n💰 Budget: $150 (Canva Pro $13/mo + stock images $50)")
 
         if codex_tooling.get("used"):
             print("\n🤖 OpenAI Codex tooling assistance: enabled")
@@ -1793,11 +1904,20 @@ class ContentAgent(SpecializedAgent):
             "best_practices": [
                 "Content > quantity: 1 excellent 2,000-word post outranks 10 thin 500-word posts",
                 "Topic clusters: pillar page + 10 cluster posts creates topical authority",
-                "E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness) is Google's 2024 signal",
+                (
+                    "E-E-A-T (Experience, Expertise, Authoritativeness, "
+                    "Trustworthiness) is Google's 2024 signal"
+                ),
                 "Video first: repurpose video into blog, social, email, podcast for max ROI",
                 "SEO: target featured snippets with question-format H2s and direct answers",
-                "Email: personalization beyond first name — segment by behavior and lifecycle stage",
-                "Brand voice: consistency across every touchpoint builds trust faster than promotion",
+                (
+                    "Email: personalization beyond first name — segment by "
+                    "behavior and lifecycle stage"
+                ),
+                (
+                    "Brand voice: consistency across every touchpoint builds "
+                    "trust faster than promotion"
+                ),
                 "Content calendar: plan 2 weeks ahead, batch produce 1 week ahead",
             ],
             "codex_tooling": codex_tooling,
@@ -1851,7 +1971,10 @@ class CampaignAgent(SpecializedAgent):
         print("=" * 70)
 
         channels = [
-            "✅ AI MANAGES: Google Search Ads (keywords: countertops Cincinnati, granite installers)",
+            (
+                "✅ AI MANAGES: Google Search Ads (keywords: countertops "
+                "Cincinnati, granite installers)"
+            ),
             "✅ AI MANAGES: Google Display Ads (remarketing + lookalike audiences)",
             "✅ AI MANAGES: Meta Ads (Facebook/Instagram - local home improvement)",
             "✅ AI MANAGES: Google Local Services Ads (contractor leads)",
@@ -1882,7 +2005,7 @@ class CampaignAgent(SpecializedAgent):
         for concept in creative_concepts:
             print(f"  ✅ {concept['campaign']}: {concept['ai_creates']}")
 
-        print(f"\n💰 Budget: $3,000 total ad spend (AI creates all creative)")
+        print("\n💰 Budget: $3,000 total ad spend (AI creates all creative)")
 
         return {
             "channels": channels,
@@ -1999,7 +2122,10 @@ class CampaignAgent(SpecializedAgent):
                 "Meta Ads: broad audience + strong creative outperforms narrow targeting in 2024",
                 "Video ads: first 3 seconds must hook — front-load value assertion",
                 "Negative keywords: review search term report weekly in first month",
-                "Attribution: data-driven attribution model required for channels with >50 conv/month",
+                (
+                    "Attribution: data-driven attribution model required for "
+                    "channels with >50 conv/month"
+                ),
                 "Budget pacing: start conservative, double down on winners after 2 weeks of data",
                 "Local Services Ads: highest ROI channel for home services (pay per verified lead)",
             ],
@@ -2129,7 +2255,9 @@ class SocialMediaAgent(SpecializedAgent):
                 "campaign": "Stone of the Month",
                 "platform": "Instagram + Pinterest",
                 "objective": "Engagement and save rate (algorithm signal)",
-                "mechanic": "Deep dive into one stone variety: history, uses, care, style, projects",
+                ("mechanic"): (
+                    "Deep dive into one stone variety: history, uses, care, " "style, projects"
+                ),
                 "kpi": "Save rate >8% on feature posts (industry avg 2-4%)",
             },
         ]
@@ -2154,7 +2282,10 @@ class SocialMediaAgent(SpecializedAgent):
             "timeline_days": 30,
             "execution_mode": "AI_MANAGED",
             "deliverables": [
-                "✅ Platform strategy for 6 channels (Instagram, Facebook, LinkedIn, YouTube, TikTok, X)",
+                (
+                    "✅ Platform strategy for 6 channels (Instagram, Facebook, "
+                    "LinkedIn, YouTube, TikTok, X)"
+                ),
                 "✅ 4-week content calendar (topics, formats, copy, creative direction)",
                 "✅ Community management playbook (3-tier response system, escalation paths)",
                 "✅ 4 campaign concepts with objectives, mechanics, and KPIs",
@@ -2230,7 +2361,10 @@ class SocialMediaAgent(SpecializedAgent):
                         "Repurpose top 5 posts across all channels (format adaptation)",
                         "Launch first 'Seasonal' campaign (spring kitchen refresh theme)",
                         "Build social report template for monthly stakeholder updates",
-                        "Plan Q2 strategy: new platform test, influencer program, paid social scale",
+                        (
+                            "Plan Q2 strategy: new platform test, influencer program, "
+                            "paid social scale"
+                        ),
                     ],
                     "deliverables": [
                         "90-Day Social Performance Report (reach, engagement, leads by channel)",
@@ -2256,7 +2390,10 @@ class SocialMediaAgent(SpecializedAgent):
                 "LinkedIn: thought leadership posts (no links in caption) get 3x organic reach",
                 "YouTube Shorts: first 3 seconds retain watch time — hook is everything",
                 "Batch creation: 2 hours per week creates content for the entire week at scale",
-                "Community > audience: respond to every comment in first 60 min for algorithm boost",
+                (
+                    "Community > audience: respond to every comment in first 60 "
+                    "min for algorithm boost"
+                ),
                 "UGC converts 4x better than branded content — build a tag campaign early",
             ],
             "codex_tooling": codex_tooling,

@@ -64,15 +64,15 @@ Design requirements:
 Style: Modern, professional, memorable
 NO TEXT in the logo design - symbol/icon only"""
 
-    print(f"\n📋 Logo Brief:")
+    print("\n📋 Logo Brief:")
     print(f"   Company: {company_name}")
     print(f"   Industry: {industry}")
-    print(f"   Style: Modern, minimalist")
-    print(f"   Colors: Navy blue + warm gray")
+    print("   Style: Modern, minimalist")
+    print("   Colors: Navy blue + warm gray")
 
     # Step 4: Generate logo
-    print(f"\n🎨 Generating logo with DALL-E 3...")
-    print(f"   Cost: $0.04 (standard quality, 1024x1024)")
+    print("\n🎨 Generating logo with DALL-E 3...")
+    print("   Cost: $0.04 (standard quality, 1024x1024)")
 
     try:
         response = client.images.generate(
@@ -88,9 +88,9 @@ NO TEXT in the logo design - symbol/icon only"""
         revised_prompt = response.data[0].revised_prompt
 
         print("\n✅ Logo generated successfully!")
-        print(f"\n🖼️  Image URL:")
+        print("\n🖼️  Image URL:")
         print(f"   {image_url}")
-        print(f"\n📝 DALL-E refined your prompt to:")
+        print("\n📝 DALL-E refined your prompt to:")
         print(f"   {revised_prompt}")
 
         # Step 6: Show next steps
@@ -99,15 +99,15 @@ NO TEXT in the logo design - symbol/icon only"""
         print("=" * 80)
 
         print("\n📊 Task Summary:")
-        print(f"   ✅ Task: Logo generation")
-        print(f"   ✅ Tool: OpenAI DALL-E 3")
-        print(f"   ✅ Cost: $0.04")
+        print("   ✅ Task: Logo generation")
+        print("   ✅ Tool: OpenAI DALL-E 3")
+        print("   ✅ Cost: $0.04")
         print(f"   ✅ Output: {image_url[:50]}...")
 
         print("\n📥 Download Your Logo:")
         print(f"   1. Open URL in browser: {image_url}")
-        print(f"   2. Right-click → Save Image As...")
-        print(f"   3. Save as: surfacecraft_logo_v1.png")
+        print("   2. Right-click → Save Image As...")
+        print("   3. Save as: surfacecraft_logo_v1.png")
 
         print("\n🚀 Next Steps:")
         print("   1. Review the logo design")
@@ -161,12 +161,12 @@ def batch_generate_logos(count=4):
     successful = [r for r in results if r["success"]]
     total_cost = sum(r["cost"] for r in results)
 
-    print(f"\n📊 Summary:")
+    print("\n📊 Summary:")
     print(f"   Successful: {len(successful)}/{count}")
     print(f"   Total cost: ${total_cost}")
 
     if successful:
-        print(f"\n🖼️  Your logos:")
+        print("\n🖼️  Your logos:")
         for i, result in enumerate(successful, 1):
             print(f"   {i}. {result['image_url']}")
 

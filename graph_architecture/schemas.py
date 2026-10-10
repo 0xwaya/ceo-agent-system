@@ -10,7 +10,7 @@ Defines the structure for:
 6. Strict typed AgentTask for deterministic routing
 """
 
-from typing import TypedDict, Annotated, List, Dict, Any, Optional, Literal
+from typing import TypedDict, Annotated, List, Dict, Any, Optional
 from typing_extensions import NotRequired
 from datetime import datetime
 from enum import Enum
@@ -213,14 +213,27 @@ class PromptExpertOutput(BaseModel):
             "example": {
                 "original_input": "I need a financial review and a product roadmap",
                 "intent_summary": "Financial review combined with technical product planning",
-                "enriched_prompt": "Conduct comprehensive financial analysis and develop a prioritised product roadmap aligned with budget constraints.",
+                ("enriched_prompt"): (
+                    "Conduct comprehensive financial analysis and develop a "
+                    "prioritised product roadmap aligned with budget constraints."
+                ),
                 "primary_domain": "finance",
                 "secondary_domains": ["engineering"],
                 "requires_financial_analysis": True,
                 "requires_engineering": True,
-                "ceo_directive": "Initiate CFO budget analysis first; use output to constrain engineering roadmap scope.",
-                "cfo_task_prompt": "Perform full budget analysis. Return: budget health, burn rate, and recommended engineering investment ceiling.",
-                "engineer_task_prompt": "Develop a product roadmap within the CFO-approved budget ceiling. Return: prioritised feature list, timeline, and tech stack recommendation.",
+                ("ceo_directive"): (
+                    "Initiate CFO budget analysis first; use output to constrain "
+                    "engineering roadmap scope."
+                ),
+                ("cfo_task_prompt"): (
+                    "Perform full budget analysis. Return: budget health, burn "
+                    "rate, and recommended engineering investment ceiling."
+                ),
+                ("engineer_task_prompt"): (
+                    "Develop a product roadmap within the CFO-approved budget "
+                    "ceiling. Return: prioritised feature list, timeline, and "
+                    "tech stack recommendation."
+                ),
                 "priority": "high",
                 "confidence_score": 0.92,
                 "ambiguities": [],

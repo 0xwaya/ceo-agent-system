@@ -42,6 +42,8 @@ logs/
 *.db
 *.sqlite
 *.sqlite3
+data/runtime/
+data/artifacts/
 
 # Environment Variables (CRITICAL - DO NOT COMMIT)
 .env*

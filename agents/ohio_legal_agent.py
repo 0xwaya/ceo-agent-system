@@ -11,7 +11,7 @@ This file is no longer wired into any active graph nodes.
 Do NOT add new legal logic here — use the legal_subgraph instead.
 """
 
-from typing import Dict, List
+from typing import Dict
 from datetime import datetime
 
 
@@ -66,15 +66,15 @@ class OhioLegalComplianceAgent:
         for doc in requirements["formation_documents"]:
             print(f"  {doc}")
 
-        print(f"\n💰 FILING FEES:")
+        print("\n💰 FILING FEES:")
         for item, cost in requirements["filing_fees"].items():
             print(f"  {item.replace('_', ' ').title()}: ${cost}")
 
-        print(f"\n📋 ONGOING COMPLIANCE:")
+        print("\n📋 ONGOING COMPLIANCE:")
         for item in requirements["ongoing_compliance"]:
             print(f"  {item}")
 
-        print(f"\n💼 TAXATION:")
+        print("\n💼 TAXATION:")
         for item in requirements["taxation"]:
             print(f"  {item}")
 
@@ -163,18 +163,18 @@ class OhioLegalComplianceAgent:
             print(f"\n🏆 {details['name']}")
             print(f"   Cost: {details['cost']}")
             print(f"   Timeline: {details['timeline']}")
-            print(f"   Requirements:")
+            print("   Requirements:")
             for req in details["requirements"]:
                 print(f"     • {req}")
-            print(f"   Benefits:")
+            print("   Benefits:")
             for benefit in details["benefits"]:
                 print(f"     ✓ {benefit}")
 
-        print(f"\n📋 ACTION PLAN:")
+        print("\n📋 ACTION PLAN:")
         for step in strategy["action_plan"]:
             print(f"  {step}")
 
-        print(f"\n📄 REQUIRED DOCUMENTS:")
+        print("\n📄 REQUIRED DOCUMENTS:")
         for doc in strategy["required_documents"]:
             print(f"  {doc}")
 
@@ -238,13 +238,13 @@ class OhioLegalComplianceAgent:
         for cert_type, details in strategy["certifications"].items():
             print(f"\n🏆 {details['name']}")
             if "eligible_groups" in details:
-                print(f"   Eligible Groups:")
+                print("   Eligible Groups:")
                 for group in details["eligible_groups"]:
                     print(f"     • {group}")
             print(f"   Cost: {details['cost']}")
             print(f"   Timeline: {details['timeline']}")
 
-        print(f"\n📋 ACTION STEPS:")
+        print("\n📋 ACTION STEPS:")
         for step in strategy["action_steps"]:
             print(f"  {step}")
 
@@ -285,7 +285,7 @@ class OhioLegalComplianceAgent:
             "total_with_certifications": 1038,
         }
 
-        print(f"\n💰 COST SUMMARY:")
+        print("\n💰 COST SUMMARY:")
         print(f"  Required (LLC + Free WOSB): ${total_cost_estimate['total_required']}")
         print(f"  With All Certifications: ${total_cost_estimate['total_with_certifications']}")
         print(f"  Agent Service Fee: ${self.budget}")

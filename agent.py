@@ -12,10 +12,11 @@ from langgraph.graph import START, END, StateGraph
 from typing_extensions import TypedDict
 from typing import Annotated
 import operator
+import importlib
 
 # Import CFO Agent for multi-agent orchestration
 try:
-    from cfo_agent import build_cfo_agent, CFOAgentState
+    importlib.import_module("agents.cfo_agent")
 
     CFO_AVAILABLE = True
 except ImportError:
@@ -63,7 +64,10 @@ def analyze_market(state: MarketingAgentState) -> dict:
 
     market_research = [
         "Cincinnati Metro Area Demographics: ~2.2M population, median household income $63K",
-        "Housing Market: Strong new construction + renovation market in Mason, West Chester, Blue Ash",
+        (
+            "Housing Market: Strong new construction + renovation market "
+            "in Mason, West Chester, Blue Ash"
+        ),
         "Primary competitors: 15+ local granite/quartz fabricators identified",
         "Market size: $45-60M annual countertop market in Greater Cincinnati",
         "Customer pain points: Long lead times, price transparency, installation quality concerns",
@@ -97,10 +101,19 @@ def analyze_trends(state: MarketingAgentState) -> dict:
     trend_insights = [
         "Design Trend: Waterfall edges and book-matched slabs gaining 35% YoY popularity",
         "Material Trend: Engineered quartz (Caesarstone, Cambria) overtaking natural granite 60/40",
-        "Color Trend: Bold veining (Calacatta, Statuario looks) + warm earth tones replacing all-white",
+        (
+            "Color Trend: Bold veining (Calacatta, Statuario looks) + "
+            "warm earth tones replacing all-white"
+        ),
         "Tech Trend: AR visualization apps for countertop selection increasing conversion 45%",
-        "Sustainability: Recycled glass countertops and low-VOC sealants becoming key differentiators",
-        "Customer Behavior: 78% research online first, 65% want instant quotes, 52% book via mobile",
+        (
+            "Sustainability: Recycled glass countertops and low-VOC "
+            "sealants becoming key differentiators"
+        ),
+        (
+            "Customer Behavior: 78% research online first, 65% want "
+            "instant quotes, 52% book via mobile"
+        ),
     ]
 
     for trend in trend_insights:
@@ -402,12 +415,31 @@ def develop_brand_positioning(state: MarketingAgentState) -> dict:
 
     visual_concepts = [
         "Color Palette: Deep charcoal (#2C3539) + copper accent (#B87333) + warm slate (#6B7B8C)",
-        "Typography: Primary - Inter (headings), Secondary - Sofia Pro (body), Accent - Playfair Display (luxury touches)",
-        "Photography Style: Dramatic side-lighting on stone textures, hero shots in luxury kitchens, detail close-ups of veining",
-        "Graphic Elements: Abstract geometric patterns inspired by stone grain, copper metallic accents",
-        "Social Media Templates: Instagram grid system with 3-photo sequences showing design → fabrication → install",
-        "Website Design: Full-screen stone imagery, interactive AR tool prominent CTA, minimalist navigation",
-        "Business Collateral: Letterpress business cards on textured stock, premium folder with stone samples",
+        (
+            "Typography: Primary - Inter (headings), Secondary - Sofia "
+            "Pro (body), Accent - Playfair Display (luxury touches)"
+        ),
+        (
+            "Photography Style: Dramatic side-lighting on stone "
+            "textures, hero shots in luxury kitchens, detail close-ups "
+            "of veining"
+        ),
+        (
+            "Graphic Elements: Abstract geometric patterns inspired by "
+            "stone grain, copper metallic accents"
+        ),
+        (
+            "Social Media Templates: Instagram grid system with 3-photo "
+            "sequences showing design → fabrication → install"
+        ),
+        (
+            "Website Design: Full-screen stone imagery, interactive AR "
+            "tool prominent CTA, minimalist navigation"
+        ),
+        (
+            "Business Collateral: Letterpress business cards on textured "
+            "stock, premium folder with stone samples"
+        ),
         "Vehicle Wrap: Clean modern design with layered logo large, copper accent stripe",
     ]
 
@@ -705,8 +737,9 @@ if __name__ == "__main__":
     print("=" * 60)
     print(f"Phases Completed: {len(result['completed_phases'])}")
     print(f"DBA Selected: {result['selected_dba']}")
-    print(
-        f"\nTotal Market Insights: {len(result['market_research']) + len(result['competitor_analysis']) + len(result['trend_insights'])}"
+    insights = sum(
+        len(result[key]) for key in ("market_research", "competitor_analysis", "trend_insights")
     )
+    print(f"\nTotal Market Insights: {insights}")
     print(f"Marketing Channels: {len(result['marketing_channels'])}")
     print(f"Campaign Ideas: {len(result['campaign_ideas'])}")

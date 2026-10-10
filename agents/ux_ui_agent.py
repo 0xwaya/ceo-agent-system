@@ -59,7 +59,7 @@ MOTION & INTERACTION
  • Scroll-driven Animations API (Chrome 115+)
 """
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 
