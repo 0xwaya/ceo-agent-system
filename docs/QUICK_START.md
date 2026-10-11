@@ -20,7 +20,8 @@ make check PYTHON=.venv/bin/python
 
 Open `http://127.0.0.1:5001/login`. New artifacts are private in `data/artifacts/`;
 use the authenticated dashboard download links, not static file URLs.
-Tester provisioning and remote access are on hold. Voice is paused.
+Tester provisioning and remote access are on hold. Dashboard conversations are
+text-only; audio input and output are not part of this application.
 
 **Legacy CLI reference below:** these compatibility entry points do not share
 the dashboard's authentication, metering or truthful execution contract, and

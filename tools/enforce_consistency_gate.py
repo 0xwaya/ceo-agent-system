@@ -20,7 +20,6 @@ MAJOR_CODE_PATHS = (
     "app.py",
     "config.py",
     "models.py",
-    "voice_endpoints.py",
     "agent.py",
     "ceo_agent.py",
     "cfo_agent.py",
@@ -45,7 +44,7 @@ def _run(command: list[str], check: bool = True) -> str:
         raise RuntimeError(
             f"Command failed ({' '.join(command)}):\n{result.stdout}\n{result.stderr}"
         )
-    return result.stdout.strip()
+    return result.stdout.rstrip()
 
 
 def _is_ci() -> bool:

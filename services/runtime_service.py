@@ -72,9 +72,17 @@ class RuntimeService:
     def execute(self, job):
         if job["kind"] == "export":
             return self.export(job)
+        if job["kind"] == "test_request":
+            from services.build_service import prepare_runner_request
+
+            return prepare_runner_request(self.store, job)
         callback = UsageCallback(self.store, job)
         token = active_usage.set(callback)
         try:
+            if job["kind"] == "build":
+                from services.build_service import generate_source
+
+                return generate_source(job["payload"])
             result = self.graph_execute(**job["payload"], thread_id=f'{job["owner"]}:{job["id"]}')
             return result
         finally:
@@ -82,8 +90,8 @@ class RuntimeService:
 
     def propose_export(self, owner, source_id):
         source = self.store.get(source_id, owner)
-        if source["status"] != "succeeded" or source["kind"] != "graph":
-            raise ValueError("Only a succeeded graph job can be exported")
+        if source["status"] != "succeeded" or source["kind"] not in {"graph", "build"}:
+            raise ValueError("Only a succeeded graph or source-build job can be exported")
         if not (source["result"] or {}).get("artifacts"):
             raise ValueError("No artifacts to export")
         return self.store.create(owner, "export", {"source_job": source_id}, approval=True)
@@ -166,6 +174,55 @@ def runtime_blueprint(runtime_getter, owner_getter, normalize, protect):
     def cancel(identifier):
         runtime_getter().store.cancel(identifier, owner_getter())
         return jsonify(success=True)
+
+    @bp.route("/api/builds/propose", methods=["POST"])
+    @protect
+    def propose_build():
+        body = json_body()
+        if set(body) != {"scenario"}:
+            raise ValueError("Only scenario is accepted")
+        from services.state_builder import CFOStateBuilder
+
+        state = CFOStateBuilder.create_from_request(body["scenario"])
+        scenario = {
+            "company_name": state["company_name"],
+            "industry": state["industry"],
+            "location": state["location"],
+            "budget": state["total_budget"],
+            "timeline": state["target_completion_days"],
+            "objectives": state["strategic_objectives"],
+        }
+        job = runtime_getter().store.create(
+            owner_getter(), "build", {"scenario": scenario}, approval=True
+        )
+        return jsonify(success=True, job=job), 202
+
+    @bp.route("/api/builds/<identifier>/propose-tests", methods=["POST"])
+    @protect
+    def propose_tests(identifier):
+        if json_body():
+            raise ValueError("Test requests do not accept command or runner overrides")
+        runtime = runtime_getter()
+        source = runtime.store.get(identifier, owner_getter())
+        if source["kind"] != "build" or source["status"] != "succeeded":
+            raise ValueError("A succeeded source build is required")
+        job = runtime.store.create(
+            owner_getter(),
+            "test_request",
+            {"source_job": identifier, "source_artifacts": source["result"]["artifacts"]},
+            approval=True,
+        )
+        return jsonify(success=True, job=job), 202
+
+    @bp.route("/api/jobs/<identifier>/runner-request", methods=["GET"])
+    @protect
+    def runner_request(identifier):
+        job = runtime_getter().store.get(identifier, owner_getter())
+        if job["kind"] != "test_request" or job["status"] != "succeeded":
+            raise ValueError("Approved runner request is not ready")
+        response = jsonify(job["result"])
+        response.headers["Content-Disposition"] = 'attachment; filename="runner-request.json"'
+        return response
 
     @bp.route("/api/connectors/local-export", methods=["POST"])
     @protect

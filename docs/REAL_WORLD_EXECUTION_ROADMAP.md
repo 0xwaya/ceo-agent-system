@@ -2,6 +2,17 @@
 
 ## Executive Summary
 
+### Local source-build and runner preparation
+
+Approved Python source builds now write real `tool.py`, `test_tool.py`, and
+`README.md` files to private artifact storage. Syntax validation does not execute
+them or establish correctness. Separate approval prepares a source-hash-bound
+runner request; tests stay **NOT run** because no isolated runner is configured.
+Oracle access, provisioning, remote dispatch and test-evidence validation remain
+pending and unauthorized. See [isolated runner design](ISOLATED_RUNNER.md).
+This is distinct from the report-only graph: reports do not become working code
+merely because an engineering agent ran.
+
 ### v0.8.0 implementation status
 
 Implemented: opt-in scoped MemPalace lexical memory, persisted single-process jobs,
@@ -40,11 +51,11 @@ authorizing Oracle SSH-tunnel testing. Oracle availability has not been checked,
 and no tunnel, remote account or deployment has been created.
 The cross-account tester export-approval policy remains pending; reviewer export
 proposals/approvals are disabled until that policy is agreed. Admins may approve
-their own local exports. Public hosting remains blocked. Cloud voice is paused
-until credentials and a supported integration are available.
+their own local exports. Public hosting remains blocked. The dashboard supports
+text chat only; audio input and output are outside its scope.
 
-Cleanup validation: the full offline suite has 111 passing tests and one
-optional voice skip; no expected failures remain. Broad Black and Flake8,
+Historical cleanup validation: the offline suite had 111 passing tests and one
+skip at that time; no expected failures remained. Broad Black and Flake8,
 JavaScript syntax and dependency consistency pass. The Socket.IO expected
 failures were resolved by compatible dependency versions, not suppressed.
 Dead preset execution/report paths, unused model fallbacks and the obsolete

@@ -24,13 +24,6 @@ This folder contains non-core project documentation moved out of the repository 
 - `CONTRIBUTING.md`
 - `copilot-instructions.md`
 
-## Voice and AI Research
-- `AI_AGENT_VOICE_RESEARCH.md`
-- `GOOGLE_ADK_EVALUATION.md`
-- `VOICE_FREE_TIER_SETUP.md`
-- `VOICE_INTEGRATION_ROADMAP.md`
-- `VOICE_SETUP_GUIDE.md`
-
 ## Operator References
 - `CEO_AGENT_README.md`
 - `CEO_CFO_QUICK_REFERENCE.md`

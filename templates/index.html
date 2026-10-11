@@ -1,13 +1,19 @@
 <!doctype html>
 <html lang="en">
   <head>
-    <meta name="csrf-token" content="{{ csrf_token() }}">
-    <meta name="account-id" content="{{ g.account.id if g.account is defined and g.account else '' }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}" />
+    <meta
+      name="account-id"
+      content="{{ g.account.id if g.account is defined and g.account else '' }}"
+    />
     <script src="/static/js/auth.js"></script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Langraph Executive AI Dashboard</title>
-    <link rel="stylesheet" href="/static/css/style.css?v={{ app_version | default('0.8.0') }}" />
+    <link
+      rel="stylesheet"
+      href="/static/css/style.css?v={{ app_version | default('0.8.0') }}"
+    />
     <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   </head>
   <body class="v4-layout">
@@ -16,7 +22,9 @@
       <div class="v4-logo">
         <span class="v4-logo-icon">🧠</span>
         <span class="v4-logo-name">Langraph Executive AI</span>
-        <span class="v4-version-badge">v{{ app_version | default('0.8.0') }}</span>
+        <span class="v4-version-badge"
+          >v{{ app_version | default('0.8.0') }}</span
+        >
       </div>
 
       <!-- Agent status pills (click to jump to chat) -->
@@ -90,19 +98,6 @@
             else %}-{% endif %}
           </span>
         </div>
-      </div>
-
-      <div class="v4-header-voice">
-        <button
-          id="voice-toggle-btn"
-          class="v4-btn v4-btn-outline"
-          type="button"
-          disabled
-          title="Voice integration is paused pending credentials"
-        >
-          🎙 Voice
-        </button>
-        <span id="voice-status" class="voice-status">Paused</span>
       </div>
 
       <button class="v4-run-btn" id="launchOrchestration" type="button">
@@ -189,9 +184,9 @@
               <input
                 type="number"
                 id="budget"
-                value="{{ scenario_defaults.budget | default(1000) }}"
-                min="1000"
-                max="100000"
+                value="{{ scenario_defaults.budget | default('') }}"
+                min="0"
+                step="any"
               />
             </div>
             <div class="v4-cfg-field">
@@ -199,9 +194,9 @@
               <input
                 type="number"
                 id="timeline"
-                value="{{ scenario_defaults.timeline | default(30) }}"
-                min="30"
-                max="365"
+                value="{{ scenario_defaults.timeline | default('') }}"
+                min="1"
+                step="1"
               />
             </div>
             <div class="v4-cfg-field">
@@ -224,15 +219,80 @@
               </button>
             </div>
             <div class="v4-cfg-actions">
-              <button class="btn btn-small" type="button" onclick="setScenarioMemory(true)">Enable scenario memory</button>
-              <button class="btn btn-small" type="button" onclick="setScenarioMemory(false)">Disable memory</button>
-              <button class="btn btn-small" type="button" onclick="deleteScenarioMemory()">Delete scenario memory</button>
+              <button
+                class="btn btn-small"
+                type="button"
+                onclick="setScenarioMemory(true)"
+              >
+                Enable scenario memory
+              </button>
+              <button
+                class="btn btn-small"
+                type="button"
+                onclick="setScenarioMemory(false)"
+              >
+                Disable memory
+              </button>
+              <button
+                class="btn btn-small"
+                type="button"
+                onclick="deleteScenarioMemory()"
+              >
+                Delete scenario memory
+              </button>
             </div>
-            <p>Memory is opt-in and local. Retrieved excerpts enter model prompts.</p>
+            <p>
+              Memory is opt-in and local. Retrieved excerpts enter model
+              prompts.
+            </p>
+            <button
+              class="btn btn-small"
+              type="button"
+              onclick="proposeSourceBuild()"
+            >
+              Propose Python source build
+            </button>
+            <p>
+              Source builds require approval. Generated code is not run locally.
+              Isolated Oracle testing is not configured.
+            </p>
             <div id="jobControls" hidden>
               <p id="jobState"></p>
-              <button class="btn btn-small" type="button" onclick="cancelCurrentJob()">Cancel job</button>
-              <button class="btn btn-small" type="button" onclick="proposeCurrentExport()">Propose local export</button>
+              <button
+                id="jobApprove"
+                hidden
+                class="btn btn-small"
+                type="button"
+                onclick="approveCurrentJob()"
+              >
+                Review and approve job
+              </button>
+              <button
+                id="jobTests"
+                hidden
+                class="btn btn-small"
+                type="button"
+                onclick="proposeBuildTests()"
+              >
+                Prepare isolated test request
+              </button>
+              <a id="runnerRequestLink" hidden
+                >Download approved runner request</a
+              >
+              <button
+                class="btn btn-small"
+                type="button"
+                onclick="cancelCurrentJob()"
+              >
+                Cancel job
+              </button>
+              <button
+                class="btn btn-small"
+                type="button"
+                onclick="proposeCurrentExport()"
+              >
+                Propose local export
+              </button>
             </div>
           </div>
         </div>
@@ -574,7 +634,7 @@
     <script src="/static/js/app.js?v={{ app_version | default('0.8.0') }}"></script>
     {% if config.ACCOUNT_AUTH_ENABLED %}
     <form method="post" action="/logout">
-      <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+      <input type="hidden" name="csrf" value="{{ csrf_token() }}" />
       <button type="submit">Log out</button>
     </form>
     {% endif %}

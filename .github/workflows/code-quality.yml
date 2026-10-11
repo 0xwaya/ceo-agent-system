@@ -8,6 +8,9 @@ on:
 jobs:
   quality:
     runs-on: ubuntu-latest
+    env:
+      APP_ENV: testing
+      OPENAI_API_KEY: ""
 
     steps:
       - name: Checkout
@@ -48,5 +51,5 @@ jobs:
           node --check static/js/app.js
           node --check static/js/auth.js
 
-      - name: Run tests
+      - name: Run offline tests including source-build and isolated-runner contracts
         run: pytest -q

@@ -68,7 +68,6 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = _APP_SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10MB max request size
 socketio = SocketIO(app, async_mode="threading")
-# Cloud voice is paused until credentials and a supported implementation are available.
 
 app.config["ACCOUNT_AUTH_ENABLED"] = os.getenv("ENABLE_AUTH", "false").lower() == "true"
 if app.config["ACCOUNT_AUTH_ENABLED"] and (
@@ -1420,6 +1419,31 @@ def get_guard_rails(agent_type):
         print(f"🛡️ Guard rails request for: {agent_type}")
 
         normalized_agent_type = "branding" if agent_type.lower() == "designer" else agent_type
+
+        if normalized_agent_type.lower() in (
+            "cto",
+            "engineer",
+            "researcher",
+            "ux_design",
+            "software_eng",
+            "prompt_expert",
+        ):
+            return jsonify(
+                success=True,
+                guard_rail={
+                    "summary": "Model-backed local reports only; no external execution.",
+                    "max_budget": 1.0,
+                    "allowed_categories": ["Metered model API calls", "Private local artifacts"],
+                    "forbidden_categories": ["External deployment", "Purchases", "Outreach"],
+                    "permitted_tasks": ["Generate scenario-specific JSON/Markdown reports"],
+                    "quality_standards": {
+                        "scenario_fidelity": "required",
+                        "artifact_hash_verification": "required",
+                        "max_tokens_per_operation": 20000,
+                        "budget_unit": "USD API cost, not scenario budget",
+                    },
+                },
+            )
 
         # Executive agents — return bespoke guard rail info directly
         if normalized_agent_type.lower() in ("ceo", "cfo"):

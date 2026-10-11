@@ -46,6 +46,68 @@ def test_empty_state_has_no_presets():
 
 
 @pytest.mark.parametrize(
+    "agent", ["cto", "engineer", "researcher", "ux_design", "software_eng", "prompt_expert"]
+)
+def test_modern_agent_guard_rails(test_client, agent):
+    response = test_client.get(f"/api/guard-rails/{agent}")
+    assert response.status_code == 200
+    assert response.json["guard_rail"]["max_budget"] == 1.0
+    assert "no external execution" in response.json["guard_rail"]["summary"]
+
+
+def test_model_access_error_is_actionable_and_redacted():
+    import httpx
+    from openai import NotFoundError
+    from exceptions import model_failure_message
+
+    error = NotFoundError(
+        "private provider body",
+        response=httpx.Response(404, request=httpx.Request("POST", "https://api.openai.com")),
+        body={"message": "private provider body"},
+    )
+    message = model_failure_message(error, "Generic failure")
+    assert "unavailable or inaccessible" in message
+    assert "OPENAI_MODEL" in message
+    assert "private provider body" not in message
+
+
+def test_environment_loads_before_service_configuration():
+    harness = """
+import os
+import dotenv
+os.environ.pop('OPENAI_API_KEY', None)
+os.environ['APP_ENV'] = 'testing'
+os.environ['SECRET_KEY'] = 'isolated-environment-test-key-32-characters'
+def load_local_environment(*args, **kwargs):
+    os.environ['OPENAI_API_KEY'] = 'synthetic-local-key'
+    return True
+dotenv.load_dotenv = load_local_environment
+import services
+import config
+assert config.OPENAI_API_KEY == 'synthetic-local-key'
+"""
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, "-c", harness], capture_output=True, text=True, check=False
+    )
+    assert result.returncode == 0, result.stderr
+
+
+def test_consistency_gate_preserves_git_status_columns(monkeypatch):
+    from tools import enforce_consistency_gate as gate
+
+    monkeypatch.setattr(
+        gate.subprocess,
+        "run",
+        lambda *args, **kwargs: SimpleNamespace(
+            returncode=0, stdout=" M .github/workflows/code-quality.yml\n", stderr=""
+        ),
+    )
+    assert gate._git_changed_files_local() == [".github/workflows/code-quality.yml"]
+
+
+@pytest.mark.parametrize(
     "field,value",
     [
         ("budget", None),
@@ -293,6 +355,7 @@ const watched = [];
 const localStorage = {setItem: (key, value) => saved[key] = value};
 const watchDurableJob = id => watched.push(id);
 const persistScenarioToStorage = () => ({company_name:'Test', objectives:['Menu']});
+const validateScenarioForExecution = () => true;
 const addChatMessage = () => {};
 const addLogEntry = () => {};
 const fetch = async () => ({
@@ -311,6 +374,63 @@ runFullOrchestration().then(() => {
     assert result.returncode == 0, result.stderr
 
 
+def test_analysis_validates_all_fields_before_request():
+    root = Path(__file__).resolve().parents[1]
+    script = (root / "static/js/app.js").read_text()
+    validation = script.split("function validateScenarioForExecution(scenario)", 1)[1]
+    validation = validation.split("function applyScenarioToForm", 1)[0]
+    analysis = script.split("async function analyzeObjectives()", 1)[1]
+    analysis = analysis.split("// Run full orchestration", 1)[0]
+    harness = """
+const assert = require('node:assert/strict');
+let scenario;
+let requests = [];
+let messages = [];
+let focused;
+const document = {getElementById: id => ({focus: () => focused = id})};
+const updateStatus = () => {};
+const addLogEntry = () => {};
+const addChatMessage = message => messages.push(message);
+const persistScenarioToStorage = () => scenario;
+const fetch = async (url, options) => {
+    requests.push({url, payload: JSON.parse(options.body)});
+    return {status:400, json:async () => ({success:false, error:'Offline test'})};
+};
+"""
+    harness += "function validateScenarioForExecution(scenario)" + validation
+    harness += "async function analyzeObjectives()" + analysis
+    harness += """
+(async () => {
+    const valid = {company_name:'Test', industry:'Food', location:'Columbus',
+        budget:25.5, timeline:7, objectives:['Design a menu']};
+    for (const [field, value, focus] of [
+        ['company_name','   ','companyName'], ['industry','','industry'],
+        ['location','','location'], ['budget',0,'budget'],
+        ['budget',-1,'budget'], ['budget',NaN,'budget'],
+        ['budget',Infinity,'budget'], ['timeline',0,'timeline'],
+        ['timeline',2.5,'timeline'], ['objectives',[],'objectives']
+    ]) {
+        scenario = {...valid, [field]:value};
+        messages = [];
+        await analyzeObjectives();
+        assert.equal(requests.length, 0);
+        assert.equal(focused, focus);
+        assert(messages.some(message => message.includes('No analysis or execution was started')));
+        assert(!messages.some(message => message.includes('Initiating')));
+    }
+    scenario = valid;
+    await analyzeObjectives();
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, '/api/ceo/analyze');
+    assert.equal(requests[0].payload.budget, 25.5);
+    assert.equal(requests[0].payload.timeline, 7);
+    assert.deepEqual(requests[0].payload.objectives, valid.objectives);
+})().catch(error => {console.error(error); process.exitCode = 1;});
+"""
+    result = subprocess.run(["node", "-e", harness], capture_output=True, text=True, check=False)
+    assert result.returncode == 0, result.stderr
+
+
 def test_active_javascript_parses():
     root = Path(__file__).resolve().parents[1]
     result = subprocess.run(
@@ -318,6 +438,38 @@ def test_active_javascript_parses():
         capture_output=True,
         text=True,
     )
+    assert result.returncode == 0, result.stderr
+
+
+def test_succeeded_job_report_lists_executed_agents():
+    script = (Path(__file__).resolve().parents[1] / "static/js/app.js").read_text()
+    function = script.split("async function watchDurableJob(identifier)", 1)[1]
+    function = function.split("async function cancelCurrentJob", 1)[0]
+    harness = """
+const assert = require('node:assert/strict');
+let jobPollTimer;
+const state = {};
+const document = {getElementById: () => ({})};
+const updateStatus = () => {};
+const hideProgressBar = () => {};
+const addChatMessage = message => {throw new Error(message)};
+const runtimeRequest = async () => ({job: {
+    status:'succeeded', cost:0.00477, tokens:5373, max_tokens:20000,
+    max_cost:1, reserved_tokens:0, reserved_cost:0, payload:{},
+    result:{agent_outputs:['cto','engineer','software_eng'].map(agent =>
+        ({agent,artifacts:[{},{},{}]}))}
+}});
+const displayAgentReport = (agent, result) => {
+    assert.equal(agent, 'ceo');
+    assert.equal(result.deliverables.length, 3);
+    assert(result.deliverables[0].startsWith('cto: 3'));
+    assert.equal(result.measured_model_cost, 0.00477);
+    assert.equal(result.status, 'Artifacts generated');
+};
+"""
+    harness += "async function watchDurableJob(identifier)" + function
+    harness += "watchDurableJob('job-1').catch(() => process.exitCode = 1);"
+    result = subprocess.run(["node", "-e", harness], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr
 
 

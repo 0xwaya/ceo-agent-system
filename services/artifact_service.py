@@ -56,6 +56,11 @@ class ArtifactService:
         result: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Persist a full execution bundle and return artifact descriptors."""
+        source_files = result.get("source_files")
+        if source_files is not None:
+            from services.build_service import validate_source_bundle
+
+            validate_source_bundle({"files": source_files})
         run_id = self._build_run_id()
         agent_slug = self._slugify(agent_type or agent_name or "agent")
         company_slug = self._slugify(
@@ -106,7 +111,13 @@ class ArtifactService:
             )
             artifacts.append(self._artifact_entry(deliverables_path, "Deliverables", "markdown"))
 
-        if result.get("execution_mode") != "local_artifacts":
+        if source_files:
+            for source in source_files:
+                path = run_dir / source["path"]
+                self._write_text(path, source["content"])
+                artifacts.append(self._artifact_entry(path, source["path"], "source"))
+
+        if result.get("execution_mode") not in {"local_artifacts", "source_files"}:
             artifacts.extend(self._create_domain_artifacts(agent_type, result, run_dir))
 
         bundle = {

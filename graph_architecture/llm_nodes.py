@@ -125,7 +125,11 @@ def _call_structured(
 
     except Exception as exc:
         logger.error("Structured LLM call failed", exc_info=True)
-        raise RuntimeError("Model output failed; no preset output was substituted") from exc
+        from exceptions import model_failure_message
+
+        raise RuntimeError(
+            model_failure_message(exc, "Model output failed; no preset output was substituted")
+        ) from exc
 
 
 # ─────────────────────────────────────────────────────────────────────────────

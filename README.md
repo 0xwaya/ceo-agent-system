@@ -80,9 +80,25 @@ activated. Local startup honors `FLASK_HOST` and `FLASK_PORT`; the example binds
 
 ### Scenario and execution contract
 
+- Local environment configuration is loaded before service configuration is imported.
+  Existing process environment variables take precedence over the repository `.env`.
 - Company, industry, location, budget, timeline, and objectives must be supplied explicitly.
   The dashboard opens blank; incomplete or non-finite execution inputs return HTTP 400.
+  Analyze and agent launch validate all required fields before starting, focusing the
+  first invalid field. Scenario budget must be greater than zero (separate from API
+  spending limits); timeline must be a positive whole number of days.
 - Analyze produces objective-linked tasks with estimated budgets/durations, not completed work.
+- **Actual source builds are separate and approval-gated:** use “Propose Python source
+  build” to generate private `tool.py`, `test_tool.py`, and `README.md`. Source is
+  syntax-checked, never executed locally. Tests remain **NOT run**. Separate approval
+  prepares a hash-bound isolated runner request, not test execution.
+  See [isolated runner design](docs/ISOLATED_RUNNER.md). Oracle deployment, remote
+  execution, and verification of test evidence remain pending.
+- Offline tests validate wiring with mocked providers; they do not establish live model
+  access or successful execution of every agent. Graph execution always includes CTO
+  review after CEO routing; engineering and other directors run only when selected for
+  the supplied objectives. A failed model step stops the graph and prevents a complete
+  report. Model access errors identify the configuration to correct without exposing keys.
 - Graph launch sends `total_budget` and `target_days`; analyze uses `budget` and `timeline`.
 - Narrow dashboards stack scenario setup, activity, and chat instead of hiding controls.
 - The graph runs CTO review, selected directors, and only requested specialists. It persists
@@ -143,8 +159,8 @@ automatically assigned to named accounts or exposed through authenticated downlo
 Browser scenario/job storage is account-namespaced; authenticated pages do not load
 the old shared development storage keys.
 
-Cloud voice is paused: its runtime import and dashboard initialization are removed.
-No voice credentials are required for the supported dashboard or these tests.
+The dashboard supports text chat only. Audio input/output code and audio
+credentials are not part of the supported application.
 
 The local dashboard is bound to `127.0.0.1:5001`; other devices cannot connect directly.
 For an already-running VM instance, provision a separate SSH account/key for each tester,

@@ -98,7 +98,8 @@ class JobStore:
         with closing(self.connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT * FROM jobs WHERE status='queued' AND kind IN('graph','export') "
+                "SELECT * FROM jobs WHERE status='queued' "
+                "AND kind IN('graph','export','build','test_request') "
                 "ORDER BY created_at LIMIT 1"
             ).fetchone()
             if row is None:

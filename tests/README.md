@@ -68,12 +68,6 @@ pytest tests/test_api_endpoints.py::TestAPIEndpoints::test_index_route -v
 - Input sanitization
 - Content type validation
 
-### Optional Voice Tests
-- `test_voice_free.py` requires Google Cloud speech/TTS packages.
-- If `google-cloud-speech` / `google-cloud-texttospeech` are not installed, pytest auto-skips this test.
-- Voice is paused pending credentials and implementation review. Do not install
-  its optional packages or run paid/cloud voice tests as part of the current gate.
-
 ## Coverage Goals
 
 - **Overall Coverage:** 80%+

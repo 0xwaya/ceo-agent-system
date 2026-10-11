@@ -23,9 +23,6 @@
 - `SECURITY_AUDIT_2026.md` — Security audit baseline.
 - `SECURITY_PATCH_FEB_2026.md` — Security remediation record.
 - `REORGANIZATION_SUMMARY.md` — Repository cleanup history.
-- `VOICE_INTEGRATION_ROADMAP.md` — Approved voice implementation direction.
-- `VOICE_SETUP_GUIDE.md` / `VOICE_FREE_TIER_SETUP.md` — Voice deployment guidance.
-
 ## Archived (Moved to docs/archive)
 
 These one-time status/snapshot docs were moved to `docs/archive/` to reduce root-level clutter while preserving historical context.

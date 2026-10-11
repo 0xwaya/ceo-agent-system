@@ -78,6 +78,8 @@ def test_reviewer_admin_boundaries_and_revoke(accounts, test_client):
     csrf = login(test_client, "reviewer@example.test", "test-password-reviewer-only")
     assert test_client.get("/api/logs").status_code == 403
     assert test_client.get("/debug").status_code == 403
+    for path in ("/api/builds/propose", "/api/builds/test/propose-tests"):
+        assert test_client.post(path, json={}, headers={"X-CSRF-Token": csrf}).status_code == 403
     assert (
         test_client.post(
             "/api/connectors/local-export", json={}, headers={"X-CSRF-Token": csrf}

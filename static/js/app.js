@@ -254,8 +254,8 @@ function getScenarioFromForm() {
     const budgetInput = document.getElementById('budget');
     const timelineInput = document.getElementById('timeline');
 
-    const parsedBudget = Number.parseFloat(budgetInput?.value || '');
-    const parsedTimeline = Number.parseInt(timelineInput?.value || '', 10);
+    const parsedBudget = Number(budgetInput?.value || '');
+    const parsedTimeline = Number(timelineInput?.value || '');
 
     const companyInfo = {
         company_name: companyNameInput?.value || defaults.company_name,
@@ -278,6 +278,26 @@ function getScenarioFromForm() {
         objectives: parsedObjectives,
         updated_at: new Date().toISOString()
     };
+}
+
+function validateScenarioForExecution(scenario) {
+    const checks = [
+        ['companyName', typeof scenario.company_name === 'string' && scenario.company_name.trim(), 'Enter a Company Name.'],
+        ['industry', typeof scenario.industry === 'string' && scenario.industry.trim(), 'Select an Industry (and specify it when selecting Other).'],
+        ['location', typeof scenario.location === 'string' && scenario.location.trim(), 'Enter a Location.'],
+        ['budget', Number.isFinite(scenario.budget) && scenario.budget > 0, 'Enter a Budget ($) greater than 0. This is your scenario budget, not the model API spending limit.'],
+        ['timeline', Number.isInteger(scenario.timeline) && scenario.timeline > 0, 'Enter a Timeline in whole days greater than 0.'],
+        ['objectives', Array.isArray(scenario.objectives) && scenario.objectives.length > 0 &&
+            scenario.objectives.every(item => typeof item === 'string' && item.trim()), 'Enter at least one Strategic Objective.']
+    ];
+    const invalid = checks.find(([, valid]) => !valid);
+    if (!invalid) return true;
+    const [field, , message] = invalid;
+    updateStatus(message, 'error');
+    addLogEntry(`Execution blocked: ${message}`, 'error');
+    addChatMessage(`⚠️ ${message} No analysis or execution was started.`, 'system');
+    document.getElementById(field)?.focus();
+    return false;
 }
 
 function applyScenarioToForm(scenario) {
@@ -723,6 +743,10 @@ function getAgentIcon(type) {
 
 // Agent configurations for reports and modals
 const agentConfigs = {
+    'ceo': { icon: '👔', name: 'CEO Orchestration' },
+    'cto': { icon: '🔧', name: 'CTO Architecture' },
+    'engineer': { icon: '🛠️', name: 'Engineering' },
+    'software_eng': { icon: '💻', name: 'Software Review' },
     'branding': { icon: '🎨', name: 'Branding & Visual Identity' },
     'web_development': { icon: '💻', name: 'Web Development' },
     'legal': { icon: '⚖️', name: 'Legal Compliance' },
@@ -735,18 +759,10 @@ const agentConfigs = {
 async function analyzeObjectives() {
     console.log('🔍 Analyze button clicked');
     try {
+        const scenario = persistScenarioToStorage();
+        if (!validateScenarioForExecution(scenario)) return;
         updateStatus('Analyzing strategic objectives...', 'running');
         addLogEntry('CEO Agent: Initiating executive orchestration analysis', 'info');
-
-        const scenario = persistScenarioToStorage();
-
-        // Guard: required fields must be non-empty before hitting the backend
-        if (!scenario.company_name || !scenario.industry || !scenario.location) {
-            updateStatus('Please fill in Company Name, Industry, and Location first', 'error');
-            addLogEntry('Analysis blocked — missing required fields (company name / industry / location)', 'error');
-            addChatMessage('⚠️ Please fill in your **Company Name**, **Industry**, and **Location** in the form before running analysis.', 'system');
-            return;
-        }
 
         // Explicitly pick only the fields the backend allowlist accepts
         // to avoid accidental rejection if the scenario object grows extra keys
@@ -834,6 +850,7 @@ async function runFullOrchestration() {
     console.log('🚀 Launch Full Orchestration button clicked');
     try {
         const scenario = persistScenarioToStorage();
+        if (!validateScenarioForExecution(scenario)) return;
         const companyInfo = {
             company_name: scenario.company_name,
             dba_name: scenario.dba_name,
@@ -894,6 +911,7 @@ async function executeAgent(agentType) {
     if (agentType === 'ceo') {
         try {
             const scenario = persistScenarioToStorage({ syncBackend: false });
+            if (!validateScenarioForExecution(scenario)) return;
             addLogEntry('CEO Agent: Initiating full multi-agent orchestration...', 'info');
             addChatMessage(
                 `👔 **CEO Agent activated** — launching full orchestration for **${scenario.company_name || 'your company'}**.\n` +
@@ -946,6 +964,7 @@ async function executeAgent(agentType) {
 
     try {
         const scenario = persistScenarioToStorage();
+        if (!validateScenarioForExecution(scenario)) return;
         const companyInfo = {
             company_name: scenario.company_name,
             name: scenario.company_name,
@@ -1599,8 +1618,8 @@ function displayAgentReport(agentType, resultData, companyInfo) {
 
         <div class="report-metrics">
             <div class="report-metric">
-                <div class="report-metric-label">Provider Spending</div>
-                <div class="report-metric-value">${resultData.spend_verified === true ? '$' + resultData.budget_used : 'Not measured'}</div>
+                <div class="report-metric-label">${Number.isFinite(resultData.measured_model_cost) ? 'Model Cost (rate-calculated)' : 'Provider Spending'}</div>
+                <div class="report-metric-value">${Number.isFinite(resultData.measured_model_cost) ? '$' + resultData.measured_model_cost.toFixed(4) : resultData.spend_verified === true ? '$' + resultData.budget_used : 'Not measured'}</div>
             </div>
             <div class="report-metric">
                 <div class="report-metric-label">Deliverables</div>
@@ -2812,22 +2831,80 @@ async function watchDurableJob(identifier) {
         document.getElementById('jobControls').hidden = false;
         document.getElementById('jobState').textContent =
             `${job.status} · ${job.tokens}/${job.max_tokens} measured tokens · $${job.cost.toFixed(4)} rate-calculated / $${job.max_cost} limit · ${job.reserved_tokens} tokens / $${job.reserved_cost.toFixed(4)} reserved or uncertain`;
-        if (['queued', 'running'].includes(job.status)) {
+        const approval = document.getElementById('jobApprove');
+        const tests = document.getElementById('jobTests');
+        const runnerLink = document.getElementById('runnerRequestLink');
+        if (approval) approval.hidden = job.status !== 'awaiting_approval';
+        if (tests) tests.hidden = job.kind !== 'build' || job.status !== 'succeeded';
+        if (runnerLink) runnerLink.hidden = true;
+        if (job.status === 'awaiting_approval') {
+            updateStatus(`${job.kind}: awaiting your approval; no work started`, 'pending');
+        } else if (['queued', 'running'].includes(job.status)) {
             updateStatus(`Job ${job.status}`, 'running');
             jobPollTimer = setTimeout(() => watchDurableJob(identifier), 2000);
         } else if (job.status === 'succeeded') {
+            if (job.kind === 'test_request') {
+                updateStatus('Runner request prepared. Tests NOT run; isolated runner is not configured.', 'pending');
+                if (runnerLink) {
+                    runnerLink.href = `/api/jobs/${encodeURIComponent(identifier)}/runner-request`;
+                    runnerLink.hidden = false;
+                }
+                hideProgressBar();
+                return;
+            }
             updateStatus('Local artifacts generated; review required.', 'success');
-            displayAgentReport('ceo', { ...job.result, execution_mode: 'local_artifacts', deliverables: [] }, {
+            displayAgentReport('ceo', {
+                ...job.result,
+                execution_mode: 'local_artifacts',
+                status: job.kind === 'build' ? 'Source generated · Tests NOT run' : 'Artifacts generated',
+                measured_model_cost: job.cost,
+                deliverables: job.kind === 'build' ? job.result.deliverables :
+                    (job.result.agent_outputs || []).map(record =>
+                        `${record.agent}: ${record.artifacts.length} verified local report files`)
+            }, job.kind === 'build' ? job.payload.scenario : {
                 ...job.payload, budget: job.payload.total_budget, timeline: job.payload.target_days
             });
             hideProgressBar();
         } else {
             updateStatus(`${job.status}: ${job.error || 'No further work will be performed'}`, 'error');
+            addChatMessage(`❌ Job ${job.status}: ${job.error || 'No further work will be performed'}. No complete orchestration report was generated.`, 'error');
             hideProgressBar();
         }
     } catch (error) {
         addChatMessage(`Job status unavailable: ${error.message}. Use the job status endpoint to retry.`, 'error');
     }
+}
+
+async function proposeSourceBuild() {
+    try {
+        const scenario = getScenarioFromForm();
+        if (!validateScenarioForExecution(scenario)) return;
+        const { job } = await runtimeRequest('/api/builds/propose', { scenario });
+        localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, job.id);
+        addChatMessage('Python source build proposed. Review and approve to generate tool.py, test_tool.py and README.md. No generated code will run on this Mac.', 'system');
+        await watchDurableJob(job.id);
+    } catch (error) { addChatMessage(`Source build proposal failed: ${error.message}`, 'error'); }
+}
+
+async function approveCurrentJob() {
+    try {
+        const { job } = await runtimeRequest(`/api/jobs/${encodeURIComponent(state.activeThreadId)}`);
+        if (job.status !== 'awaiting_approval') throw new Error('Job is not awaiting approval');
+        const description = job.kind === 'build'
+            ? `Approve Python source generation for ${job.payload.scenario.company_name}?\nObjectives: ${job.payload.scenario.objectives.join('; ')}\nLimit: ${job.max_tokens} tokens / $${job.max_cost}. Files are untrusted; tests will NOT run.`
+            : 'Approve preparing a hash-bound isolated test request? No Oracle connection or code execution occurs; tests remain NOT run.';
+        if (!confirm(description)) return;
+        await runtimeRequest(`/api/jobs/${encodeURIComponent(job.id)}/approve`, {});
+        await watchDurableJob(job.id);
+    } catch (error) { addChatMessage(`Approval failed: ${error.message}`, 'error'); }
+}
+
+async function proposeBuildTests() {
+    try {
+        const { job } = await runtimeRequest(`/api/builds/${encodeURIComponent(state.activeThreadId)}/propose-tests`, {});
+        localStorage.setItem(ACTIVE_JOB_STORAGE_KEY, job.id);
+        await watchDurableJob(job.id);
+    } catch (error) { addChatMessage(`Test request failed: ${error.message}`, 'error'); }
 }
 
 async function cancelCurrentJob() {

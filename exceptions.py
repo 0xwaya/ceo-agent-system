@@ -7,6 +7,23 @@ Defines all custom exceptions for better error handling and debugging.
 from typing import Optional, Dict, Any
 
 
+def model_failure_message(error: Exception, fallback: str) -> str:
+    """Expose actionable provider categories without returning credential-bearing bodies."""
+    from openai import NotFoundError, AuthenticationError, RateLimitError
+    from config import OPENAI_MODEL
+
+    if isinstance(error, NotFoundError):
+        return (
+            f"Configured model '{OPENAI_MODEL}' is unavailable or inaccessible. "
+            "Select an accessible OPENAI_MODEL and matching verified pricing, then restart."
+        )
+    if isinstance(error, AuthenticationError):
+        return "Provider authentication failed. Check the local API credential and restart."
+    if isinstance(error, RateLimitError):
+        return "Provider rate limit or quota reached. Check account billing/quota before retrying."
+    return fallback
+
+
 # ============================================================================
 # BASE EXCEPTIONS
 # ============================================================================

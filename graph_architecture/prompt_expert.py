@@ -139,7 +139,11 @@ def _call_llm(user_input: str) -> PromptExpertOutput:
 
     except Exception as exc:
         logger.error("Prompt Expert model call failed", exc_info=True)
-        raise RuntimeError("Prompt Expert failed; no preset intake was substituted") from exc
+        from exceptions import model_failure_message
+
+        raise RuntimeError(
+            model_failure_message(exc, "Prompt Expert failed; no preset intake was substituted")
+        ) from exc
 
 
 # ─────────────────────────────────────────────────────────────────────────────
