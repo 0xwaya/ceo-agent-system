@@ -43,11 +43,12 @@ jobs:
       - name: Enforce docs/workflow consistency
         run: python3 tools/enforce_consistency_gate.py
 
-      - name: Smoke dashboard rendering
+      - name: Smoke dashboard rendering and UI template check
         run: python3 tools/smoke_dashboard_render.py
 
-      - name: Check dashboard JavaScript
+      - name: Check dashboard JavaScript syntax and theme assets
         run: |
+          # Verify JavaScript syntax across frontend scripts
           node --check static/js/app.js
           node --check static/js/auth.js
 

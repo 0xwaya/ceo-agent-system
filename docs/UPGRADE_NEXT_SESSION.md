@@ -65,7 +65,32 @@ Never commit or share private-key contents. For dashboard access, keep the app
 bound to `127.0.0.1:5001` on the instance, require named authentication, and do
 not open port 5001 in the VCN security list/NSG.
 
-### Log in to an instance with direct SSH reachability
+### Local SSH config setup (`~/.ssh/config`)
+
+To avoid entering connection arguments manually, add an alias to `~/.ssh/config`:
+
+```sshconfig
+Host oracle-ceo
+  HostName <instance-public-ip-or-dns>
+  User ubuntu
+  IdentityFile ~/.ssh/<approved-private-key-file>
+  LocalForward 127.0.0.1:5002 127.0.0.1:5001
+```
+
+Set secure permissions locally:
+
+```bash
+chmod 600 ~/.ssh/<approved-private-key-file>
+chmod 600 ~/.ssh/config
+```
+
+Then connect and establish the port forward in one step:
+
+```bash
+ssh oracle-ceo
+```
+
+### Log in to an instance with direct SSH reachability (one-off command)
 
 ```bash
 VCN_USER='<instance-os-user>'
@@ -119,6 +144,73 @@ ssh -i "$SSH_KEY" -J "$BASTION_USER@$BASTION_HOST" -N \
 Then browse to `http://127.0.0.1:5002/admin`. Press Ctrl-C in the terminal to
 close the tunnel. Restrict SSH ingress to the operator's approved IP. SSH
 connectivity and dashboard account authentication are separate controls.
+
+### Remote server helper script (`~/start_ceo.sh`)
+
+On the remote instance, create a helper script to activate the virtual
+environment and start the single-worker Flask service on port `5001`:
+
+```bash
+cat << 'EOF' > /home/ubuntu/start_ceo.sh
+#!/usr/bin/env bash
+cd /home/ubuntu/apps/ceo-agent-system
+source /home/ubuntu/.venvs/ceo-agent-system/bin/activate
+exec python app.py
+EOF
+chmod +x /home/ubuntu/start_ceo.sh
+```
+
+To run it in the background on the server:
+
+```bash
+nohup /home/ubuntu/start_ceo.sh > /home/ubuntu/apps/ceo-agent-system/app.log 2>&1 &
+```
+
+To verify the process and port listener:
+
+```bash
+ps aux | grep 'python app.py' | grep -v grep
+ss -tulpn | grep 5001
+```
+
+## UI/UX Theme Overhaul & Dashboard Modernization
+
+### October 12, 2026 UI Overhaul
+
+- **Classic Executive Theme**: Replaced neon purple/pink gradients and saturated
+  glows with an executive obsidian/slate palette (`--v4-bg: #0b0f17`,
+  `--v4-panel: #0f172a`, `--v4-card: #182234`, `--v4-accent: #3b82f6`).
+- **High-Contrast Legibility**: Resolved dark-on-dark text collisions in the
+  Activity Feed and Reports view. Replaced hardcoded `#334155` and `#64748b` inline styles
+  with crisp white (`#f8fafc`), light slate (`#f1f5f9`), and secondary slate (`#cbd5e1`).
+- **Eliminated Jarring White Cards**: Converted legacy `#fff` discovery question boxes
+  and domain plans to cohesive translucent dark cards with clear, colored category accents.
+- **Dark-Theme Tasks Tab**: Updated `.task-card` styling from light `#fafbfc` to
+  dark slate `#182234` with readable high-contrast detail rows and priority badges.
+- **Global Safeguards**: Added CSS rules ensuring all nested report headings,
+  paragraphs, list items, and table elements default to high-contrast legible colors.
+- **Agent Detail & Budget Distinction**: Updated `showAgentModal` in `static/js/app.js` and
+  `.modal-content` in `static/css/style.css` to clearly distinguish between per-operation
+  API spend ceilings ($1.00 metering safeguard) and user-allocated scenario budgets.
+- **Compacted Header & Streamlined Density**: Reduced header height to 50px, refined agent
+  pills, and streamlined results/modal cards in line with Phase 1 modernization.
+
+### Dashboard Modernization Upgrade Plan
+
+1. **Information Density & Compaction**:
+   - Reduce header footprint to 50px with a compact pill bar.
+   - Streamline KPI metric cards into a responsive horizontal executive ticker.
+   - Tighten list item padding in Activity Feed cards for faster scanning.
+2. **Intuitive Navigation & Layout Modernization**:
+   - Retain the proven 3-column architecture (Parameters → Activity/Reports → Chat)
+     without touching the underlying LangGraph orchestration workflow.
+   - Introduce collapsible left sidebar (Parameters & Roster) to allow full-width
+     report inspection on lower-resolution screens.
+   - Consolidate redundant tabs: merge "Execution Graph" visualization into an
+     interactive topology sub-view within Reports.
+3. **Executive Action Clarity**:
+   - Clear distinction between passive report review and approval-gated actions.
+   - Contextual chat drawer with instant agent-switching and thread indicators.
 
 ## Holds and safety boundaries
 

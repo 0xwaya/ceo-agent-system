@@ -1068,7 +1068,10 @@ async function viewAgentDetails(agentType) {
         if (data.success) {
             showAgentModal(agentType, data.guard_rail);
             addLogEntry(`${agentType} agent details loaded`, 'success');
-            addChatMessage(`✅ ${agentName} Agent details loaded. Budget limit: $${data.guard_rail.max_budget}`, 'assistant');
+            const limitLabel = (data.guard_rail.quality_standards && data.guard_rail.quality_standards.budget_unit && data.guard_rail.quality_standards.budget_unit.includes("API cost"))
+                ? `API spend cap: $${data.guard_rail.max_budget}`
+                : `Budget limit: $${data.guard_rail.max_budget.toLocaleString()}`;
+            addChatMessage(`✅ ${agentName} Agent details loaded. ${limitLabel}`, 'assistant');
         } else {
             addLogEntry(`Failed to load agent details: ${data.error}`, 'error');
             console.error('Failed to load guard rails:', data.error);
@@ -1094,28 +1097,39 @@ function showAgentModal(agentType, guardRail) {
         `<li>💰 ${cat}</li>`
     ).join('');
 
+    const isApiSpendCap = guardRail.quality_standards && guardRail.quality_standards.budget_unit && guardRail.quality_standards.budget_unit.includes("API cost");
+    const budgetBadgeTitle = isApiSpendCap ? "API Spend Ceiling (Per-Call Cost Metering)" : "Allocated Scenario Budget";
+    const budgetNote = isApiSpendCap 
+        ? `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">Per-call model inference safety cap. Not your business scenario budget.</div>`
+        : `<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 4px;">Dynamic business budget governed by CEO Orchestrator.</div>`;
+
     content.innerHTML = `
-        <h2>${getAgentIcon(agentType)} ${agentType.toUpperCase().replace('_', ' ')} Agent</h2>
+        <h2 style="margin-top: 0; color: #f8fafc; font-size: 1.35rem; display: flex; align-items: center; gap: 0.5rem;">
+            ${getAgentIcon(agentType)} ${agentType.toUpperCase().replace('_', ' ')} Agent Details
+        </h2>
 
-        <h3>💰 Budget Constraint</h3>
-        <p style="font-size: 24px; font-weight: bold; color: #10B981;">$${guardRail.max_budget}</p>
+        <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2); border-radius: 10px; padding: 1rem; margin-bottom: 1.25rem;">
+            <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: #94a3b8; font-weight: 700;">${budgetBadgeTitle}</div>
+            <p style="font-size: 26px; font-weight: 700; color: #10B981; margin: 4px 0 0 0;">$${guardRail.max_budget.toLocaleString()}</p>
+            ${budgetNote}
+        </div>
 
-        <h3>✅ What This Agent DOES (Execution Mode)</h3>
-        <ul style="list-style: none; padding-left: 0;">
+        <h3 style="color: #cbd5e1; font-size: 0.95rem; margin-top: 1rem; margin-bottom: 0.5rem;">✅ Permitted Tasks (Execution Scope)</h3>
+        <ul style="list-style: none; padding-left: 0; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: #f1f5f9;">
             ${permittedTasks}
         </ul>
 
-        <h3>💳 Allowed Spending Categories</h3>
-        <ul style="list-style: none; padding-left: 0;">
+        <h3 style="color: #cbd5e1; font-size: 0.95rem; margin-top: 1rem; margin-bottom: 0.5rem;">💳 Allowed Categories</h3>
+        <ul style="list-style: none; padding-left: 0; margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.85rem; color: #f1f5f9;">
             ${allowedCategories}
         </ul>
 
-        <h3>🛡️ Guard Rails Active</h3>
-        <div style="background: #D1FAE5; padding: 15px; border-radius: 8px; color: #065F46;">
-            <strong>✅ Execution Mode:</strong> AI performs work (does not recommend vendors)<br>
-            <strong>✅ Budget Protection:</strong> Cannot exceed $${guardRail.max_budget}<br>
-            <strong>✅ Scope Validation:</strong> Stays within permitted tasks only<br>
-            <strong>✅ Quality Standards:</strong> ${Object.keys(guardRail.quality_standards).length} metrics enforced
+        <h3 style="color: #cbd5e1; font-size: 0.95rem; margin-top: 1rem; margin-bottom: 0.5rem;">🛡️ Safety Guard Rails</h3>
+        <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); padding: 14px; border-radius: 8px; color: #e2e8f0; font-size: 0.82rem; line-height: 1.55;">
+            <strong>✅ Autonomous Execution:</strong> Direct AI delivery within sandboxed boundary.<br>
+            <strong>✅ Cost Metering:</strong> Hard spend ceiling of $${guardRail.max_budget} per operation.<br>
+            <strong>✅ Scope Validation:</strong> Enforces permitted tasks and approved deliverables.<br>
+            <strong>✅ Standards:</strong> ${Object.keys(guardRail.quality_standards || {}).length} quality standards enforced.
         </div>
     `;
 
@@ -1742,65 +1756,65 @@ function displayAnalysisReport(companyInfo, analysisData) {
         const flags = pe.routing_flags || {};
         const activeFlags = Object.entries(flags).filter(([, v]) => v).map(([k]) => k);
         const domains = [pe.primary_domain, ...(pe.secondary_domains || [])].filter(Boolean);
-        return `<div style="margin-bottom:20px;padding:16px;
-            background:linear-gradient(135deg,rgba(139,92,246,.09),rgba(59,130,246,.09));
-            border-radius:12px;border-left:4px solid #8b5cf6;">
+        return `<div style="margin-bottom:18px;padding:16px;
+            background:rgba(139,92,246,.08);
+            border-radius:10px;border:1px solid rgba(139,92,246,.25);border-left:4px solid #8b5cf6;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
                 <span>🧠</span>
-                <strong style="color:#7c3aed;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;">Research &amp; Prompt Agent ─ Intake</strong>
-                ${pe.confidence_score ? `<span style="margin-left:auto;background:rgba(139,92,246,.15);color:#7c3aed;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;">${Math.round(pe.confidence_score * 100)}% confidence</span>` : ''}
+                <strong style="color:#a78bfa;font-size:.82rem;letter-spacing:.06em;text-transform:uppercase;">Research &amp; Prompt Agent ─ Intake</strong>
+                ${pe.confidence_score ? `<span style="margin-left:auto;background:rgba(139,92,246,.2);color:#c4b5fd;padding:2px 8px;border-radius:999px;font-size:.72rem;font-weight:700;">${Math.round(pe.confidence_score * 100)}% confidence</span>` : ''}
             </div>
-            <p style="margin:0 0 6px;color:#334155;font-size:.88rem;"><strong>Intent:</strong> ${pe.intent_summary}</p>
-            ${domains.length ? `<p style="margin:0 0 4px;color:#64748b;font-size:.8rem;"><strong>Domains:</strong> ${domains.join(' → ')}</p>` : ''}
-            ${activeFlags.length ? `<p style="margin:0 0 4px;color:#64748b;font-size:.8rem;"><strong>Routing:</strong> ${activeFlags.map(f => `<span style="background:rgba(139,92,246,.12);color:#6d28d9;padding:1px 6px;border-radius:4px;margin-right:4px;">${f}</span>`).join('')}</p>` : ''}
-            ${pe.ambiguities && pe.ambiguities.length ? `<p style="margin:4px 0 0;color:#b45309;font-size:.78rem;">⚠️ ${pe.ambiguities.join(' • ')}</p>` : ''}
+            <p style="margin:0 0 6px;color:#f1f5f9;font-size:.88rem;"><strong>Intent:</strong> ${pe.intent_summary}</p>
+            ${domains.length ? `<p style="margin:0 0 4px;color:#cbd5e1;font-size:.8rem;"><strong>Domains:</strong> ${domains.join(' → ')}</p>` : ''}
+            ${activeFlags.length ? `<p style="margin:0 0 4px;color:#cbd5e1;font-size:.8rem;"><strong>Routing:</strong> ${activeFlags.map(f => `<span style="background:rgba(139,92,246,.2);color:#ddd6fe;padding:1px 6px;border-radius:4px;margin-right:4px;">${f}</span>`).join('')}</p>` : ''}
+            ${pe.ambiguities && pe.ambiguities.length ? `<p style="margin:4px 0 0;color:#fbbf24;font-size:.78rem;">⚠️ ${pe.ambiguities.join(' • ')}</p>` : ''}
         </div>`;
     })() : '';
 
     // ── CEO hierarchy chain ─────────────────────────────────────────────────
     const chainAgents = Object.keys(domainSource).slice(0, 6);
     const chainHTML = `
-        <div style="margin-bottom:20px;padding:16px;background:rgba(30,41,59,.04);border-radius:12px;border:1px solid rgba(102,126,234,.2);">
-            <div style="font-size:.8rem;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">⬡ Orchestration Hierarchy</div>
+        <div style="margin-bottom:18px;padding:16px;background:rgba(30,41,59,.45);border-radius:10px;border:1px solid rgba(148,163,184,.16);">
+            <div style="font-size:.78rem;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;">⬡ Orchestration Hierarchy</div>
             <div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;">
-                <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:6px 14px;border-radius:999px;font-weight:700;font-size:.82rem;box-shadow:0 2px 8px rgba(102,126,234,.35);">👔 CEO</div>
+                <div style="background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;padding:6px 14px;border-radius:999px;font-weight:700;font-size:.82rem;box-shadow:0 2px 8px rgba(37,99,235,.35);">👔 CEO</div>
                 <span style="color:#94a3b8;font-size:1.1rem;">→</span>
                 ${chainAgents.map(k => {
         const s = domainSource[k];
-        return `<div style="background:rgba(102,126,234,.1);color:#334155;padding:5px 11px;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid rgba(102,126,234,.25);">${s.icon || '📋'} ${s.label || k}</div>`;
-    }).join('<span style="color:#94a3b8;">·</span>')}
+        return `<div style="background:rgba(30,41,59,.75);color:#e2e8f0;padding:5px 12px;border-radius:999px;font-size:.78rem;font-weight:600;border:1px solid rgba(148,163,184,.22);">${s.icon || '📋'} ${s.label || k}</div>`;
+    }).join('<span style="color:#64748b;">·</span>')}
                 ${chainAgents.length < Object.keys(domainSource).length ? `<span style="color:#94a3b8;font-size:.78rem;">+${Object.keys(domainSource).length - chainAgents.length} more</span>` : ''}
             </div>
         </div>`;
 
     // ── CEO directives ──────────────────────────────────────────────────────
     const directivesHTML = ceoDirectives.length ? `
-        <div style="margin-bottom:20px;padding:16px;background:rgba(102,126,234,.05);border-radius:12px;border-left:4px solid #667eea;">
-            <div style="font-weight:700;color:#667eea;margin-bottom:10px;font-size:.9rem;">📌 CEO Executive Directives</div>
+        <div style="margin-bottom:18px;padding:16px;background:rgba(37,99,235,.08);border-radius:10px;border:1px solid rgba(37,99,235,.2);border-left:4px solid #3b82f6;">
+            <div style="font-weight:700;color:#60a5fa;margin-bottom:10px;font-size:.9rem;">📌 CEO Executive Directives</div>
             <ol style="margin:0;padding-left:20px;">
-                ${ceoDirectives.map(d => `<li style="color:#334155;font-size:.88rem;padding:3px 0;">${d}</li>`).join('')}
+                ${ceoDirectives.map(d => `<li style="color:#f1f5f9;font-size:.88rem;padding:3px 0;line-height:1.5;">${d}</li>`).join('')}
             </ol>
         </div>` : '';
 
     // ── CEO Strategic Recommendations ────────────────────────────────────────
     const recsHTML = recommendations.length ? `
-        <div style="margin-bottom:20px;padding:16px;background:rgba(16,185,129,.05);border-radius:12px;border-left:4px solid #10b981;">
-            <div style="font-weight:700;color:#059669;margin-bottom:10px;font-size:.9rem;">💡 CEO Strategic Recommendations</div>
+        <div style="margin-bottom:18px;padding:16px;background:rgba(16,185,129,.08);border-radius:10px;border:1px solid rgba(16,185,129,.2);border-left:4px solid #10b981;">
+            <div style="font-weight:700;color:#34d399;margin-bottom:10px;font-size:.9rem;">💡 CEO Strategic Recommendations</div>
             <ol style="margin:0;padding-left:18px;">
-                ${recommendations.map(r => `<li style="font-size:.86rem;color:#334155;padding:4px 0;line-height:1.5;">${r}</li>`).join('')}
+                ${recommendations.map(r => `<li style="font-size:.86rem;color:#f1f5f9;padding:4px 0;line-height:1.5;">${r}</li>`).join('')}
             </ol>
         </div>` : '';
 
     // ── CEO Discovery Questions ───────────────────────────────────────────────
     const questionsHTML = discoveryQuestions.length ? `
-        <div style="margin-bottom:20px;padding:16px;background:rgba(245,158,11,.06);border-radius:12px;border-left:4px solid #f59e0b;">
-            <div style="font-weight:700;color:#b45309;margin-bottom:10px;font-size:.9rem;">❓ CEO Discovery Questions</div>
-            <p style="font-size:.8rem;color:#64748b;margin:0 0 10px;">Answering these in chat will help the CEO refine your execution plan:</p>
+        <div style="margin-bottom:18px;padding:16px;background:rgba(245,158,11,.08);border-radius:10px;border:1px solid rgba(245,158,11,.2);border-left:4px solid #f59e0b;">
+            <div style="font-weight:700;color:#fbbf24;margin-bottom:8px;font-size:.9rem;">❓ CEO Discovery Questions</div>
+            <p style="font-size:.8rem;color:#cbd5e1;margin:0 0 10px;">Answering these in chat will help the CEO refine your execution plan:</p>
             <div style="display:flex;flex-direction:column;gap:8px;">
                 ${discoveryQuestions.map(q => `
-                    <div style="padding:10px 12px;background:#fff;border-radius:8px;border:1px solid rgba(245,158,11,.25);">
-                        <span style="font-size:.7rem;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.05em;">${q.icon || ''} ${q.category || ''}</span>
-                        <p style="margin:4px 0 0;font-size:.84rem;color:#334155;line-height:1.5;">${q.question}</p>
+                    <div style="padding:10px 14px;background:rgba(15,23,42,.65);border-radius:8px;border:1px solid rgba(245,158,11,.25);">
+                        <span style="font-size:.7rem;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.05em;">${q.icon || ''} ${q.category || ''}</span>
+                        <p style="margin:4px 0 0;font-size:.84rem;color:#f1f5f9;line-height:1.5;">${q.question}</p>
                     </div>`).join('')}
             </div>
         </div>` : '';
@@ -1809,23 +1823,23 @@ function displayAnalysisReport(companyInfo, analysisData) {
     const domainColors = {
         branding: '#f59e0b', web_development: '#3b82f6', legal: '#10b981',
         martech: '#8b5cf6', content: '#06b6d4', campaigns: '#ef4444',
-        social_media: '#ec4899', security: '#f97316', strategy: '#667eea'
+        social_media: '#ec4899', security: '#f97316', strategy: '#3b82f6'
     };
     const domainsHTML = Object.entries(domainSource).length ? `
-        <div style="margin-bottom:20px;">
-            <div style="font-weight:700;color:#334155;margin-bottom:12px;font-size:.9rem;">🗂️ Domain Execution Plans</div>
+        <div style="margin-bottom:18px;">
+            <div style="font-weight:700;color:#f8fafc;margin-bottom:12px;font-size:.9rem;">🗂️ Domain Execution Plans</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
                 ${Object.entries(domainSource).map(([key, sec]) => {
-        const color = domainColors[key] || '#667eea';
+        const color = domainColors[key] || '#3b82f6';
         const taskList = (sec.tasks || []).slice(0, 3);
         const budget_d = sec.budget || budgetAllocation[key] || 0;
-        return `<div style="padding:14px;background:#fff;border-radius:12px;border-top:3px solid ${color};box-shadow:0 2px 8px rgba(0,0,0,.06);">
+        return `<div style="padding:14px;background:rgba(24,34,52,.75);border-radius:10px;border:1px solid rgba(148,163,184,.16);border-top:3px solid ${color};">
                         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;">
                             <span style="font-size:1.2rem;">${sec.icon || '📋'}</span>
-                            <strong style="color:#1e293b;font-size:.88rem;">${sec.label || key}</strong>
-                            ${budget_d ? `<span style="margin-left:auto;background:rgba(16,185,129,.12);color:#059669;padding:2px 7px;border-radius:999px;font-size:.72rem;font-weight:700;">$${Number(budget_d).toLocaleString()}</span>` : ''}
+                            <strong style="color:#f8fafc;font-size:.88rem;">${sec.label || key}</strong>
+                            ${budget_d ? `<span style="margin-left:auto;background:rgba(16,185,129,.16);color:#34d399;padding:2px 7px;border-radius:999px;font-size:.72rem;font-weight:700;">$${Number(budget_d).toLocaleString()}</span>` : ''}
                         </div>
-                        ${taskList.length ? `<ul style="list-style:none;padding:0;margin:0;">${taskList.map(t => `<li style="font-size:.78rem;color:#64748b;padding:2px 0;">• ${t.task_name || t.description || ''}</li>`).join('')}</ul>` : ''}
+                        ${taskList.length ? `<ul style="list-style:none;padding:0;margin:0;">${taskList.map(t => `<li style="font-size:.78rem;color:#cbd5e1;padding:2px 0;">• ${t.task_name || t.description || ''}</li>`).join('')}</ul>` : ''}
                         ${(sec.tasks || []).length > 3 ? `<p style="margin:4px 0 0;font-size:.72rem;color:#94a3b8;">+${sec.tasks.length - 3} more tasks</p>` : ''}
                         ${sec.priority_tasks && sec.priority_tasks.length ? `<p style="margin:6px 0 0;font-size:.72rem;color:${color};font-weight:600;">🔥 Priority: ${sec.priority_tasks[0]}</p>` : ''}
                     </div>`;
@@ -1835,33 +1849,33 @@ function displayAnalysisReport(companyInfo, analysisData) {
 
     // ── Risks ────────────────────────────────────────────────────────────────
     const risksHTML = risks.length ? `
-        <div style="margin-bottom:20px;padding:14px;background:rgba(245,158,11,.06);border-radius:12px;border-left:4px solid #f59e0b;">
-            <div style="font-weight:700;color:#b45309;margin-bottom:8px;font-size:.88rem;">⚠️ Identified Risks</div>
+        <div style="margin-bottom:18px;padding:14px 18px;background:rgba(239,68,68,.08);border-radius:10px;border:1px solid rgba(239,68,68,.2);border-left:4px solid #ef4444;">
+            <div style="font-weight:700;color:#f87171;margin-bottom:8px;font-size:.88rem;">⚠️ Identified Risks</div>
             <ul style="list-style:none;padding:0;margin:0;">
-                ${risks.slice(0, 5).map(r => `<li style="font-size:.82rem;color:#64748b;padding:3px 0;">• ${typeof r === 'object' ? (r.description || r.risk || JSON.stringify(r)) : r}</li>`).join('')}
+                ${risks.slice(0, 5).map(r => `<li style="font-size:.82rem;color:#fca5a5;padding:3px 0;line-height:1.5;">• ${typeof r === 'object' ? (r.description || r.risk || JSON.stringify(r)) : r}</li>`).join('')}
                 ${risks.length > 5 ? `<li style="font-size:.78rem;color:#94a3b8;font-style:italic;">+${risks.length - 5} more risks identified</li>` : ''}
             </ul>
         </div>` : '';
 
     // ── Milestones ───────────────────────────────────────────────────────────
     const milestonesHTML = milestones.length ? `
-        <div style="margin-bottom:20px;padding:14px;background:rgba(16,185,129,.05);border-radius:12px;border-left:4px solid #10b981;">
-            <div style="font-weight:700;color:#059669;margin-bottom:8px;font-size:.88rem;">🏁 Milestones</div>
+        <div style="margin-bottom:18px;padding:14px 18px;background:rgba(16,185,129,.08);border-radius:10px;border:1px solid rgba(16,185,129,.2);border-left:4px solid #10b981;">
+            <div style="font-weight:700;color:#34d399;margin-bottom:8px;font-size:.88rem;">🏁 Milestones</div>
             <ul style="list-style:none;padding:0;margin:0;">
                 ${milestones.slice(0, 5).map(m => {
         const label = typeof m === 'object' ? (m.name || m.milestone || m.description || JSON.stringify(m)) : m;
         const day = typeof m === 'object' ? m.day : '';
-        return `<li style="font-size:.82rem;color:#334155;padding:3px 0;">${day ? `<strong>Day ${day}:</strong> ` : ''} ${label}</li>`;
+        return `<li style="font-size:.84rem;color:#f1f5f9;padding:3px 0;line-height:1.5;">${day ? `<strong style="color:#6ee7b7;">Day ${day}:</strong> ` : ''} ${label}</li>`;
     }).join('')}
             </ul>
         </div>` : '';
 
     // ── Opportunities ────────────────────────────────────────────────────────
     const oppsHTML = opportunities.length ? `
-        <div style="margin-bottom:20px;padding:14px;background:rgba(59,130,246,.05);border-radius:12px;border-left:4px solid #3b82f6;">
-            <div style="font-weight:700;color:#1d4ed8;margin-bottom:8px;font-size:.88rem;">💡 Opportunities</div>
+        <div style="margin-bottom:18px;padding:14px 18px;background:rgba(59,130,246,.08);border-radius:10px;border:1px solid rgba(59,130,246,.2);border-left:4px solid #3b82f6;">
+            <div style="font-weight:700;color:#60a5fa;margin-bottom:8px;font-size:.88rem;">💡 Opportunities</div>
             <ul style="list-style:none;padding:0;margin:0;">
-                ${opportunities.slice(0, 4).map(o => `<li style="font-size:.82rem;color:#334155;padding:3px 0;">• ${typeof o === 'object' ? (o.description || o.opportunity || JSON.stringify(o)) : o}</li>`).join('')}
+                ${opportunities.slice(0, 4).map(o => `<li style="font-size:.84rem;color:#f1f5f9;padding:3px 0;line-height:1.5;">• ${typeof o === 'object' ? (o.description || o.opportunity || JSON.stringify(o)) : o}</li>`).join('')}
             </ul>
         </div>` : '';
 
@@ -1869,19 +1883,19 @@ function displayAnalysisReport(companyInfo, analysisData) {
     const reportHTML = `
         <div class="report-content">
             <!-- CEO Header -->
-            <div class="report-header" style="background:linear-gradient(135deg,#1e293b,#334155);border-radius:14px;padding:24px;margin-bottom:20px;">
+            <div class="report-header" style="background:rgba(30,41,59,.55);border:1px solid rgba(148,163,184,.16);border-radius:12px;padding:20px;margin-bottom:18px;">
                 <div style="display:flex;align-items:center;gap:12px;">
-                    <span style="font-size:2.8rem;">👔</span>
+                    <span style="font-size:2.5rem;">👔</span>
                     <div>
-                        <h3 style="margin:0;color:#f1f5f9;font-size:1.3rem;">CEO Executive Strategic Report</h3>
-                        <p style="margin:4px 0 0;color:#94a3b8;font-size:.85rem;">${cn} · ${ind} · ${loc}</p>
+                        <h3 style="margin:0;color:#f8fafc;font-size:1.25rem;font-weight:700;">CEO Executive Strategic Report</h3>
+                        <p style="margin:4px 0 0;color:#cbd5e1;font-size:.85rem;">${cn} · ${ind} · ${loc}</p>
                     </div>
-                    <span class="report-badge" style="margin-left:auto;background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);">✓ Multidisciplinary Analysis Complete</span>
+                    <span class="report-badge" style="margin-left:auto;background:rgba(16,185,129,.16);color:#34d399;border:1px solid rgba(16,185,129,.3);">✓ Multidisciplinary Analysis Complete</span>
                 </div>
             </div>
 
             <!-- KPI metrics -->
-            <div class="report-metrics" style="margin-bottom:20px;">
+            <div class="report-metrics" style="margin-bottom:18px;">
                 <div class="report-metric"><div class="report-metric-label">Tasks Identified</div><div class="report-metric-value">${tasks.length}</div></div>
                 <div class="report-metric"><div class="report-metric-label">Exec Domains</div><div class="report-metric-value">${Object.keys(domainSource).length}</div></div>
                 <div class="report-metric"><div class="report-metric-label">Total Budget</div><div class="report-metric-value" style="font-size:17px;">$${Number(budget).toLocaleString()}</div></div>
@@ -1904,13 +1918,13 @@ function displayAnalysisReport(companyInfo, analysisData) {
             ${(() => {
             const _ceoArts = analysisData.artifacts || [];
             if (!_ceoArts.length) return '';
-            return `<div style="margin-bottom:20px;padding:14px;background:rgba(34,211,238,.05);border-radius:12px;border-left:4px solid #22d3ee;">
-                    <div style="font-weight:700;color:#0891b2;margin-bottom:10px;font-size:.88rem;">📎 Generated CEO Artifacts (${_ceoArts.length})</div>
+            return `<div style="margin-bottom:18px;padding:14px 18px;background:rgba(6,182,212,.08);border-radius:10px;border:1px solid rgba(6,182,212,.2);border-left:4px solid #06b6d4;">
+                    <div style="font-weight:700;color:#22d3ee;margin-bottom:10px;font-size:.88rem;">📎 Generated CEO Artifacts (${_ceoArts.length})</div>
                     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">
                         ${_ceoArts.map(a => {
                 const icon = a.type === 'image' ? '🖼️' : a.type === 'markdown' ? '📄' : a.type === 'json' ? '📊' : '📁';
                 const href = a.url || ('/static/' + (a.path || ''));
-                return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(34,211,238,0.07);border:1px solid rgba(34,211,238,0.2);border-radius:7px;text-decoration:none;color:#334155;font-size:.78rem;">
+                return `<a href="${href}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(6,182,212,0.12);border:1px solid rgba(6,182,212,0.25);border-radius:7px;text-decoration:none;color:#e2e8f0;font-size:.78rem;">
                                 <span>${icon}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${a.title || a.filename || 'File'}</span>
                             </a>`;
             }).join('')}
@@ -1920,9 +1934,9 @@ function displayAnalysisReport(companyInfo, analysisData) {
         })()}
 
             <!-- Next Steps -->
-            <div style="padding:14px;background:rgba(102,126,234,.06);border-radius:12px;border-left:4px solid #667eea;">
-                <div style="font-weight:700;color:#667eea;margin-bottom:6px;font-size:.88rem;">👉 Next Steps</div>
-                <p style="color:#334155;line-height:1.7;font-size:.88rem;margin:0;">
+            <div style="padding:14px 18px;background:rgba(37,99,235,.08);border-radius:10px;border:1px solid rgba(37,99,235,.2);border-left:4px solid #3b82f6;">
+                <div style="font-weight:700;color:#60a5fa;margin-bottom:6px;font-size:.88rem;">👉 Next Steps</div>
+                <p style="color:#f1f5f9;line-height:1.7;font-size:.88rem;margin:0;">
                     Review domain plans above and execute individual agents from <strong>Available AI Agents</strong>,
                     or click <strong>Launch Graph Execution</strong> to generate local planning artifacts for the selected domains. No external actions are performed.
                 </p>
@@ -1938,11 +1952,11 @@ function displayAnalysisReport(companyInfo, analysisData) {
     console.log('🎨 [displayAnalysisReport] rendering CEO executive report...');
     reportDisplay.innerHTML = reportHTML;
 
-    // Brief glow-in effect
-    reportDisplay.style.border = '3px solid #667eea';
-    reportDisplay.style.boxShadow = '0 0 30px rgba(102,126,234,0.5), 0 12px 40px rgba(0,0,0,0.2)';
+    // Brief highlight effect
+    reportDisplay.style.border = '2px solid rgba(59,130,246,0.6)';
+    reportDisplay.style.boxShadow = '0 0 20px rgba(59,130,246,0.25), 0 12px 40px rgba(0,0,0,0.2)';
     setTimeout(() => {
-        reportDisplay.style.border = '2px solid rgba(102,126,234,0.4)';
+        reportDisplay.style.border = '1px solid rgba(148,163,184,0.18)';
         reportDisplay.style.boxShadow = '0 12px 40px rgba(0,0,0,0.15)';
     }, 1800);
     setTimeout(() => {
