@@ -873,6 +873,171 @@ def scenario_current():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+def _map_expertise_to_agent(expertise: str = "", task_name: str = "", description: str = "") -> str:
+    """Map strategic task domain or expertise string to concrete executable agent key."""
+    text = f"{expertise} {task_name} {description}".lower()
+    if any(
+        k in text
+        for k in [
+            "research",
+            "competitor",
+            "market analysis",
+            "intelligence",
+            "benchmark",
+            "audience",
+            "survey",
+            "demographic",
+        ]
+    ):
+        return "researcher"
+    if any(
+        k in text
+        for k in [
+            "brand",
+            "logo",
+            "visual",
+            "identity",
+            "design",
+            "creative",
+            "style guide",
+            "typography",
+        ]
+    ):
+        return "branding"
+    if any(
+        k in text
+        for k in [
+            "website",
+            "web ",
+            "frontend",
+            "portfolio",
+            "landing page",
+            "web development",
+            "responsive",
+            "ui/ux",
+            "wireframe",
+        ]
+    ):
+        return "web_development"
+    if any(
+        k in text
+        for k in [
+            "martech",
+            "seo",
+            "kpi",
+            "tracking",
+            "analytics",
+            "pixel",
+            "attribution",
+            "crm",
+            "tag manager",
+            "metrics",
+        ]
+    ):
+        return "martech"
+    if any(
+        k in text
+        for k in [
+            "social media",
+            "instagram",
+            "linkedin",
+            "twitter",
+            "x.com",
+            "posts",
+            "profiles",
+            "community",
+        ]
+    ):
+        return "social_media"
+    if any(
+        k in text
+        for k in [
+            "content",
+            "copywriting",
+            "blog",
+            "articles",
+            "storytelling",
+            "editorial",
+            "themes",
+            "copy",
+        ]
+    ):
+        return "content"
+    if any(
+        k in text
+        for k in [
+            "campaign",
+            "lead generation",
+            "outreach",
+            "advertising",
+            "paid ads",
+            "funnel",
+            "email",
+            "growth",
+        ]
+    ):
+        return "campaigns"
+    if any(
+        k in text
+        for k in [
+            "legal",
+            "contract",
+            "compliance",
+            "terms",
+            "privacy policy",
+            "regulatory",
+            "trademark",
+            "filing",
+        ]
+    ):
+        return "legal"
+    if any(
+        k in text
+        for k in [
+            "finance",
+            "financial",
+            "budget",
+            "pricing",
+            "cost",
+            "revenue",
+            "cfo",
+            "cash flow",
+            "accounting",
+        ]
+    ):
+        return "cfo"
+    if any(
+        k in text
+        for k in [
+            "architecture",
+            "backend",
+            "cloud",
+            "api",
+            "infrastructure",
+            "devops",
+            "cto",
+            "system",
+        ]
+    ):
+        return "cto"
+    if any(
+        k in text
+        for k in [
+            "security",
+            "audit",
+            "auth",
+            "vulnerability",
+            "threat",
+            "penetration",
+            "encryption",
+        ]
+    ):
+        return "security"
+    if any(k in text for k in ["software", "code", "database", "engineering", "fullstack"]):
+        return "software_eng"
+    return "researcher"
+
+
 @app.route("/api/ceo/analyze", methods=["POST"])
 @app.route("/api/cfo/analyze", methods=["POST"])  # Backward compatibility
 @rate_limit("10/minute")
@@ -1046,6 +1211,25 @@ def analyze_objectives():
 
         identified_tasks_raw = result.get("identified_tasks", [])
         identified_tasks = [task for task in identified_tasks_raw if isinstance(task, dict)]
+
+        # Augment identified tasks with assigned agent execution path and schema aliases
+        for task in identified_tasks:
+            agent_key = _map_expertise_to_agent(
+                task.get("required_expertise", ""),
+                task.get("task_name", ""),
+                task.get("description", ""),
+            )
+            task["assigned_agent"] = agent_key
+            task["agent_type"] = agent_key
+            if "budget" not in task:
+                task["budget"] = float(task.get("estimated_budget", 0))
+            if "timeline_days" not in task:
+                task["timeline_days"] = int(task.get("estimated_days", 0))
+            if "expertise_required" not in task:
+                task["expertise_required"] = task.get("required_expertise", "General")
+            if "status" not in task:
+                task["status"] = "ready"
+
         critical_tasks = [
             task for task in identified_tasks if str(task.get("priority", "")).upper() == "CRITICAL"
         ]
@@ -1085,6 +1269,7 @@ def analyze_objectives():
 
         # ── Build domain-grouped sections for comprehensive CEO report ────────────
         domain_map = {
+            "researcher": {"icon": "🔬", "label": "Market Research"},
             "branding": {"icon": "🎨", "label": "Brand & Identity"},
             "web_development": {"icon": "💻", "label": "Technology & Web"},
             "legal": {"icon": "⚖️", "label": "Legal & Compliance"},
@@ -1093,13 +1278,17 @@ def analyze_objectives():
             "campaigns": {"icon": "🚀", "label": "Campaigns & Growth"},
             "social_media": {"icon": "📱", "label": "Social Media"},
             "security": {"icon": "🔒", "label": "Security & Risk"},
+            "software_eng": {"icon": "🛠️", "label": "Software Engineering"},
+            "cfo": {"icon": "💰", "label": "Financial Oversight"},
+            "cto": {"icon": "🔧", "label": "System Architecture"},
         }
         domain_sections: dict = {}
         for task in identified_tasks:
             raw_domain = (
-                task.get("required_expertise")
-                or task.get("expertise_required")
+                task.get("assigned_agent")
                 or task.get("agent_type")
+                or task.get("required_expertise")
+                or task.get("expertise_required")
                 or "strategy"
             ).lower()
             key = raw_domain.replace(" ", "_")

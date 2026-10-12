@@ -46,7 +46,7 @@ jobs:
       - name: Smoke dashboard rendering and UI template check
         run: python3 tools/smoke_dashboard_render.py
 
-      - name: Check dashboard JavaScript syntax and theme assets
+      - name: Check dashboard JavaScript syntax and task-routing UI assets
         run: |
           # Verify JavaScript syntax across frontend scripts
           node --check static/js/app.js

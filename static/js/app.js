@@ -745,14 +745,20 @@ function getAgentIcon(type) {
 const agentConfigs = {
     'ceo': { icon: '👔', name: 'CEO Orchestration' },
     'cto': { icon: '🔧', name: 'CTO Architecture' },
+    'cfo': { icon: '💰', name: 'CFO Finance' },
     'engineer': { icon: '🛠️', name: 'Engineering' },
     'software_eng': { icon: '💻', name: 'Software Review' },
+    'researcher': { icon: '🔬', name: 'Market Research' },
     'branding': { icon: '🎨', name: 'Branding & Visual Identity' },
     'web_development': { icon: '💻', name: 'Web Development' },
     'legal': { icon: '⚖️', name: 'Legal Compliance' },
     'martech': { icon: '📊', name: 'Marketing Technology' },
-    'content': { icon: '📸', name: 'Content Creation' },
-    'campaigns': { icon: '🚀', name: 'Campaign Management' }
+    'content': { icon: '✍️', name: 'Content Strategy' },
+    'campaigns': { icon: '🚀', name: 'Campaign Management' },
+    'social_media': { icon: '📱', name: 'Social Media' },
+    'security': { icon: '🔒', name: 'Security Audit' },
+    'ux_design': { icon: '🎨', name: 'UX Design' },
+    'prompt_expert': { icon: '🧠', name: 'Prompt Expert' }
 };
 
 // Analyze objectives
@@ -2207,32 +2213,59 @@ function displayTasks(tasks) {
         card.className = 'task-card';
 
         const priorityClass = task.priority ? task.priority.toLowerCase() : 'medium';
+        const assignedAgent = task.assigned_agent || task.agent_type || 'researcher';
+        const assignedAgentConfig = agentConfigs[assignedAgent] || {
+            icon: '🤖',
+            name: assignedAgent.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+        };
+        const taskName = task.task_name || task.task_id || 'Task';
+        const expertise = task.required_expertise || task.expertise_required || 'General';
+        const budgetValue = Number(task.estimated_budget ?? task.budget ?? 0);
+        const timelineDays = Number(task.estimated_days ?? task.timeline_days ?? task.timeline ?? 0);
+        const budgetLabel = Number.isFinite(budgetValue) ? budgetValue.toLocaleString() : '0';
+        const safeTaskName = escapeHTML(taskName);
+        const safeDescription = escapeHTML(task.description || task.task_description || 'No description');
+        const safeExpertise = escapeHTML(expertise);
+        const safeStatus = escapeHTML(task.status || 'Ready');
+        const safeAgentName = escapeHTML(assignedAgentConfig.name);
 
         card.innerHTML = `
             <div class="task-header">
                 <div>
-                    <span class="task-id">${task.task_id || 'Task'}</span>
-                    <div>${task.description || task.task_description || 'No description'}</div>
+                    <span class="task-id">${safeTaskName}</span>
+                    <div>${safeDescription}</div>
                 </div>
-                <span class="task-priority ${priorityClass}">${task.priority || 'MEDIUM'}</span>
+                <span class="task-priority ${priorityClass}">${escapeHTML(task.priority || 'MEDIUM')}</span>
             </div>
             <div class="task-details">
                 <div class="task-detail-item">
                     <strong>EXPERTISE</strong>
-                    ${task.expertise_required || 'General'}
+                    ${safeExpertise}
                 </div>
                 <div class="task-detail-item">
                     <strong>BUDGET</strong>
-                    $${task.budget || 0}
+                    $${budgetLabel}
                 </div>
                 <div class="task-detail-item">
                     <strong>TIMELINE</strong>
-                    ${task.timeline_days || task.timeline || 0} days
+                    ${timelineDays} days
                 </div>
                 <div class="task-detail-item">
                     <strong>STATUS</strong>
-                    ${task.status || 'Pending'}
+                    ${safeStatus}
                 </div>
+                <div class="task-detail-item">
+                    <strong>ASSIGNED AGENT</strong>
+                    ${assignedAgentConfig.icon} ${safeAgentName}
+                </div>
+            </div>
+            <div class="task-actions">
+                <button class="btn btn-primary btn-small" type="button" onclick="executeAgent('${assignedAgent}')">
+                    ⚡ Execute with ${assignedAgentConfig.icon}
+                </button>
+                <button class="btn btn-small" type="button" onclick="focusChatAgent('${assignedAgent}')">
+                    💬 Chat with Agent
+                </button>
             </div>
             `;
 
@@ -2568,6 +2601,20 @@ function setChatStatus(status) {
     }
 }
 
+function focusChatAgent(agentType) {
+    const chatPanel = document.querySelector('.v4-chat-panel');
+    if (typeof selectChatAgent === 'function') {
+        selectChatAgent(agentType);
+    } else {
+        _v4ActiveAgent = agentType;
+    }
+    if (chatPanel) {
+        chatPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    const chatInput = document.getElementById('chatInput');
+    chatInput?.focus();
+}
+
 // Clear chat
 async function clearChat() {
     try {
@@ -2625,6 +2672,7 @@ window.closeModal = closeModal;
 window.sendChatMessage = sendChatMessage;
 window.clearChat = clearChat;
 window.toggleChatMinimize = toggleChatMinimize;
+window.focusChatAgent = focusChatAgent;
 
 console.log('✅ All functions attached to window object');
 

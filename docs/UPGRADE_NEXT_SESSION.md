@@ -194,6 +194,13 @@ ss -tulpn | grep 5001
   API spend ceilings ($1.00 metering safeguard) and user-allocated scenario budgets.
 - **Compacted Header & Streamlined Density**: Reduced header height to 50px, refined agent
   pills, and streamlined results/modal cards in line with Phase 1 modernization.
+- **Task Execution Clarity (Blocker Fix)**: CEO analysis tasks now carry explicit execution
+  metadata in API responses (`assigned_agent`, `agent_type`, `budget`, `timeline_days`,
+  `expertise_required`) derived from strategic-plan fields (`required_expertise`,
+  `estimated_budget`, `estimated_days`). The Tasks tab now renders these values correctly
+  and adds direct controls:
+  - `⚡ Execute with [Agent]` to run the mapped specialized agent immediately.
+  - `💬 Chat with Agent` to switch chat context to the assigned executor.
 
 ### Dashboard Modernization Upgrade Plan
 
