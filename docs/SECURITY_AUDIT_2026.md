@@ -1,5 +1,10 @@
 # CEO Executive Agent - Comprehensive Security Audit Report
 
+> **Historical audit snapshot:** Findings below describe the code and controls
+> reviewed at the dated audit point, not the current v0.8 state. For current
+> authentication, CSRF, artifact ownership, and usage controls, see the root
+> [README](../README.md) and [SECURITY.md](SECURITY.md).
+
 **Date:** February 12, 2026
 **Version:** 2.0
 **Auditor:** GitHub Copilot (Claude Sonnet 4.5)

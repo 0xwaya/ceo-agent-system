@@ -1,5 +1,11 @@
 # 🚀 Real-World Task Execution Roadmap
 
+> **Current-state note (2026-10-12):** The implementation summary below describes
+> v0.8 local behavior. The latest CEO release is commit `9d0e1c5`. The Oracle VCN
+> login/SSH-tunnel walkthrough covers connecting to an existing instance; no
+> live session or deployment has been performed. The root [README](../README.md) and
+> [UPGRADE_NEXT_SESSION.md](UPGRADE_NEXT_SESSION.md) are authoritative.
+
 ## Executive Summary
 
 ### Local source-build and runner preparation
@@ -8,8 +14,9 @@ Approved Python source builds now write real `tool.py`, `test_tool.py`, and
 `README.md` files to private artifact storage. Syntax validation does not execute
 them or establish correctness. Separate approval prepares a source-hash-bound
 runner request; tests stay **NOT run** because no isolated runner is configured.
-Oracle access, provisioning, remote dispatch and test-evidence validation remain
-pending and unauthorized. See [isolated runner design](ISOLATED_RUNNER.md).
+The Oracle VCN SSH tutorial is for connecting to an existing instance; it does
+not configure a runner or permit generated-code execution, remote dispatch, or
+test-evidence validation. See [isolated runner design](ISOLATED_RUNNER.md).
 This is distinct from the report-only graph: reports do not become working code
 merely because an engineering agent ran.
 
@@ -45,13 +52,14 @@ or current package/version recommendations.
 
 **Pending TODO: tester provisioning is on hold.** No account, whitelist,
 credentials, or remote access may be enabled without renewed owner approval.
-Private login activation is also on hold: local development defaults to
-login-disabled, localhost-only access. Re-enable named authentication before
-authorizing Oracle SSH-tunnel testing. Oracle availability has not been checked,
-and no tunnel, remote account or deployment has been created.
+Dashboard login activation is also on hold: local development defaults to
+login-disabled, localhost-only access. The Oracle VCN walkthrough is separate
+from dashboard authentication; no tunnel, remote account, or app deployment has
+been created. Require named authentication before authorized remote dashboard
+access.
 The cross-account tester export-approval policy remains pending; reviewer export
 proposals/approvals are disabled until that policy is agreed. Admins may approve
-their own local exports. Public hosting remains blocked. The dashboard supports
+their own local exports. Public hosting of the CEO dashboard remains blocked. The dashboard supports
 text chat only; audio input and output are outside its scope.
 
 Historical cleanup validation: the offline suite had 111 passing tests and one

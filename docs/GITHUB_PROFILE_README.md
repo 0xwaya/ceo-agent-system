@@ -1,3 +1,6 @@
+<!-- markdownlint-disable MD041 MD045: profile uses intentional HTML wrappers and remote stat images. -->
+# 0xwaya — Public Profile Draft
+
 <div align="center">
 
 <!-- dynamic banner -->
@@ -34,9 +37,13 @@
 <td width="50%">
 
 ### 🤖 [CEO Agent System](https://github.com/0xwaya/ceo-agent-system)
-> **LangGraph · 16-agent hierarchy · real-time dashboard**
+> **LangGraph · executive orchestration · local R&D dashboard**
 
-Multi-agent AI platform where the CEO orchestrates a full executive team — CFO, CTO, Legal, Security, Branding, Social, and more — each generating real artifacts from a single prompt.
+v0.8 local-first executive orchestrator. Structured scenarios route through a
+Prompt Expert, CEO planning, CTO review, and selected directors/specialists.
+Owner-scoped JSON/Markdown artifacts are proposals for human review, not proof
+that business actions ran. Generated source is never executed on the dashboard
+host; no VCN application deployment has been performed.
 
 `Python` `LangGraph` `Flask` `OpenAI` `SocketIO`
 
@@ -142,6 +149,6 @@ Minimal, hackable web3 starter kit — wallet connect, contract reads/writes, cl
 
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:764ba2,100:667eea&height=100&section=footer" width="100%" />
 
-*building autonomous systems that actually ship* 🚀
+*building reviewable AI orchestration systems* 🚀
 
 </div>

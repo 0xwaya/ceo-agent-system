@@ -1,4 +1,10 @@
-# Session Memory — 2026-02-17 (Resume Here Tomorrow)
+# Session Memory Archive
+
+> **2026-02-17 snapshot:** This is a dated session record,
+> not current project state or deployment instructions. See the root README and
+> current upgrade handoff.
+
+## Session Memory — 2026-02-17 (Resume Here Tomorrow)
 
 ## Git State
 - **Latest commit**: `f5db2ee` — "fix: stop 400 spam on scenario/analyze"

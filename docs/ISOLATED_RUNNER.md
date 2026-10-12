@@ -1,7 +1,9 @@
 # Isolated source-build runner: design and local preparation
 
-Oracle changes are **not authorized**. No runner has been deployed, contacted, or
-configured. A VCN provides network boundaries, not a sandbox for hostile code.
+No isolated runner has been deployed, contacted, or configured. The Oracle VCN
+login/SSH-tunnel walkthrough covers access to an existing instance; it does not
+authorize generated-code execution. A VCN provides network boundaries, not a
+sandbox for hostile code.
 
 ## Implemented locally
 

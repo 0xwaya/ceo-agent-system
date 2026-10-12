@@ -1,11 +1,16 @@
 # Security Policy
 
+**Current scope (2026-10-11):** This project is v0.8.0. The snapshots in
+`SECURITY_AUDIT_2026.md` and `SECURITY_AUDIT_2026_02_17.md` are historical and do
+not describe current route protections. See the root [README](../README.md) for
+implemented session authentication, CSRF, ownership, and job limits. No VCN
+deployment has been inspected or verified live.
+
 ## Supported Versions
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.0.x   | :white_check_mark: |
-| 1.0.x   | :x:                |
+| Version | Support status |
+| ------- | -------------- |
+| 0.8.x   | Current local release |
 
 ## Security Best Practices
 
@@ -20,14 +25,10 @@
 
 ### 2. Production Deployment
 
-```bash
-# Generate strong secret key
-python3 -c 'import secrets; print(secrets.token_hex(32))'
-
-# Set in .env file
-SECRET_KEY=<generated-key>
-JWT_SECRET_KEY=<another-generated-key>
-```
+Production requires named authentication and a strong random `SECRET_KEY`.
+This app uses server-side sessions and CSRF protection; it does not use the JWT
+setup shown in older snapshots. Keep secret values in ignored runtime
+configuration and never paste them into documentation, source, or chat.
 
 ### 3. Dependencies
 
@@ -120,9 +121,10 @@ If you discover a security vulnerability, please email:
 
 ### Authentication & Authorization
 
-- JWT-based authentication (configurable)
-- Role-based access control (RBAC)
-- Session management with secure cookies
+- Named accounts with admin/reviewer roles; no API-key bypass or public registration.
+- Server-side sessions and account revocation; state changes require CSRF.
+- Development with auth disabled is restricted to localhost. Production refuses
+  startup when authentication is disabled.
 
 ### Data Protection
 

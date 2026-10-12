@@ -1,12 +1,14 @@
-# Upgrade handoff: October 11, 2026
+# Oracle VCN access and release handoff: October 12, 2026
 
 ## Current state
 
-- Last pushed commit: `56dffa88abbb3ae9187e9167f706ea34ecdd1abb` on `main`
-  (v0.8 truthful report execution, durable jobs, memory and access hardening).
-- Subsequent fixes and source-build preparation remain local and uncommitted.
-- Dashboard: `http://127.0.0.1:5001/`. Check availability before restarting;
-  the current attached process may stop when the session ends.
+- Last pushed CEO commit: `9d0e1c5766a0c409a04c6b61de965206719d99c2` on `main`
+  (v0.8 source-build preparation and complete audio integration removal).
+- CEO working tree was clean at the release commit. The local preview on port
+  5001 is currently stopped; check before starting another process.
+- The Oracle VCN walkthrough below documents SSH login and tunneling for an
+  existing instance. It does not require host details in this repository and
+  does not provision, connect to, or deploy anything to the VCN.
 - Local ignored `.env` now selects the approved `gpt-4.1-mini`, with verified
   input/output rates of $0.40/$1.60 per million tokens. Never print credentials.
 - Fixed environment bootstrap order, scenario input validation, model access
@@ -35,44 +37,95 @@
 - **Live source generation and sandboxed tests have NOT been verified.**
 - Earlier failed jobs remain failed; their reserved usage is not a confirmed charge.
 
-## Tomorrow's TODOs, in order
+## Separate deployment checklist (only if deployment is requested)
 
-1. **Resume safely.** Inspect the worktree, confirm pending changes, check the
-   dashboard listener and active jobs. Preserve `.env`, retained memory, artifacts,
-   jobs and the virtual environment. Do not start duplicate servers or interrupt jobs.
-2. **Review source-build scope and approval UX.** Confirm Python CLI scope, fixed
-   file names, standard-library requirements and explicit acceptance criteria.
-   Check reload recovery and source-build/test-request/ZIP job transitions.
-3. **Run one approved live source-generation test.** Use a synthetic small CLI
-   request under existing 20,000-token/$1 limits, with explicit renewed approval.
-   Inspect actual source, tests and instructions; verify downloads and hashes.
-   Do not execute generated code on the Mac or existing dashboard VM.
-4. **Design independent acceptance evidence.** Model-written tests cannot establish
-   correctness alone. Define trusted acceptance checks, minimum discovered tests,
-   and evidence for failures, timeout, cancellation and zero-test rejection.
-5. **Finalize isolated Oracle runner design.** Specify separate disposable worker,
-   broker identity, approval/hash binding, replay protection, default-deny network
-   and metadata access, no credentials/host mounts, resource limits and destruction.
-   Validate the proposed design before selecting resources/costs.
-6. **Implement offline runner protocol verification.** Add request/response schema,
-   source/image binding, bounded output, trusted evidence validation and fake-runner
-   integration tests. Keep transport disabled; never accept an arbitrary
-   caller-supplied “tests passed” claim.
-7. **Approval checkpoint for Oracle.** Only after explicit authorization: read-only
-   infrastructure discovery, cost proposal, separate provisioning approval, then
-   isolation verification before any untrusted execution.
-8. **End-to-end validation and release.** Once a real sandbox exists, separately
-   approve a test run and verify build -> approval -> isolated tests -> evidence ->
-   review/download. Test regression scenarios; update version/docs to actual scope.
-9. **Commit/push checkpoint.** Review all pending changes, rerun quality gates and
-   check credential/runtime exclusions. Obtain confirmation before publishing this
-   new upgrade; do not deploy to Oracle as part of a Git push.
+1. **Identify the VCN target.** Provide the intended instance address or SSH
+  alias, OS username, and approved access path (direct SSH or bastion). Do not
+  send private keys or credentials in chat.
+2. **Read-only preflight.** Verify running commit, service manager, listener,
+  authentication mode, capacity, existing workloads, backups, and rollback
+  option without displaying secret values or changing the host.
+3. **Deployment plan.** Confirm the target is the intended CEO host, keep port
+  5001 private, require named authentication, and preserve the single-process
+  durable worker constraint. Record the rollback point before changing it.
+4. **Deploy and verify.** After target identification and preflight, deploy a
+  versioned release and verify private health and the exact commit. No generated
+  code execution is part of this dashboard rollout.
+5. **Keep the runner separate.** No isolated runner exists. Do not execute
+  generated source on the dashboard host or a normal VM.
+
+## Oracle VCN login and SSH tunnel tutorial
+
+An Oracle VCN is a network, not a login endpoint; SSH connects to a compute
+instance in that VCN. These steps cover an already provisioned instance. They
+are instructions only: reading or using this guide does not change VCN resources
+or deploy the app. Fill placeholders locally using the instance address, OS
+username, approved private key, and network access details provided to you.
+Never commit or share private-key contents. For dashboard access, keep the app
+bound to `127.0.0.1:5001` on the instance, require named authentication, and do
+not open port 5001 in the VCN security list/NSG.
+
+### Log in to an instance with direct SSH reachability
+
+```bash
+VCN_USER='<instance-os-user>'
+VCN_HOST='<instance-public-ip-or-dns>'
+SSH_KEY="$HOME/.ssh/<approved-private-key-file>"
+ssh -i "$SSH_KEY" "$VCN_USER@$VCN_HOST"
+```
+
+Use the OS username and address assigned to the existing instance. To close the
+interactive shell, type `exit`.
+
+### Open the dashboard through a direct SSH tunnel
+
+Run this on your local computer and leave it running while using the dashboard:
+
+```bash
+VCN_USER='<instance-os-user>'
+VCN_HOST='<instance-public-ip-or-dns>'
+SSH_KEY="$HOME/.ssh/<approved-private-key-file>"
+ssh -i "$SSH_KEY" -N -L 127.0.0.1:5002:127.0.0.1:5001 "$VCN_USER@$VCN_HOST"
+```
+
+Then browse to `http://127.0.0.1:5002/admin`. Press Ctrl-C in the terminal to
+close the tunnel.
+
+### Log in to a private instance through a bastion
+
+```bash
+VCN_USER='<instance-os-user>'
+VCN_PRIVATE_HOST='<instance-private-ip>'
+BASTION_USER='<bastion-os-user>'
+BASTION_HOST='<bastion-public-ip-or-dns>'
+SSH_KEY="$HOME/.ssh/<approved-private-key-file>"
+ssh -i "$SSH_KEY" -J "$BASTION_USER@$BASTION_HOST" "$VCN_USER@$VCN_PRIVATE_HOST"
+```
+
+### Open the dashboard through a bastion tunnel
+
+Run this on your local computer and leave it running while using the dashboard:
+
+```bash
+VCN_USER='<instance-os-user>'
+VCN_PRIVATE_HOST='<instance-private-ip>'
+BASTION_USER='<bastion-os-user>'
+BASTION_HOST='<bastion-public-ip-or-dns>'
+SSH_KEY="$HOME/.ssh/<approved-private-key-file>"
+ssh -i "$SSH_KEY" -J "$BASTION_USER@$BASTION_HOST" -N \
+  -L 127.0.0.1:5002:127.0.0.1:5001 "$VCN_USER@$VCN_PRIVATE_HOST"
+```
+
+Then browse to `http://127.0.0.1:5002/admin`. Press Ctrl-C in the terminal to
+close the tunnel. Restrict SSH ingress to the operator's approved IP. SSH
+connectivity and dashboard account authentication are separate controls.
 
 ## Holds and safety boundaries
 
-- Oracle work is **design and local implementation only** until renewed approval.
-- Private login activation, Oracle SSH-tunnel testing and tester provisioning remain
-  pending. Login-disabled mode is localhost-only, not safe shared tunnel access.
+- No live Oracle SSH session, VCN change, or app deployment has been made; this
+  walkthrough does not verify host reachability or credentials.
+- Dashboard login activation and tester provisioning are separate from SSH host
+  login. Login-disabled mode is localhost-only, not safe shared dashboard access.
 - The dashboard is text-chat only; no audio integration is included.
   Cross-account reviewer approvals remain undecided and blocked.
 - No unrestricted generated-code execution, deployment, publishing, purchases or

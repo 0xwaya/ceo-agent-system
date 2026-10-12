@@ -1,5 +1,11 @@
 # Encrypted Environment Configuration
 
+> **Optional historical technique:** This tutorial describes manual encrypted
+> environment-file handling. The supported v0.8 local workflow uses an ignored
+> `.env` file loaded by the application; this tutorial does not configure
+> production secret delivery or VCN deployment. Never commit plaintext secrets
+> or expose decrypted values in logs, docs, or chat.
+
 ## 🔐 Secure API Key Management for Multi-Agent System
 
 This tutorial demonstrates how to securely store and manage API keys and sensitive configuration data for your multi-agent system.

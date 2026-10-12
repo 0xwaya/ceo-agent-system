@@ -1,5 +1,11 @@
 # 🚀 GitHub Setup & Deployment Guide
 
+> **Historical repository setup guide:** This file contains generic initial
+> repository commands and an old local path. The CEO repository already exists
+> and is connected to its remote; do not repeat its initialization or overwrite
+> remotes based on this example. Follow the root README and current release
+> handoff for versioned changes.
+
 Complete guide for uploading this project to GitHub with best security practices.
 
 ## ✅ Fast Path (Your Current Status)

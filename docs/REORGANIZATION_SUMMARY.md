@@ -1,4 +1,10 @@
-# 🚀 Codebase Reorganization Complete
+# Repository Reorganization Summary
+
+> **Historical snapshot:** File lists, versions, dependency
+> claims, and deployment status below record a prior reorganization. Use the root
+> README for current v0.8 project structure and behavior.
+
+## 🚀 Codebase Reorganization Complete
 
 ## Overview
 Successfully cleaned, reorganized, and optimized the multi-agent AI system codebase with best practices and comprehensive API integration support.

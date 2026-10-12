@@ -1,5 +1,9 @@
 # 🎯 CEO Agent v0.3 — Quick Reference
 
+> **Historical v0.3 reference:** Commands, approval behavior, and agent routing
+> below may not match current v0.8. See the root [README](../README.md) and
+> [QUICK_START.md](QUICK_START.md) before operating the current dashboard.
+
 ## TL;DR — What’s New in v0.3
 
 **Old (v0.2):** CEO always runs CFO → Engineer → Researcher in sequence.

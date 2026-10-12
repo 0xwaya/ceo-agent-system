@@ -1,5 +1,13 @@
 # 🚀 Quick Start Guide - Running the Multi-Agent System
 
+> **Current scope (2026-10-12):** The root [README](../README.md) is the
+> authoritative v0.8 runbook. Legacy CLI, simulated-workflow, and production
+> deployment examples later in this document are historical only; do not use
+> them to deploy this release. The supported dashboard is localhost-only in
+> development, text-chat only, and does not execute generated code. The Oracle
+> VCN SSH/login walkthrough is in [UPGRADE_NEXT_SESSION.md](UPGRADE_NEXT_SESSION.md);
+> it covers connecting to an existing instance and is separate from deployment.
+
 ## Main Entry Points
 
 ## Supported v0.8 local dashboard
@@ -9,8 +17,11 @@ execution. Keep the service localhost-only. Enable named authentication, use a
 random persistent `SECRET_KEY` of at least 32 characters, and provision your own
 admin with a hidden password prompt:
 
-**Activation on hold:** leave local login disabled for now. The account setup
-below is for the later, explicitly authorized SSH-tunnel testing stage.
+**Dashboard authentication:** Keep local development localhost-only. The
+account-creation command below configures dashboard login; it is not needed to
+SSH into an Oracle instance. For host login or an SSH tunnel to an existing
+instance, see the [Oracle VCN walkthrough](UPGRADE_NEXT_SESSION.md). Keep
+dashboard authentication independent from SSH access; never expose port 5001.
 
 ```bash
 .venv/bin/python -m flask --app app create-account --email <your-admin-email> --role admin
@@ -294,17 +305,21 @@ python3 interactive_chat.py
 python3 app.py
 ```
 
-### Workflow 3: Production Deployment
-```bash
-# Decrypt environment on server
-python3 tools/encrypted_env_demo.py decrypt
+### Oracle VCN login and SSH tunnel tutorial
 
-# Start web server
-python3 app.py
+For direct SSH login, bastion access, and an optional dashboard tunnel to an
+already provisioned Oracle instance, follow the
+[Oracle VCN walkthrough](UPGRADE_NEXT_SESSION.md). The examples are available
+without adding host details to this repository; they do not provision resources
+or deploy the application.
 
-# Or use production server
-gunicorn -w 4 -b 0.0.0.0:5001 app:app
-```
+### Application deployment (separate)
+
+No server target or application deployment procedure is configured in this
+repository. Do not use the historical multi-worker Gunicorn example: the v0.8
+durable queue requires a single Flask worker process, and production must enable
+named authentication. Any later deployment needs its own target, access,
+backup, and rollback review.
 
 ---
 

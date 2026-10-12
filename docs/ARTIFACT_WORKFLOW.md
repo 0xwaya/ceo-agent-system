@@ -1,17 +1,21 @@
 # Artifact Workflow (Real Execution Outputs)
 
-This document describes how agent runs now generate reviewable output artifacts and how operators can inspect them.
+**Current as of 2026-10-11 (v0.8).** Artifacts are private, owner-scoped outputs
+for review; their contents are proposals, not proof that business actions ran.
+The root [README](../README.md) is authoritative if this workflow summary differs.
 
 ## What Changed
 
-- Agent execution responses now include an `artifacts` array with direct URLs to generated files.
-- Each run is persisted under `static/generated_outputs/` with a stable run folder.
-- The admin dashboard workspace renders a **Generated Files** panel for previews and direct opening.
+- Durable graph and source-build job responses include artifact descriptors.
+- Artifacts are persisted under ignored `data/artifacts/` (or `APP_ARTIFACT_DIR`),
+  outside the static web root.
+- Authenticated downloads verify owner, allowed path, and SHA-256 receipt. Artifact
+  paths are not public static URLs.
 
 ## Folder Structure
 
 ```text
-static/generated_outputs/
+data/artifacts/generated_outputs/
   <agent_type>/
     <run_id>_<company_slug>/
       bundle.json
@@ -23,11 +27,13 @@ static/generated_outputs/
 
 ## API Endpoints
 
-- `POST /api/agent/execute/<agent_type>`
-- `POST /api/ceo/analyze`
-- `GET /api/cfo/report`
-- `GET /api/artifacts/runs`
-- `GET /api/artifacts/runs/<agent_type>`
+- `POST /api/graph/execute` returns `202` and a durable `job_id`.
+- `GET /api/jobs/<id>` reports owner-scoped job status and result.
+- `GET /api/artifacts/runs` lists only the authenticated owner's artifacts.
+- `GET /api/artifacts/file/<path>` is an authenticated, owner-checked download
+  and verifies the file hash.
+- `POST /api/builds/propose` creates an approval-gated source-build proposal;
+  generated code is syntax-checked but never executed on the dashboard host.
 
 ## Agent-Specific Output Examples
 
@@ -38,5 +44,7 @@ static/generated_outputs/
 
 ## Current Capability Notes
 
-- The system now produces concrete, versioned artifacts suitable for internal review and iteration.
+- The system produces persisted JSON/Markdown artifacts suitable for internal review and iteration.
+- Source-build files are separate deliverables; a prepared runner request is not
+  test execution. See [isolated runner boundaries](ISOLATED_RUNNER.md).
 - For photorealistic image generation or external publication workflows, integrate dedicated media APIs (for example DALL·E, Stability, or design tooling APIs) and map outputs into this same artifact pipeline.

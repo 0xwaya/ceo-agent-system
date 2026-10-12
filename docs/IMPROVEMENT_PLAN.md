@@ -1,8 +1,16 @@
 
+<!-- markdownlint-disable MD003 MD012 MD025: preserve the original historical ASCII/setext layout. -->
+# Historical Improvement Plan (2026-02-16)
+
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║                    ARCHITECTURE IMPROVEMENT PLAN                              ║
 ║                     Multi-Agent System Optimization                           ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
+
+> **Historical plan snapshot (2026-02-16):** This document records an earlier
+> backlog and implementation state. It is not a current issue list or release
+> plan. See the root [README](../README.md) and
+> [PHASED_UPDATE_PLAN.md](PHASED_UPDATE_PLAN.md) for current status.
 
 ## Latest Implemented Updates (2026-02-16)
 

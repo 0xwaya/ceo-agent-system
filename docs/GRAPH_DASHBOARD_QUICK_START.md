@@ -1,5 +1,10 @@
 # 🚀 Quick Start - Graph Dashboard
 
+> **Historical UI guide:** The v0.8 app uses the unified `templates/index.html`
+> dashboard and durable job APIs. Some layout, agent, endpoint, and execution
+> details below describe earlier versions. Use the root [README](../README.md)
+> and [QUICK_START.md](QUICK_START.md) for current operation.
+
 ## Access the New UI
 
 - Landing Dashboard: `http://localhost:5001/`

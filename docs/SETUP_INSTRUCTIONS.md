@@ -1,5 +1,11 @@
 # 🚀 Real-World Task Execution - Setup Instructions
 
+> **Historical integration proposal:** The third-party services, model prices,
+> scripts, and “real-world execution” steps below are not part of the supported
+> v0.8 dashboard contract. No outbound actions are enabled. Use the root
+> [README](../README.md) and [QUICK_START.md](QUICK_START.md); never copy example
+> secrets into tracked files or enable external actions from this guide.
+
 ## Quick Start (5 Minutes)
 
 ### Step 1: Install Required Packages

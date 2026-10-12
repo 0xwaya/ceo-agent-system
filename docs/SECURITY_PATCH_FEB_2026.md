@@ -1,4 +1,10 @@
-# Security Patch - February 12, 2026
+# Historical Security Patch Record
+
+> **February 2026 snapshot:** This file records the
+> remediation state at that date. It is not a current audit or a statement of
+> VCN deployment status; see `SECURITY.md` and the root README.
+
+## Security Patch - February 12, 2026
 
 ## CRITICAL: XSS Vulnerabilities Fixed
 

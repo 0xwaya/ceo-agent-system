@@ -1,5 +1,9 @@
 # CEO Executive Agent - Security Audit Refresh
 
+> **Historical audit snapshot (2026-02-17):** Its findings are not current v0.8
+> status. See the root [README](../README.md) and [SECURITY.md](SECURITY.md) for
+> current implemented controls and remaining deployment holds.
+
 **Date:** February 17, 2026
 **Version:** 2.1 (Refresh)
 **Auditor:** GitHub Copilot (GPT-5.3-Codex)

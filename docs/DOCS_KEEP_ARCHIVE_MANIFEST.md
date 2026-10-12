@@ -1,28 +1,39 @@
 # Documentation Keep vs Archive Manifest
 
-**Date:** 2026-02-14
-**Scope:** Optional documentation sweep for root-level and `graph_architecture/` markdown files.
+**Date:** 2026-10-11
+**Scope:** Documentation lifecycle and current-vs-historical status for `docs/`.
+
+The root `README.md` is authoritative for current v0.8 behavior. Historical
+architecture, audit, session, and setup documents are retained for context and
+must not be treated as current security or deployment instructions.
 
 ## Keep (Active, user-facing)
 
 - `README.md` — Primary entry and navigation.
-- `QUICK_START.md` — Main runbook for common workflows.
-- `SETUP_INSTRUCTIONS.md` — Setup path for real-world execution mode.
-- `ARCHITECTURE.md` — Core architecture reference.
+- `QUICK_START.md` — Supported localhost dashboard path; legacy examples carry a warning.
 - `CONTRIBUTING.md` — Contribution standards.
 - `SECURITY.md` — Security policy.
-- `CEO_AGENT_README.md` — CEO-mode deep guide.
-- `CEO_CFO_QUICK_REFERENCE.md` — Fast operating reference.
-- `GRAPH_DASHBOARD_QUICK_START.md` — Graph UI onboarding.
-- `graph_architecture/README.md` — Graph subsystem overview.
-- `graph_architecture/IMPLEMENTATION_GUIDE.md` — Graph implementation details.
+- `ARTIFACT_WORKFLOW.md` — Current private artifact contract.
+- `PHASED_UPDATE_PLAN.md` — Current release/privacy/deployment gates.
+- `UPGRADE_NEXT_SESSION.md` — Current release handoff.
+- `ISOLATED_RUNNER.md` — Current design-only runner status.
 - `tests/README.md` — Test usage docs.
 
 ## Keep (Historical record, but still valuable)
 
+The files in this section are snapshots, not current operational guidance.
+
 - `SECURITY_AUDIT_2026.md` — Security audit baseline.
+- `SECURITY_AUDIT_2026_02_17.md` — Security audit refresh snapshot.
 - `SECURITY_PATCH_FEB_2026.md` — Security remediation record.
 - `REORGANIZATION_SUMMARY.md` — Repository cleanup history.
+- `ARCHITECTURE.md` — v0.5 system architecture snapshot.
+- `CEO_AGENT_README.md` — v0.3 guide; not current operating instructions.
+- `CEO_CFO_QUICK_REFERENCE.md` — v0.3 command/API snapshot.
+- `GRAPH_DASHBOARD_QUICK_START.md` — Earlier dashboard UI snapshot.
+- `GRAPH_UI_IMPLEMENTATION.md` / `IMPROVEMENT_PLAN.md` — historical implementation/backlog records.
+- `SETUP_INSTRUCTIONS.md` / `GITHUB_SETUP.md` — historical setup proposals.
+- `SESSION_MEMORY_2026_02_17.md` — dated session record.
 ## Archived (Moved to docs/archive)
 
 These one-time status/snapshot docs were moved to `docs/archive/` to reduce root-level clutter while preserving historical context.

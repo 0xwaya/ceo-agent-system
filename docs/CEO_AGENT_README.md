@@ -1,6 +1,9 @@
 # 👔 CEO Agent — Executive AI System v0.3
 
-> **v0.3 — 3-Tier LangGraph Architecture**: Prompt Expert → CEO → 6 Domain Directors → 7 Execution Specialists
+> **Historical v0.3 guide:** Superseded feature, budget, training, and deployment
+> descriptions follow. Current v0.8 capabilities and limits are in the root
+> [README](../README.md). Do not use examples below as deployment instructions
+> or evidence of live actions.
 
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

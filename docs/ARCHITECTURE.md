@@ -1,5 +1,11 @@
 # Architecture Documentation — Multi-Agent System v0.5
 
+> **Historical snapshot:** This document describes v0.5, not the current v0.8
+> runtime contract. See the root [README](../README.md) for current routing,
+> durable-job, auth, artifact, and execution limits. Deployment examples below
+> are not instructions for the current Oracle VCN login walkthrough or
+> authorization for any deployment.
+
 ## Table of Contents
 
 1. [Overview](#overview)
