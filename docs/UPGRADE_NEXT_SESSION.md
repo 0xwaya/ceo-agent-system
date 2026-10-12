@@ -215,9 +215,16 @@ ss -tulpn | grep 5001
      report inspection on lower-resolution screens.
    - Consolidate redundant tabs: merge "Execution Graph" visualization into an
      interactive topology sub-view within Reports.
-3. **Executive Action Clarity**:
+3. **Executive Action Clarity & Stripe Capital Solicitation**:
    - Clear distinction between passive report review and approval-gated actions.
    - Contextual chat drawer with instant agent-switching and thread indicators.
+   - **Production Stripe Billing Architecture**: Dedicated `services/billing_service.py`
+     managing workspace credits (`workspace_credits` and `credit_transactions` ledger).
+   - Real-time task cost calculation: itemizes LLM model tokens, external API tools
+     (scraping, analytics, hosting), and platform orchestration fees.
+   - Integrated `/api/billing/quote` and `/api/billing/checkout` endpoints supporting
+     Stripe Checkout Session generation and sandbox fulfillment modes.
+
 
 ## Holds and safety boundaries
 

@@ -98,6 +98,10 @@
             else %}-{% endif %}
           </span>
         </div>
+        <div class="v4-hb-item" id="walletCreditsContainer" style="cursor: pointer;" onclick="openTopUpModal()" title="Click to Top Up Credits">
+          <span class="v4-hb-label">API Credits</span>
+          <span class="v4-hb-val" id="walletCredits" style="color: #38bdf8;">$0.00</span>
+        </div>
       </div>
 
       <button class="v4-run-btn" id="launchOrchestration" type="button">
@@ -608,6 +612,14 @@
       <div class="modal-content modal-large">
         <span class="modal-close" onclick="closeResultsModal()">&times;</span>
         <div id="resultsContent"></div>
+      </div>
+    </div>
+
+    <!-- Payment & Quote Checkout Modal -->
+    <div id="billingModal" class="modal">
+      <div class="modal-content" style="max-width: 580px;">
+        <span class="modal-close" onclick="closeBillingModal()">&times;</span>
+        <div id="billingModalContent"></div>
       </div>
     </div>
 

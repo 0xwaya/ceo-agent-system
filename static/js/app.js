@@ -2201,6 +2201,10 @@ window.onclick = function (event) {
     if (event.target == resultsModal) {
         resultsModal.style.display = 'none';
     }
+    const billingModal = document.getElementById('billingModal');
+    if (event.target == billingModal) {
+        billingModal.style.display = 'none';
+    }
 }
 
 // Display tasks
@@ -2208,7 +2212,7 @@ function displayTasks(tasks) {
     const container = document.getElementById('tasksContainer');
     container.innerHTML = '';
 
-    tasks.forEach(task => {
+    tasks.forEach((task, idx) => {
         const card = document.createElement('div');
         card.className = 'task-card';
 
@@ -2260,7 +2264,7 @@ function displayTasks(tasks) {
                 </div>
             </div>
             <div class="task-actions">
-                <button class="btn btn-primary btn-small" type="button" onclick="executeAgent('${assignedAgent}')">
+                <button class="btn btn-primary btn-small" type="button" onclick="executeTaskWithAgent(${idx})">
                     ⚡ Execute with ${assignedAgentConfig.icon}
                 </button>
                 <button class="btn btn-small" type="button" onclick="focusChatAgent('${assignedAgent}')">
@@ -3004,4 +3008,180 @@ async function proposeCurrentExport() {
 document.addEventListener('DOMContentLoaded', () => {
     const job = localStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
     if (job) watchDurableJob(job);
+    fetchWalletBalance();
 });
+
+// ============================================================================
+// BILLING, STRIPE CHECKOUT & TASK EXECUTION QUOTE MODAL
+// ============================================================================
+
+let currentWalletBalance = 0.0;
+
+async function fetchWalletBalance() {
+    try {
+        const response = await fetch('/api/billing/balance');
+        if (!response.ok) return;
+        const data = await response.json();
+        if (data.success && typeof data.balance_usd === 'number') {
+            currentWalletBalance = data.balance_usd;
+            const walletEl = document.getElementById('walletCredits');
+            if (walletEl) {
+                walletEl.textContent = `$${currentWalletBalance.toFixed(2)}`;
+            }
+        }
+    } catch (e) {
+        console.warn('Could not fetch wallet balance:', e);
+    }
+}
+
+function closeBillingModal() {
+    const modal = document.getElementById('billingModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function openTopUpModal() {
+    const modal = document.getElementById('billingModal');
+    const content = document.getElementById('billingModalContent');
+    if (!modal || !content) return;
+
+    content.innerHTML = `
+        <h2 style="margin-top:0; color:#f8fafc; font-size:1.3rem; display:flex; align-items:center; gap:0.5rem;">
+            💳 Top Up Agent Workspace Credits
+        </h2>
+        <p style="color:#94a3b8; font-size:0.85rem; line-height:1.5;">
+            Add funds to unlock live agent external tools, specialized research queries, and automated artifact delivery.
+        </p>
+
+        <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(148,163,184,0.2); border-radius:10px; padding:1rem; margin:1rem 0;">
+            <div style="font-size:0.72rem; text-transform:uppercase; color:#94a3b8; font-weight:700;">Current Available Balance</div>
+            <div style="font-size:24px; font-weight:700; color:#38bdf8; margin-top:4px;">$${currentWalletBalance.toFixed(2)} USD</div>
+        </div>
+
+        <div style="margin:1rem 0;">
+            <label style="display:block; font-size:0.82rem; color:#cbd5e1; margin-bottom:6px; font-weight:600;">Select Top-Up Amount</label>
+            <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-secondary" onclick="startStripeCheckout(5.00, 'topup')">+$5.00</button>
+                <button type="button" class="btn btn-secondary" onclick="startStripeCheckout(15.00, 'topup')">+$15.00</button>
+                <button type="button" class="btn btn-secondary" onclick="startStripeCheckout(25.00, 'topup')">+$25.00</button>
+            </div>
+        </div>
+
+        <div style="margin-top:1.5rem; text-align:right;">
+            <button type="button" class="btn btn-small" onclick="closeBillingModal()">Close</button>
+        </div>
+    `;
+    modal.style.display = 'block';
+}
+
+async function executeTaskWithAgent(taskIndex) {
+    const task = state.tasks[taskIndex];
+    if (!task) return;
+
+    const assignedAgent = task.assigned_agent || task.agent_type || 'researcher';
+
+    // 1. Fetch live execution quote from backend
+    try {
+        addLogEntry(`Calculating execution quote for ${task.task_name || 'Task'}...`, 'info');
+        const res = await fetch('/api/billing/quote', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task, agent_type: assignedAgent })
+        });
+        const quoteData = await res.json();
+        if (!quoteData.success) {
+            // Fallback directly to execution if quote fails
+            return executeAgent(assignedAgent);
+        }
+
+        const quote = quoteData.quote;
+        const requiredCost = quote.total_quoted_usd || 0.50;
+
+        // Refresh wallet balance
+        await fetchWalletBalance();
+
+        // If sufficient funds, execute immediately
+        if (currentWalletBalance >= requiredCost) {
+            addLogEntry(`Workspace balance ($${currentWalletBalance.toFixed(2)}) covers quote ($${requiredCost.toFixed(2)}). Launching agent...`, 'success');
+            return executeAgent(assignedAgent);
+        }
+
+        // Show cost solicitation & Stripe checkout modal
+        showTaskQuoteModal(task, quote, assignedAgent);
+    } catch (err) {
+        console.error('Task execution error:', err);
+        return executeAgent(assignedAgent);
+    }
+}
+
+function showTaskQuoteModal(task, quote, assignedAgent) {
+    const modal = document.getElementById('billingModal');
+    const content = document.getElementById('billingModalContent');
+    if (!modal || !content) return;
+
+    const b = quote.breakdown || {};
+    const taskName = task.task_name || task.task_id || 'Task';
+    const totalQuoted = (quote.total_quoted_usd || 0.50).toFixed(2);
+    const deficit = Math.max(0, quote.total_quoted_usd - currentWalletBalance).toFixed(2);
+
+    content.innerHTML = `
+        <h2 style="margin-top:0; color:#f8fafc; font-size:1.25rem; display:flex; align-items:center; gap:0.5rem;">
+            ⚡ Task Execution Budget Required
+        </h2>
+        <p style="color:#cbd5e1; font-size:0.85rem; line-height:1.5;">
+            Executing <strong>${escapeHTML(taskName)}</strong> requires external compute and specialized API tools.
+        </p>
+
+        <div style="background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px; padding:1rem; margin:1rem 0;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                <span style="color:#94a3b8;">🤖 Model Token Compute (~${(b.estimated_tokens || 30000).toLocaleString()} tokens)</span>
+                <span style="color:#f8fafc; font-weight:600;">$${(b.token_cost_usd || 0.02).toFixed(4)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                <span style="color:#94a3b8;">🔧 ${escapeHTML(b.tool_service || 'Specialized API Tooling')}</span>
+                <span style="color:#f8fafc; font-weight:600;">$${(b.tool_cost_usd || 0.20).toFixed(2)}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
+                <span style="color:#94a3b8;">👔 Multi-Agent Orchestration & Validation</span>
+                <span style="color:#f8fafc; font-weight:600;">$${(b.platform_fee_usd || 0.20).toFixed(2)}</span>
+            </div>
+            <div style="border-top:1px solid rgba(148,163,184,0.2); padding-top:8px; margin-top:8px; display:flex; justify-content:space-between; font-size:1rem;">
+                <strong style="color:#f8fafc;">Total Required Cost</strong>
+                <strong style="color:#10b981;">$${totalQuoted} USD</strong>
+            </div>
+        </div>
+
+        <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:10px 14px; margin-bottom:1.25rem; font-size:0.82rem; color:#fde68a;">
+            Your workspace balance is <strong>$${currentWalletBalance.toFixed(2)}</strong>. Please top up <strong>$${deficit}</strong> to proceed with live execution.
+        </div>
+
+        <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
+            <button type="button" class="btn btn-secondary btn-small" onclick="closeBillingModal()">Cancel</button>
+            <button type="button" class="btn btn-primary btn-small" onclick="startStripeCheckout(${Math.max(5.0, parseFloat(deficit))}, '${task.task_id || 'task'}')">
+                💳 Top Up with Stripe ($${Math.max(5.0, parseFloat(deficit)).toFixed(2)})
+            </button>
+        </div>
+    `;
+
+    modal.style.display = 'block';
+}
+
+async function startStripeCheckout(amountUsd, taskId) {
+    try {
+        addLogEntry(`Initiating Stripe checkout for $${amountUsd}...`, 'info');
+        const res = await fetch('/api/billing/checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount_usd: amountUsd, task_id: taskId })
+        });
+        const data = await res.json();
+        if (data.success && data.checkout && data.checkout.checkout_url) {
+            window.location.href = data.checkout.checkout_url;
+        } else {
+            alert(`Unable to create Stripe checkout session: ${data.error || 'Server error'}`);
+        }
+    } catch (err) {
+        console.error('Checkout error:', err);
+        alert(`Checkout initiation error: ${err.message}`);
+    }
+}
+

@@ -1829,6 +1829,101 @@ def reject_payment(approval_id):
     return jsonify({"success": True, "message": "Payment rejected", "approval": approval})
 
 
+# ============================================================================
+# BILLING & STRIPE INTEGRATION ENDPOINTS
+# ============================================================================
+
+
+@app.route("/api/billing/balance", methods=["GET"])
+def get_billing_balance():
+    """Get current credit balance for the session workspace."""
+    try:
+        from services.billing_service import billing_service
+
+        workspace_id = _browser_session_id()
+        balance_info = billing_service.get_balance(workspace_id)
+        return jsonify({"success": True, **balance_info})
+    except Exception as e:
+        logger.error(f"Billing balance lookup failed: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/billing/quote", methods=["POST"])
+def get_task_quote():
+    """Calculate cost quote for a task before live external execution."""
+    try:
+        from services.billing_service import billing_service
+
+        data = request.json or {}
+        task = data.get("task") or {}
+        agent_type = data.get("agent_type") or "researcher"
+        quote = billing_service.calculate_task_quote(task, agent_type)
+        return jsonify({"success": True, "quote": quote})
+    except Exception as e:
+        logger.error(f"Task quote calculation failed: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/billing/checkout", methods=["POST"])
+@require_account
+def create_billing_checkout():
+    """Create a Stripe checkout session to fund task execution credits."""
+    try:
+        from services.billing_service import billing_service
+
+        data = request.json or {}
+        workspace_id = _browser_session_id()
+        amount_usd = float(data.get("amount_usd") or 5.0)
+        task_id = data.get("task_id")
+
+        origin = request.host_url.rstrip("/")
+        success_url = f"{origin}/?payment=success"
+        cancel_url = f"{origin}/?payment=cancelled"
+
+        checkout = billing_service.create_stripe_checkout_session(
+            workspace_id=workspace_id,
+            amount_usd=amount_usd,
+            task_id=task_id,
+            success_url=success_url,
+            cancel_url=cancel_url,
+        )
+        return jsonify({"success": True, "checkout": checkout})
+    except Exception as e:
+        logger.error(f"Billing checkout creation failed: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@app.route("/api/billing/mock-checkout", methods=["GET"])
+def handle_mock_checkout():
+    """Simulate Stripe payment fulfillment in development/sandbox mode."""
+    from services.billing_service import billing_service
+
+    workspace_id = request.args.get("workspace") or _browser_session_id()
+    amount_usd = float(request.args.get("amount") or 5.0)
+    task_id = request.args.get("task_id") or "topup"
+    session_id = request.args.get("session_id") or "mock_session"
+
+    billing_service.credit_balance(
+        workspace_id=workspace_id,
+        amount_usd=amount_usd,
+        kind="topup",
+        reference_id=session_id,
+        description=f"Sandbox Top-up for Task {task_id}",
+    )
+
+    return (
+        "<html><body style='background:#0b0f17;color:#f8fafc;"
+        "font-family:sans-serif;padding:40px;text-align:center;'>"
+        f"<h2 style='color:#34d399;'>✅ Payment Successful (${amount_usd:.2f} USD Credited)</h2>"
+        f"<p style='color:#94a3b8;'>Sandbox Stripe session {session_id} verified for "
+        f"workspace {workspace_id}.</p>"
+        "<p><a href='/' style='color:#60a5fa;text-decoration:none;font-weight:600;'>"
+        "← Return to Executive Dashboard</a></p>"
+        "<script>setTimeout(() => { window.location.href = '/?payment=success'; }, 2000);</script>"
+        "</body></html>"
+    )
+
+
 @app.route("/api/reports/history", methods=["GET"])
 def get_report_history():
     """Get all historical reports"""
