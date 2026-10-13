@@ -31,6 +31,16 @@ This section supersedes the older October 12 snapshots below.
   private environment still needs configuration.
 - SSH (22), HTTPS (443), HTTP (80), and app port 5001 all timed out.
   No remote restart, pull, deployment, or server configuration was performed.
+- **Root cause (confirmed Oct 13 from the VM journal):** `sudo shutdown -h now`
+  was typed inside an `oracle-ceo` SSH session at Oct 12 23:24:41 UTC, which
+  powered off the VM's OS. Oracle networking (security list, route table,
+  internet gateway) was unchanged, and no repository or local setting was
+  involved. The instance was started again on Oct 13 via the OCI CLI. It kept
+  public IP `147.224.168.182`, and `ssh oracle-ceo`, `~/start_ceo.sh`, and the
+  `127.0.0.1:5002` tunnel were verified working (HTTP 200 on `/admin`).
+- A second instance, `instance-20261012-1939` (public `163.192.193.166`, key
+  `ssh-key-2026-10-12`), was created Oct 12 23:44 UTC and is **not** the
+  `oracle-ceo` target. Decide whether to keep or stop it.
 - The local app and Stripe CLI listener were stopped cleanly for the PC reboot.
   Local processes and forwarding do not persist through reboot.
 
@@ -229,6 +239,25 @@ To verify the process and port listener:
 ps aux | grep 'python app.py' | grep -v grep
 ss -tulpn | grep 5001
 ```
+
+### Leaving the server and stopping it safely
+
+- To leave the server, type `exit`. This closes only the SSH session; the VM
+  and any background app keep running.
+- Never run `sudo shutdown -h now` to "close" the connection. Inside an SSH
+  session it powers off the Oracle VM, and `ssh oracle-ceo` then times out.
+  In a local terminal it powers off your Mac.
+- To stop or start the VM, use the Oracle Console (Compute → Instances →
+  `instance-20261010-0931` → Stop/Start). You can also use the OCI CLI
+  installed at `~/.oci/cli-venv/bin/oci`, configured in `~/.oci/config`:
+
+```bash
+~/.oci/cli-venv/bin/oci compute instance action --action START \
+  --instance-id <instance-20261010-0931 OCID> --wait-for-state RUNNING
+```
+
+- If `ssh oracle-ceo` times out, first check that the instance state is
+  `RUNNING` in the console before changing any network settings.
 
 ## UI/UX Theme Overhaul & Dashboard Modernization
 
