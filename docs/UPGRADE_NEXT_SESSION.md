@@ -1,4 +1,61 @@
-# Oracle VCN access and release handoff: October 12, 2026
+# Oracle VCN access and release handoff: October 13, 2026
+
+## Latest handoff: Stripe membership integration
+
+This section supersedes the older October 12 snapshots below.
+
+- Implementation committed and pushed to `main`: `9072566`.
+- Sandbox membership: $29/month, $10 monthly execution allowance, no rollover.
+  Purchased $5/$15/$25 top-ups persist; no automatic overages or top-ups.
+- Hosted Checkout includes Apple Pay on eligible devices (button observed during
+  browser testing) and card payments. A Stripe test-card subscription completed,
+  its signed webhook granted $10 exactly once, and the dashboard displayed it.
+  The temporary verification subscription was cancelled; no real money was charged.
+- Customer Portal is configured in the WayaLabs sandbox for payment methods,
+  invoice history, and end-of-period cancellation.
+- Signed invoice fulfillment, transactional deduplication, microdollar accounting,
+  per-model-call reservations/settlement, expiry and refund/dispute spending holds
+  replace the earlier mocked fulfillment. Sandbox and live ledgers are separate.
+- API/job ceilings are configurable and remain distinct from scenario budgets.
+  Actual external business purchases and connectors are not implemented.
+- Full local validation: `make check PYTHON=.venv/bin/python` passed with
+  **157 tests**, Black, Flake8, consistency and smoke checks.
+  `node --check static/js/app.js` and staged secret scan passed.
+  No matching GitHub Actions run was returned during the final check; local green
+  is verified, hosted CI completion is not.
+- Oracle public IP: `147.224.168.182`, also saved as `ORACLE_PUBLIC_IP` in the
+  ignored private `.env`. Credentials were not committed.
+- Sandbox webhook registered:
+  `https://147.224.168.182/api/billing/webhook`, **disabled pending trusted HTTPS**.
+  Its signing secret is saved in the local private `.env`; the Oracle server's
+  private environment still needs configuration.
+- SSH (22), HTTPS (443), HTTP (80), and app port 5001 all timed out.
+  No remote restart, pull, deployment, or server configuration was performed.
+- The local app and Stripe CLI listener were stopped cleanly for the PC reboot.
+  Local processes and forwarding do not persist through reboot.
+
+### Resume after reboot
+
+1. From the repository root, activate the existing virtual environment:
+   `source .venv/bin/activate`.
+2. Start the local app and sandbox forwarding together:
+   `python -m tools.run_stripe_sandbox`.
+   The supervisor uses the sandbox key and keeps the CLI signing secret in process
+   memory; it does not replace the stored Oracle webhook secret.
+3. Open **http://localhost:5001**, not a different hostname. Checkout returns to
+   the configured `BILLING_PUBLIC_URL`; browser cookies are hostname-specific.
+4. For Oracle, first confirm the VM is running in the Oracle Console and SSH is
+   reachable. Inspect the existing service/process before restarting anything.
+5. Pull the versioned release, install requirements, configure named accounts and
+   private billing environment, and establish trusted public HTTPS before enabling
+   the disabled Stripe endpoint. Do not expose the Flask development port publicly.
+
+Rebooting the laptop closes its SSH client and forwarding tunnel, **not the Oracle
+VM or the VM's SSH daemon**. A remote foreground app tied to that session may exit;
+an app managed by systemd or correctly detached with nohup normally continues.
+
+See [Stripe membership tutorial](STRIPE_INTEGRATION_TUTORIAL.md) for all configuration,
+webhook events, endpoint contracts, testing, reconciliation and production limits.
 
 ## Current state
 

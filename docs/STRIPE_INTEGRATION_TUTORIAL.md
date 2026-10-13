@@ -31,6 +31,21 @@
 
 ## 1. Private environment configuration
 
+### Application endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/billing/balance` | Current workspace allowance, membership status and recent credit history |
+| `GET /api/billing/plans` | Server-configured monthly price, allowance and sandbox indicator |
+| `POST /api/billing/quote` | Display-only task estimate; accepts `task` and `agent_type` |
+| `POST /api/billing/checkout` | Hosted subscription (`kind: membership`) or approved top-up (`kind: topup`, `amount_cents: 500/1500/2500`) |
+| `POST /api/billing/portal` | Current workspace's customer portal; accepts an empty JSON object |
+| `POST /api/billing/webhook` | Raw Stripe payload authenticated by its signature, not browser credentials |
+
+Browser endpoints use the existing account/CSRF protection when authentication is
+enabled. Checkout prices, credit amounts, customer ownership and redirects are
+server-controlled. `/api/billing/mock-checkout` has been removed.
+
 Install the project's dependencies in its existing virtual environment:
 
 ```bash

@@ -393,6 +393,7 @@ make check         # format + lint + consistency + smoke + tests
 | [graph_architecture/README.md](graph_architecture/README.md) | LangGraph subgraph guide |
 | [docs/ARTIFACT_WORKFLOW.md](docs/ARTIFACT_WORKFLOW.md) | Artifact pipeline walkthrough |
 | [docs/SECURITY.md](docs/SECURITY.md) | Security posture and audit notes |
+| [docs/STRIPE_INTEGRATION_TUTORIAL.md](docs/STRIPE_INTEGRATION_TUTORIAL.md) | Memberships, Apple Pay, signed webhooks, execution credits and sandbox testing |
 
 ---
 

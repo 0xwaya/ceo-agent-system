@@ -19,6 +19,8 @@ This folder contains non-core project documentation moved out of the repository 
 - `PHASED_UPDATE_PLAN.md` — Current release, privacy, and VCN status.
 - `UPGRADE_NEXT_SESSION.md` — Deployment target/access blocker and release handoff.
 - `ISOLATED_RUNNER.md` — Runner is design-only; no remote execution.
+- [STRIPE_INTEGRATION_TUTORIAL.md](STRIPE_INTEGRATION_TUTORIAL.md) — Current
+  membership billing, Apple Pay, webhooks, credit accounting and production gates.
 
 ## Historical Architecture and Planning Snapshots
 - `ARCHITECTURE.md`
