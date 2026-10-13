@@ -40,7 +40,7 @@ This section supersedes the older October 12 snapshots below.
   `127.0.0.1:5002` tunnel were verified working (HTTP 200 on `/admin`).
 - A second instance, `instance-20261012-1939` (public `163.192.193.166`, key
   `ssh-key-2026-10-12`), was created Oct 12 23:44 UTC and is **not** the
-  `oracle-ceo` target. Decide whether to keep or stop it.
+  `oracle-ceo` target. It is stopped and reserved for the future echo agent.
 - The local app and Stripe CLI listener were stopped cleanly for the PC reboot.
   Local processes and forwarding do not persist through reboot.
 
@@ -258,6 +258,31 @@ ss -tulpn | grep 5001
 
 - If `ssh oracle-ceo` times out, first check that the instance state is
   `RUNNING` in the console before changing any network settings.
+
+### Credential locations (never commit these)
+
+Only paths are recorded here. No key material or token values appear in the
+repository.
+
+| Credential | Location on the Mac | Mode | Purpose |
+| --- | --- | --- | --- |
+| OCI API signing key | `~/.oci/oci_api_key.pem` | 600 | OCI CLI/API access (fingerprint `f1:c8:…:05:d5`) |
+| OCI API public key | `~/.oci/oci_api_key_public.pem` | 644 | Uploaded to the Oracle user's API keys |
+| OCI CLI config | `~/.oci/config` | 600 | Profile `DEFAULT`, region `us-chicago-1` |
+| OCI CLI | `~/.oci/cli-venv/bin/oci` | n/a | Isolated venv install, OCI CLI 3.95.0 |
+| `oracle-ceo` SSH key | `~/.ssh/oracle_vcn_rsa` | 600 | `instance-20261010-0931` (147.224.168.182) |
+| Echo agent SSH key | `~/.ssh/oracle_echo_rsa` | 600 | `instance-20261012-1939` (163.192.193.166), reserved for the echo agent |
+
+- The `~/.oci` folder is mode 700. The original browser downloads of the API
+  key were deleted after their copies were verified.
+- The Oracle console auth token ("ceo ai") was deleted on Oct 13; none is
+  currently active. Create a new one only when a service requires it.
+- Quick check that API access works:
+  `~/.oci/cli-venv/bin/oci iam region list --output table`.
+- If the signing key is lost or exposed, delete it in Oracle Console → Profile
+  → API keys, generate a new pair, and update `~/.oci/config`.
+- The echo agent instance `instance-20261012-1939` was **stopped** on Oct 13
+  until the echo agent is ready.
 
 ## UI/UX Theme Overhaul & Dashboard Modernization
 
