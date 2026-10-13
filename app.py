@@ -26,8 +26,10 @@ from services.state_builder import CFOStateBuilder
 from services.analysis_service import analyze_strategic_state as ceo_analyze
 from services.agent_service import AgentExecutionService, SUPPORTED_AGENTS
 from services.auth_service import AuthStore, install_auth
+from services.analysis_access import AnalysisAccess, SubscriptionRequired, AnalysisInProgress
+from services.website_service import normalize_website, fetch_homepage
 from services.billing_routes import billing_blueprint
-from services.billing_service import InsufficientCredits
+from services.billing_service import InsufficientCredits, billing_service
 from services.runtime_service import runtime_blueprint
 from exceptions import ValidationError
 from config import APP_VERSION, FLASK_HOST, FLASK_PORT, SECRET_KEY as _APP_SECRET_KEY
@@ -210,6 +212,7 @@ DEFAULT_DEV_OBJECTIVES: list = []
 DEFAULT_DEV_SCENARIO: dict = {
     "company_name": "",
     "dba_name": "",
+    "website": "",
     "industry": "",
     "location": "",
     "budget": 0.0,
@@ -452,6 +455,7 @@ def _normalize_scenario_context(
     return {
         "company_name": company_name,
         "dba_name": dba_name,
+        "website": normalize_website(company_info.get("website", "")),
         "industry": industry,
         "location": location,
         "budget": budget,
@@ -841,6 +845,7 @@ def scenario_current():
                     "company_name",
                     "name",
                     "dba_name",
+                    "website",
                     "industry",
                     "industry_other",
                     "location",
@@ -1076,6 +1081,7 @@ def analyze_objectives():
                     "company_name",
                     "name",  # alias accepted
                     "dba_name",
+                    "website",
                     "industry",
                     "industry_other",
                     "location",
@@ -1110,12 +1116,17 @@ def analyze_objectives():
             return jsonify({"success": False, "error": "CEO agent not available"}), 503
 
         validated_state = CFOStateBuilder.create_from_request(data)
+        if (getattr(g, "account", None) or {}).get("role") == "customer":
+            g.free_analysis = AnalysisAccess().claim(
+                _browser_session_id(), g.usage_job["id"], get_runtime().store
+            )
         company_name_raw = validated_state["company_name"]
         normalized_scenario = _normalize_scenario_context(
             {
                 "company_name": company_name_raw,
                 "name": company_name_raw,
                 "dba_name": data.get("dba_name") or company_name_raw,
+                "website": validated_state["website"],
                 "industry": data.get("industry"),
                 "location": data.get("location"),
                 "budget": validated_state["total_budget"],
@@ -1136,6 +1147,8 @@ def analyze_objectives():
             "company_name": normalized_scenario["company_name"],
             "industry": normalized_scenario["industry"],
             "location": normalized_scenario["location"],
+            "website": normalized_scenario["website"],
+            "website_evidence": fetch_homepage(normalized_scenario["website"]),
             "business_goals": [],
             # Strategic objectives
             "strategic_objectives": normalized_scenario["objectives"],
@@ -1335,6 +1348,9 @@ def analyze_objectives():
             "company_name": normalized_scenario["company_name"],
             "industry": normalized_scenario["industry"],
             "location": normalized_scenario["location"],
+            "website": normalized_scenario["website"],
+            "website_evidence": state["website_evidence"],
+            "free_analysis_completed": getattr(g, "free_analysis", False),
             "budget": float(normalized_scenario["budget"]),
             "timeline": result.get("target_completion_days", int(normalized_scenario["timeline"])),
             "tasks": identified_tasks,
@@ -1385,6 +1401,7 @@ def analyze_objectives():
                 company_info={
                     "name": normalized_scenario.get("company_name"),
                     "dba_name": normalized_scenario.get("dba_name"),
+                    "website": normalized_scenario["website"],
                     "industry": normalized_scenario.get("industry"),
                     "location": normalized_scenario.get("location"),
                 },
@@ -1395,6 +1412,7 @@ def analyze_objectives():
                     "budget_allocation": response_payload.get("budget_allocation", {}),
                     "timeline_days": response_payload.get("timeline"),
                     "summary": response_payload.get("executive_summary"),
+                    "website_evidence": state["website_evidence"],
                     "recommendations": response_payload.get("approval_actions", []),
                 },
             )
@@ -1411,6 +1429,8 @@ def analyze_objectives():
         return jsonify({"success": False, "error": str(e)}), 400
     except InsufficientCredits as e:
         return insufficient_execution_credits(e)
+    except (SubscriptionRequired, AnalysisInProgress) as e:
+        return analysis_access_error(e)
     except Exception as e:
         print(f"❌ Analysis error: {str(e)}")
         import traceback
@@ -1438,6 +1458,7 @@ def execute_graph():
                 allowed_fields={
                     "company_name",
                     "dba_name",
+                    "website",
                     "industry",
                     "location",
                     "total_budget",
@@ -1496,6 +1517,7 @@ def execute_graph():
                 "company_name": company_name,
                 "name": company_name,
                 "dba_name": data.get("dba_name") or company_name,
+                "website": validated_state["website"],
                 "industry": industry,
                 "location": location,
                 "budget": total_budget,
@@ -1511,6 +1533,7 @@ def execute_graph():
             session_id,
             {
                 "company_name": company_name,
+                "website": validated_state["website"],
                 "industry": industry,
                 "location": location,
                 "total_budget": total_budget,
@@ -1518,6 +1541,7 @@ def execute_graph():
                 "objectives": objectives,
                 "use_checkpointing": use_checkpointing,
             },
+            require_membership=(getattr(g, "account", None) or {}).get("role") == "customer",
         )
         return (
             jsonify(
@@ -1534,6 +1558,8 @@ def execute_graph():
     except ValidationError as e:
         logger.warning(f"Invalid graph scenario: {e}")
         return jsonify({"success": False, "error": str(e)}), 400
+    except (SubscriptionRequired, AnalysisInProgress) as e:
+        return analysis_access_error(e)
     except Exception as e:
         logger.error(f"Graph execution setup error: {e}", exc_info=True)
         return (
@@ -2367,6 +2393,12 @@ def handle_ai_chat_request(data):
     Server emits: ai_chat_response {message, agent, timestamp}
     """
     try:
+        if (getattr(g, "account", None) or {}).get(
+            "role"
+        ) == "customer" and not billing_service.has_active_membership(_browser_session_id()):
+            raise SubscriptionRequired(
+                "Chat requires an active membership. Use Analyze for your free analysis."
+            )
         message = str(data.get("message", "")).strip()[:2000]  # cap at 2000 chars
         agent = str(data.get("agent", "ceo")).lower()
         debate_mode = bool(data.get("debate_mode", False))
@@ -2558,6 +2590,18 @@ app.register_blueprint(
 
 @app.before_request
 def begin_metered_operation():
+    if (
+        (getattr(g, "account", None) or {}).get("role") == "customer"
+        and (request.path.startswith("/api/agent/execute/") or request.path == "/api/chat/message")
+        and request.method == "POST"
+        and not billing_service.has_active_membership(_browser_session_id())
+    ):
+        return analysis_access_error(
+            SubscriptionRequired(
+                "Individual agent tasks and chat require a membership. "
+                "Use Analyze or Launch Graph Execution for your free analysis."
+            )
+        )
     if request.path in {"/api/ceo/analyze", "/api/cfo/analyze"} or request.path.startswith(
         "/api/agent/execute/"
     ):
@@ -2573,6 +2617,30 @@ def begin_metered_operation():
 def insufficient_execution_credits(exc):
     logger.warning("Execution stopped for insufficient credits")
     return jsonify(success=False, error=str(exc), code="insufficient_credits"), 402
+
+
+@app.errorhandler(SubscriptionRequired)
+@app.errorhandler(AnalysisInProgress)
+def analysis_access_error(exc):
+    logger.warning(f"Analysis access denied: {exc}")
+    pending = isinstance(exc, AnalysisInProgress)
+    return (
+        jsonify(
+            success=False,
+            error=str(exc),
+            code="analysis_in_progress" if pending else "subscription_required",
+        ),
+        409 if pending else 402,
+    )
+
+
+@app.get("/api/account/access")
+@require_account
+def account_access():
+    return jsonify(
+        success=True,
+        **AnalysisAccess().status(_browser_session_id(), get_runtime().store),
+    )
 
 
 @app.after_request

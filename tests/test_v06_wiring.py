@@ -474,8 +474,10 @@ const displayAgentReport = (agent, result) => {
 
 
 def test_blank_dashboard_fields(test_client):
+    from config import APP_VERSION
+
     html = test_client.get("/").get_data(as_text=True)
-    assert "v0.8.0" in html
+    assert f"v{APP_VERSION}" in html
     assert 'value="1000"' not in html
     assert 'value="90"' not in html
     assert "Ohio Compliance" not in html

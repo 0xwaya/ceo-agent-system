@@ -60,5 +60,9 @@ jobs:
         run: |
           pytest -q tests/test_billing.py
 
+      - name: Verify account onboarding, free-run boundaries and public website evidence
+        run: |
+          pytest -q tests/test_account_onboarding.py tests/test_website_service.py
+
       - name: Run offline tests including source-build and isolated-runner contracts
         run: pytest -q

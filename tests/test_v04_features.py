@@ -308,9 +308,11 @@ class TestIndexHTMLV4Layout:
         assert "v4-layout" in body, "index.html must include body class 'v4-layout'"
 
     def test_version_badge_v04(self, client):
+        from config import APP_VERSION
+
         resp = client.get("/")
         body = resp.data.decode("utf-8")
-        assert "v0.8.0" in body, "index.html must display the current version badge"
+        assert f"v{APP_VERSION}" in body, "index.html must display the current version badge"
 
     def test_three_panel_ids_present(self, client):
         resp = client.get("/")

@@ -98,10 +98,18 @@
             else %}-{% endif %}
           </span>
         </div>
-        <div class="v4-hb-item" id="walletCreditsContainer" style="cursor: pointer;" onclick="openTopUpModal()" title="Manage membership and execution allowance">
-          <span class="v4-hb-label">Membership</span>
+        <button type="button" class="v4-hb-item" id="walletCreditsContainer" onclick="openTopUpModal()" title="Subscribe with Stripe or manage your membership">
+          <span class="v4-hb-label">Subscribe / Membership</span>
           <span class="v4-hb-val" id="walletCredits" style="color: #38bdf8;">$0.00</span>
-        </div>
+        </button>
+        {% if g.account %}
+        <form action="/logout" method="post">
+          <input type="hidden" name="csrf" value="{{ csrf_token() }}">
+          <button type="submit">Log out</button>
+        </form>
+        {% else %}
+        <a href="/login">Log in</a>
+        {% endif %}
       </div>
 
       <button class="v4-run-btn" id="launchOrchestration" type="button">
@@ -133,12 +141,14 @@
               />
             </div>
             <div class="v4-cfg-field">
-              <label>DBA / Brand</label>
+              <label for="website">Website</label>
               <input
-                type="text"
-                id="dbaName"
-                value="{{ scenario_defaults.dba_name | default('') }}"
+                type="url"
+                id="website"
+                placeholder="https://example.com"
+                value="{{ scenario_defaults.website | default('') }}"
               />
+              <small>Optional: public homepage text informs the analysis.</small>
             </div>
             <div class="v4-cfg-field">
               <label>Industry</label>

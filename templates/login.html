@@ -1,10 +1,10 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CEO Agent Login</title></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CEO Agent Login</title><link rel="stylesheet" href="{{ url_for('static', filename='css/accounts.css') }}"></head>
 <body>
   <main>
-    <h1>Private dashboard login</h1>
-    <p>Accounts are provisioned by the operator. Public registration is disabled.</p>
+    <h1>CEO Orchestrator login</h1>
+    <p>Sign in to your application account. This is not your Oracle or Stripe login.</p>
     {% if error %}<p role="alert">{{ error }}</p>{% endif %}
     <form method="post" action="/login">
       <input type="hidden" name="csrf" value="{{ csrf_token() }}">
@@ -12,6 +12,7 @@
       <label>Password <input name="password" type="password" required maxlength="256" autocomplete="current-password"></label>
       <button type="submit">Log in</button>
     </form>
+    <p><a href="/signup">Create a customer account</a> · <a href="/setup">First-time administrator setup</a></p>
   </main>
 </body>
 </html>

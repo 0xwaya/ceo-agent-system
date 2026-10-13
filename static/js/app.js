@@ -85,6 +85,7 @@ function getDefaultScenario() {
         return {
             company_name: '',
             dba_name: '',
+            website: '',
             industry: '',
             location: '',
             budget: 0,
@@ -96,6 +97,7 @@ function getDefaultScenario() {
     return {
         company_name: configDefaults.company_name || '',
         dba_name: configDefaults.dba_name || '',
+        website: configDefaults.website || '',
         industry: configDefaults.industry || '',
         location: configDefaults.location || '',
         budget: Number.parseFloat(configDefaults.budget) || 0,
@@ -249,7 +251,7 @@ function bindIndustrySelectorBehavior() {
 function getScenarioFromForm() {
     const defaults = getDefaultScenario();
     const companyNameInput = document.getElementById('companyName');
-    const dbaNameInput = document.getElementById('dbaName');
+    const websiteInput = document.getElementById('website');
     const locationInput = document.getElementById('location');
     const budgetInput = document.getElementById('budget');
     const timelineInput = document.getElementById('timeline');
@@ -259,7 +261,8 @@ function getScenarioFromForm() {
 
     const companyInfo = {
         company_name: companyNameInput?.value || defaults.company_name,
-        dba_name: dbaNameInput?.value || companyNameInput?.value || defaults.dba_name,
+        dba_name: companyNameInput?.value || defaults.dba_name,
+        website: websiteInput?.value.trim() || '',
         industry: getIndustryValueFromForm() || defaults.industry,
         location: locationInput?.value || defaults.location,
         budget: Number.isFinite(parsedBudget) ? parsedBudget : defaults.budget,
@@ -307,7 +310,7 @@ function applyScenarioToForm(scenario) {
 
     const fieldMap = {
         companyName: scenario.company_name,
-        dbaName: scenario.dba_name,
+        website: scenario.website || '',
         location: scenario.location,
         budget: scenario.budget,
         timeline: scenario.timeline
@@ -342,6 +345,7 @@ async function syncScenarioToBackend(scenario) {
             company_name: scenario.company_name,
             name: scenario.name,
             dba_name: scenario.dba_name,
+            website: scenario.website || '',
             industry: scenario.industry,
             location: scenario.location,
             budget: scenario.budget,
@@ -416,7 +420,7 @@ function initializeScenarioSync() {
         syncTimer = setTimeout(() => syncScenarioToBackend(getScenarioFromForm()), 400);
     };
 
-    ['companyName', 'dbaName', 'industry', 'industryOther', 'location', 'budget', 'timeline', 'objectives'].forEach((elementId) => {
+    ['companyName', 'website', 'industry', 'industryOther', 'location', 'budget', 'timeline', 'objectives'].forEach((elementId) => {
         const input = document.getElementById(elementId);
         if (!input) {
             return;
@@ -775,6 +779,7 @@ async function analyzeObjectives() {
         const analyzePayload = {
             company_name: scenario.company_name,
             dba_name: scenario.dba_name,
+            website: scenario.website || '',
             industry: scenario.industry,
             location: scenario.location,
             budget: scenario.budget,
@@ -796,6 +801,7 @@ async function analyzeObjectives() {
 
         console.log('Response status:', response.status);
         const data = await response.json();
+        if (data.code === 'subscription_required') await openTopUpModal();
         console.log('Response data:', data);
 
         if (data.success) {
@@ -829,6 +835,8 @@ async function analyzeObjectives() {
 
             // Display analysis report in execution report section
             displayAnalysisReport(data.company_name ? data : scenario, data);
+            showWebsiteEvidence(data.website_evidence);
+            if (data.free_analysis_completed) await showTrialComplete('analysis');
 
             // Chat notification - analysis complete
             addChatMessage(
@@ -860,6 +868,7 @@ async function runFullOrchestration() {
         const companyInfo = {
             company_name: scenario.company_name,
             dba_name: scenario.dba_name,
+            website: scenario.website || '',
             industry: scenario.industry,
             location: scenario.location,
             budget: scenario.budget,
@@ -881,6 +890,7 @@ async function runFullOrchestration() {
             body: JSON.stringify({
                 company_name: companyInfo.company_name,
                 dba_name: companyInfo.dba_name,
+                website: companyInfo.website,
                 industry: companyInfo.industry,
                 location: companyInfo.location,
                 total_budget: companyInfo.budget,
@@ -890,6 +900,7 @@ async function runFullOrchestration() {
         });
 
         const data = await response.json();
+        if (data.code === 'subscription_required') await openTopUpModal();
         if (response.ok && data.success) {
             state.activeThreadId = data.thread_id;
             if (data.job_id) {
@@ -928,6 +939,7 @@ async function executeAgent(agentType, selectedTask = null) {
                 company_name: scenario.company_name,
                 name: scenario.company_name,
                 dba_name: scenario.dba_name,
+                website: scenario.website || '',
                 industry: scenario.industry,
                 location: scenario.location,
                 budget: scenario.budget,
@@ -939,6 +951,7 @@ async function executeAgent(agentType, selectedTask = null) {
                 body: JSON.stringify({
                     company_name: companyInfo.company_name,
                     dba_name: companyInfo.dba_name,
+                    website: companyInfo.website,
                     industry: companyInfo.industry,
                     location: companyInfo.location,
                     total_budget: companyInfo.budget,
@@ -948,6 +961,7 @@ async function executeAgent(agentType, selectedTask = null) {
             });
 
             const result = await response.json();
+            if (result.code === 'subscription_required') await openTopUpModal();
             if (response.ok && result.success) {
                 state.activeThreadId = result.thread_id;
                 if (result.job_id) {
@@ -975,6 +989,7 @@ async function executeAgent(agentType, selectedTask = null) {
             company_name: scenario.company_name,
             name: scenario.company_name,
             dba_name: scenario.dba_name,
+            website: scenario.website || '',
             industry: scenario.industry,
             location: scenario.location,
             budget: scenario.budget,
@@ -998,6 +1013,7 @@ async function executeAgent(agentType, selectedTask = null) {
                     company_name: companyInfo.company_name,
                     name: companyInfo.company_name,
                     dba_name: companyInfo.dba_name,
+                    website: companyInfo.website,
                     industry: companyInfo.industry,
                     location: companyInfo.location,
                     budget: companyInfo.budget,
@@ -1009,6 +1025,7 @@ async function executeAgent(agentType, selectedTask = null) {
 
         console.log('Response status:', response.status);
         const data = await response.json();
+        if (data.code === 'subscription_required') await openTopUpModal();
         console.log('Response data:', data);
 
         if (data.success) {
@@ -2867,6 +2884,7 @@ async function runtimeRequest(path, body) {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
     });
     const data = await response.json();
+    if (data.code === 'subscription_required') await openTopUpModal();
     if (!response.ok || data.success === false) throw new Error(data.error || `Request failed (${response.status})`);
     return data;
 }
@@ -2933,6 +2951,8 @@ async function watchDurableJob(identifier) {
                 ...job.payload, budget: job.payload.total_budget, timeline: job.payload.target_days
             });
             hideProgressBar();
+            if (job.result.website_evidence) showWebsiteEvidence(job.result.website_evidence);
+            if (job.result.free_analysis_completed) await showTrialComplete(job.id);
         } else {
             updateStatus(`${job.status}: ${job.error || 'No further work will be performed'}`, 'error');
             addChatMessage(`❌ Job ${job.status}: ${job.error || 'No further work will be performed'}. No complete orchestration report was generated.`, 'error');
@@ -3019,6 +3039,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let currentWalletBalance = 0.0;
 
+function showWebsiteEvidence(evidence) {
+    if (!evidence || evidence.status === 'not_requested') return;
+    const message = evidence.status === 'fetched'
+        ? `Public homepage reviewed: ${evidence.url}. Website claims are not independently verified.`
+        : evidence.warning;
+    addChatMessage(message, 'system');
+    addLogEntry(message, evidence.status === 'fetched' ? 'info' : 'warning');
+}
+
+async function showTrialComplete(identifier) {
+    const key = `ceo_trial_notice:${ACCOUNT_SCOPE}:${identifier}`;
+    if (localStorage.getItem(key)) return;
+    localStorage.setItem(key, 'shown');
+    addChatMessage('Your free analysis is complete. Your report remains available. Subscribe to run another analysis.', 'system');
+    await openTopUpModal();
+}
+
 async function fetchWalletBalance() {
     try {
         const response = await fetch('/api/billing/balance');
@@ -3052,6 +3089,18 @@ async function openTopUpModal() {
     content.textContent = 'Loading membership...';
     try {
         const wallet = await fetchWalletBalance();
+        const access = await runtimeRequest('/api/account/access');
+        if (!wallet.billing_enabled || !wallet.webhook_configured) {
+            content.innerHTML = `
+                <h2>WayaLabs AI Membership</h2>
+                <p>${access.free_analysis_available
+                    ? 'Your first successful analysis is free.'
+                    : 'Your free analysis is in progress or has been used.'}</p>
+                <p>Stripe checkout is not configured on this server yet. Payments are unavailable;
+                    no charges have been made. Your existing reports remain accessible.</p>
+                <button class="btn btn-small" onclick="closeBillingModal()">Close</button>`;
+            return;
+        }
         const data = await runtimeRequest('/api/billing/plans');
         const plan = data.membership;
         const history = wallet.history.map(item =>
@@ -3059,6 +3108,8 @@ async function openTopUpModal() {
         ).join('');
         content.innerHTML = `
             <h2>WayaLabs AI Membership ${data.sandbox ? '(Sandbox)' : ''}</h2>
+            <p>${access.free_analysis_available ? 'Your first successful analysis is free.'
+                : 'Further analyses require an active membership.'}</p>
             <p>$${plan.price_usd.toFixed(2)}/month includes $${plan.included_usd.toFixed(2)}
                 of model execution allowance. Monthly credits reset at renewal; top-ups remain.</p>
             <p><strong>Available: $${wallet.balance_usd.toFixed(2)}</strong>

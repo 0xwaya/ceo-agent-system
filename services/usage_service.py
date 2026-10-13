@@ -44,7 +44,11 @@ class UsageCallback(BaseCallbackHandler):
         from services.billing_service import billing_service
 
         reference = None
-        if billing_service.enabled():
+        from services.analysis_access import AnalysisAccess
+
+        if billing_service.enabled() and not AnalysisAccess().is_free(
+            self.job["owner"], self.job["id"]
+        ):
             reference = f"{self.job['id']}:{uuid.uuid4().hex}"
             billing_service.reserve(self.job["owner"], reference, cost)
         try:

@@ -1,6 +1,7 @@
 """Browser billing APIs and the separately authenticated Stripe webhook."""
 
 import logging
+import os
 from flask import Blueprint, g, jsonify, request
 import stripe
 import click
@@ -54,6 +55,8 @@ def billing_blueprint(owner_getter, protect):
         if not billing_service.enabled():
             raise BillingUnavailable("Membership billing is disabled")
         settings = billing_service.settings()
+        if not os.getenv("STRIPE_WEBHOOK_SECRET", "").startswith("whsec_"):
+            raise BillingUnavailable("Configure signed Stripe webhook delivery before payments")
         if request.host != urlsplit(settings["origin"]).netloc:
             raise BillingUnavailable(
                 f"Open the dashboard at {settings['origin']} before starting a payment"

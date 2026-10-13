@@ -149,8 +149,22 @@ class BillingService:
             "cancel_at_period_end": bool(row["cancel_at_period_end"]),
             "period_end": row["expires"],
             "billing_enabled": self.enabled(),
+            "webhook_configured": os.getenv("STRIPE_WEBHOOK_SECRET", "").startswith("whsec_"),
             "history": history,
         }
+
+    def has_active_membership(self, owner):
+        with closing(self.connect()) as db:
+            row = db.execute(
+                "SELECT subscription,status,expires FROM billing_wallets WHERE workspace=?",
+                (owner,),
+            ).fetchone()
+        return bool(
+            row
+            and row["subscription"]
+            and row["status"] == "active"
+            and row["expires"] > int(time.time())
+        )
 
     def _audit(self, db, workspace, amount, kind, reference):
         db.execute(

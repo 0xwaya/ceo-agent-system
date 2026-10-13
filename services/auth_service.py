@@ -30,6 +30,8 @@ class AuthStore:
                     token TEXT PRIMARY KEY, account TEXT NOT NULL, expires REAL NOT NULL);
                 CREATE TABLE IF NOT EXISTS attempts(
                     key TEXT PRIMARY KEY, count INTEGER NOT NULL, expires REAL NOT NULL);
+                CREATE TABLE IF NOT EXISTS setup(
+                    id INTEGER PRIMARY KEY CHECK(id=1), token TEXT NOT NULL, expires REAL NOT NULL);
                 """
             )
         self.path.chmod(0o600)
@@ -39,16 +41,67 @@ class AuthStore:
         db.row_factory = sqlite3.Row
         return db
 
-    def create(self, email, password, role):
+    def create(self, email, password, role, setup_token=None):
         email = email.strip().lower()
-        if "@" not in email or len(email) > 254 or role not in {"admin", "reviewer"}:
-            raise ValueError("Valid email and admin/reviewer role required")
+        if (
+            not email
+            or email.count("@") != 1
+            or any(c.isspace() for c in email)
+            or not all(email.split("@"))
+            or len(email) > 254
+            or role not in {"admin", "reviewer", "customer"}
+        ):
+            raise ValueError("Valid email and account role required")
         if len(password) < 14 or len(password) > 256:
             raise ValueError("Password must contain 14 to 256 characters")
+        password_hash = generate_password_hash(password)
         with closing(self.connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            if setup_token is not None:
+                setup = db.execute("SELECT * FROM setup WHERE id=1").fetchone()
+                if (
+                    role != "admin"
+                    or db.execute("SELECT 1 FROM accounts WHERE role='admin'").fetchone()
+                    or not setup
+                    or setup["expires"] <= time.time()
+                    or not secrets.compare_digest(setup["token"], _digest(setup_token))
+                ):
+                    raise ValueError("Administrator setup code is invalid or expired")
             db.execute(
                 "INSERT INTO accounts VALUES(?,?,?,?,1)",
-                (secrets.token_hex(16), email, generate_password_hash(password), role),
+                (secrets.token_hex(16), email, password_hash, role),
+            )
+            if role == "admin":
+                db.execute("DELETE FROM setup")
+
+    def has_admin(self):
+        with closing(self.connect()) as db:
+            return bool(db.execute("SELECT 1 FROM accounts WHERE role='admin'").fetchone())
+
+    def prepare_setup(self):
+        token = secrets.token_urlsafe(32)
+        with closing(self.connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            if db.execute("SELECT 1 FROM accounts WHERE role='admin'").fetchone():
+                raise ValueError("Administrator already exists; setup is closed")
+            db.execute(
+                "INSERT OR REPLACE INTO setup VALUES(1,?,?)",
+                (_digest(token), time.time() + 1800),
+            )
+        return token
+
+    def throttle_registration(self, address):
+        key = _digest("registration:" + address)
+        now = time.time()
+        with closing(self.connect()) as db, db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("DELETE FROM attempts WHERE expires<=?", (now,))
+            row = db.execute("SELECT count FROM attempts WHERE key=?", (key,)).fetchone()
+            if row and row["count"] >= 5:
+                raise PermissionError("Too many registration attempts; try again in 15 minutes")
+            db.execute(
+                "INSERT INTO attempts VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1",
+                (key, now + 900),
             )
 
     def revoke(self, email):
@@ -144,7 +197,7 @@ def install_auth(app, store_getter):
             if request.remote_addr not in {"127.0.0.1", "::1"}:
                 return jsonify(success=False, error="Login-disabled access is localhost-only"), 403
             return None
-        public = request.endpoint == "static" or request.path in {"/login"}
+        public = request.endpoint == "static" or request.path in {"/login", "/setup", "/signup"}
         if request.path.startswith("/socket.io"):
             return None  # Socket.IO validates the account on every event.
         g.account = store_getter().resolve(session.get("auth_token"))
@@ -172,8 +225,10 @@ def install_auth(app, store_getter):
             allowed = (
                 "/api/graph/execute",
                 "/api/ceo/analyze",
+                "/api/cfo/analyze",
                 "/api/agents/available",
                 "/api/scenario/current",
+                "/api/account/access",
                 "/api/chat/message",
                 "/api/chat/clear",
                 "/api/connectors/local-export",
@@ -219,6 +274,49 @@ def install_auth(app, store_getter):
                 return redirect("/")
         return render_template("login.html", error=error), 401 if error else 200
 
+    @app.route("/setup", methods=["GET", "POST"])
+    @app.route("/signup", methods=["GET", "POST"])
+    def register():
+        if not app.config["ACCOUNT_AUTH_ENABLED"]:
+            return redirect("/")
+        setup = request.path == "/setup"
+        store = store_getter()
+        if setup and store.has_admin():
+            return (
+                render_template(
+                    "login.html", error="Administrator setup is closed. Please log in."
+                ),
+                403,
+            )
+        if not setup and not store.has_admin():
+            return redirect("/setup")
+        error = None
+        status = 200
+        if request.method == "POST":
+            try:
+                store.throttle_registration(request.remote_addr or "unknown")
+                password = request.form.get("password", "")
+                if password != request.form.get("confirmation"):
+                    raise ValueError("Passwords do not match")
+                store.create(
+                    request.form.get("email", ""),
+                    password,
+                    "admin" if setup else "customer",
+                    setup_token=request.form.get("setup_code", "") if setup else None,
+                )
+            except PermissionError as exc:
+                logger.warning("Account registration throttled")
+                error, status = str(exc), 429
+            except sqlite3.IntegrityError:
+                logger.warning("Rejected duplicate account registration")
+                error, status = "Unable to register this email. Try logging in.", 400
+            except ValueError as exc:
+                logger.warning("Rejected account registration: %s", exc)
+                error, status = str(exc), 400
+            else:
+                return redirect("/login")
+        return render_template("register.html", setup=setup, error=error), status
+
     @app.post("/logout")
     def logout():
         token = session.get("auth_token")
@@ -238,6 +336,16 @@ def install_auth(app, store_getter):
         except (ValueError, sqlite3.IntegrityError) as exc:
             raise click.ClickException(str(exc)) from exc
         click.echo("Account created. No remote access was enabled.")
+
+    @app.cli.command("prepare-setup")
+    def prepare_setup():
+        """Issue a one-use, 30-minute code for the browser's administrator setup."""
+        try:
+            token = store_getter().prepare_setup()
+        except ValueError as exc:
+            raise click.ClickException(str(exc)) from exc
+        click.echo("Open /setup through your SSH tunnel. Setup code (expires in 30 minutes):")
+        click.echo(token)
 
     @app.cli.command("revoke-account")
     @click.option("--email", required=True)

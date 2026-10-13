@@ -40,6 +40,8 @@ def isolate_runtime_state(monkeypatch, tmp_path):
     import app as app_module
     from services.artifact_service import ArtifactService
 
+    if app_module.limiter is not None:
+        app_module.limiter.reset()
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("APP_RUNTIME_DIR", str(tmp_path / "runtime"))
     monkeypatch.setattr(app_module, "_runtime", None)

@@ -250,6 +250,12 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
     dispatch_plan = state.get("dispatch_plan", [])
 
     domains_completed = ", ".join(dispatch_plan) if dispatch_plan else "N/A"
+    evidence = state.get("website_evidence", {})
+    website_note = (
+        f"Public homepage reviewed: {evidence.get('url')} (website claims, not verified facts)."
+        if evidence.get("status") == "fetched"
+        else evidence.get("warning") or "No website was supplied."
+    )
 
     final_summary = (
         f"\n{'='*80}\n"
@@ -261,7 +267,9 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
         f"CEO DECISIONS : {len(executive_decisions)}\n"
         f"BUDGET LEFT   : ${budget_remaining:,.2f}\n\n"
         f"STATUS: Local planning artifacts generated; review required.\n"
-        f"EXTERNAL ACTIONS: None. No deployment, purchases, outreach or live research.\n"
+        f"EXTERNAL ACTIONS: No deployment, purchases or outreach.\n"
+        f"WEBSITE: {website_note}\n"
+        f"No other live research was performed.\n"
         f"REVIEW DATE: {datetime.now(timezone.utc).date()}\n"
         f"{'='*80}\n"
     )
@@ -397,6 +405,7 @@ def execute_multi_agent_system(
     user_raw_input: Optional[str] = None,
     use_checkpointing: bool = True,
     thread_id: Optional[str] = None,
+    website: str = "",
 ) -> Dict[str, Any]:
     """
     Execute the complete 3-tier multi-agent system.
@@ -424,6 +433,10 @@ def execute_multi_agent_system(
         objectives=objectives,
         user_raw_input=user_raw_input,
     )
+    from services.website_service import fetch_homepage
+
+    initial_state["website"] = website
+    initial_state["website_evidence"] = fetch_homepage(website)
 
     ceo_state: CEOState = {
         **initial_state,

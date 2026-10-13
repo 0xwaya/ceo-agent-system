@@ -140,6 +140,11 @@ class JobStore:
                     job["id"],
                 ),
             )
+        if job["kind"] in {"graph", "usage"}:
+            from services.analysis_access import AnalysisAccess
+
+            completed = self.get(job["id"], job["owner"])
+            AnalysisAccess().finish(job["id"], completed["status"] == "succeeded")
 
     def begin_operation(self, owner):
         return self.create(owner, "usage", {})

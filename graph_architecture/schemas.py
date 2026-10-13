@@ -486,6 +486,8 @@ class SharedState(TypedDict):
     company_name: str
     industry: str
     location: str
+    website: NotRequired[str]
+    website_evidence: NotRequired[Dict[str, Any]]
 
     # ── Strategic objectives (set by CEO) ──────────────────────────────────
     strategic_objectives: Annotated[List[str], operator.add]

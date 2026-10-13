@@ -146,6 +146,9 @@ class CFOStateBuilder:
             timeline=timeline,
             objectives=[item.strip() for item in objectives],
         )
+        from services.website_service import normalize_website
+
+        state["website"] = normalize_website(values.get("website", ""))
         valid, error = CFOStateBuilder.validate_state(state)
         if not valid:
             raise ValidationError(error)

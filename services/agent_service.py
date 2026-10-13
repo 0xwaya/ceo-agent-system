@@ -58,6 +58,7 @@ def run_agent_node(agent_type: str, state: Dict[str, Any]) -> Dict[str, Any]:
         "external_actions_executed": False,
         "spend_verified": False,
         "version": APP_VERSION,
+        "website_evidence": state.get("website_evidence", {}),
     }
     bundle = artifact_service.persist_agent_execution(
         agent_type=agent_type,
@@ -68,6 +69,7 @@ def run_agent_node(agent_type: str, state: Dict[str, Any]) -> Dict[str, Any]:
             "dba_name": state.get("dba_name") or state["company_name"],
             "industry": state["industry"],
             "location": state["location"],
+            "website": state.get("website", ""),
         },
         result=result,
     )
@@ -95,6 +97,9 @@ class AgentExecutionService:
             }
         )
         state.update(privacy_scrub_node(state))
+        from services.website_service import fetch_homepage
+
+        state["website_evidence"] = fetch_homepage(state["website"])
         update = run_agent_node(agent_type, state)
         record = update["agent_outputs"][0]
         return {

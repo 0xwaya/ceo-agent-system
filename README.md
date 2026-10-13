@@ -4,11 +4,15 @@
 
 > Most multi-agent demos stop at chat. This one produces reviewable files and a live ops dashboard.
 
-**Current release: v0.8.0** — named authentication, private owner-scoped artifacts,
+**Current release: v0.8.1** — protected first-administrator setup, customer sign-up,
+one free successful customer analysis followed by verified subscription gating,
+public homepage evidence, named authentication, private owner-scoped artifacts,
 legacy runtime cleanup, opt-in MemPalace memory, durable local jobs,
 token/cost ceilings, and approval-gated local exports.
-No publishing, purchases, outreach, deployment, live research, or generated-code execution
-is performed. Model failures are reported rather than replaced with preset results.
+No publishing, purchases, outreach, deployment, broader live research, or generated-code
+execution is performed. Optional website text is attributed, untrusted homepage evidence.
+Model and homepage failures are reported rather than replaced with preset results.
+See [account setup and Oracle access](docs/UPGRADE_NEXT_SESSION.md) for onboarding.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-blueviolet)](https://github.com/langchain-ai/langgraph)

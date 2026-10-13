@@ -1,5 +1,49 @@
 # Oracle VCN access and release handoff: October 13, 2026
 
+## Account onboarding, website evidence, and free analysis
+
+- Application accounts are separate from Oracle and Stripe logins. No account
+  password belongs in `.env`. Passwords are hashed in the private runtime database.
+- With `ENABLE_AUTH=true` and a strong persistent `SECRET_KEY`, `/setup` presents
+  first-time administrator setup. It requires a one-use code, expires in 30 minutes,
+  and closes permanently once an administrator exists. Existing CLI provisioning
+  remains available for operator recovery.
+- To obtain your code on Oracle, start with `ssh oracle-ceo`, then run:
+
+  ```bash
+  cd /home/ubuntu/apps/ceo-agent-system
+  source /home/ubuntu/.venvs/ceo-agent-system/bin/activate
+  python -m flask --app app prepare-setup
+  ```
+
+  Open **http://127.0.0.1:5002/setup** on your Mac. Enter the code, your application
+  email, and a new password of at least 14 characters. Then log in at `/login`.
+  Do not post the setup code or password in chat. Do not start a second app process.
+- `/signup` creates ordinary customer accounts after administrator setup.
+  Email verification and password-reset delivery are not implemented; keep the
+  current deployment private behind the SSH tunnel, not public production.
+- Each customer account has one successful free analysis, shared between Analyze,
+  the legacy CFO analysis endpoint, and Launch Graph Execution. Concurrent trial
+  requests are rejected. Invalid, failed, cancelled, and interrupted runs do not
+  consume the trial. Operator/admin and existing reviewer accounts retain their
+  previous privileged testing behavior.
+- Free runs retain model-token/cost ceilings and measured usage, but do not debit
+  the customer wallet. After the trial, a verified active subscription with a
+  paid, unexpired period is required. Individual agent tasks and chat require a
+  membership and cannot bypass the gate. Reports remain readable after the trial.
+- The scenario Website field replaces DBA/Brand in the dashboard; the legacy DBA
+  API field remains compatible. Optional public homepage evidence is fetched
+  with DNS-pinned public destinations, redirect validation, verified HTTPS,
+  bounded content and network reads. Page text is untrusted model data, not
+  instructions or independent verification. Fetch failures appear as warnings.
+- The header now has an explicit Subscribe / Membership button; a subscription
+  popup follows a successful free run or a blocked repeat. Stripe secrets and a
+  working signed webhook must be configured separately. Missing payment
+  configuration is reported explicitly, not presented as a successful checkout.
+- Validation: `make check PYTHON=.venv/bin/python` passed (188 tests, Black,
+  Flake8, consistency gate, and dashboard smoke). A real public HTTPS homepage
+  fetch succeeded without invoking a model. No live charges were made.
+
 ## Latest handoff: Stripe membership integration
 
 This section supersedes the older October 12 snapshots below.

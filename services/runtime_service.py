@@ -47,8 +47,18 @@ class RuntimeService:
                 (key, int(enabled)),
             )
 
-    def submit(self, owner, payload):
-        job = self.store.create(owner, "graph", payload)
+    def submit(self, owner, payload, require_membership=False):
+        job = self.store.create(owner, "graph", payload, approval=require_membership)
+        if require_membership:
+            from services.analysis_access import AnalysisAccess
+
+            try:
+                AnalysisAccess().claim(owner, job["id"], self.store)
+            except Exception as exc:
+                self.store.finish(job, error=str(exc))
+                raise
+            self.store.approve(job["id"], owner)
+            job = self.store.get(job["id"], owner)
         self.worker.start()
         return job
 
@@ -84,6 +94,9 @@ class RuntimeService:
 
                 return generate_source(job["payload"])
             result = self.graph_execute(**job["payload"], thread_id=f'{job["owner"]}:{job["id"]}')
+            from services.analysis_access import AnalysisAccess
+
+            result["free_analysis_completed"] = AnalysisAccess().is_free(job["owner"], job["id"])
             return result
         finally:
             active_usage.reset(token)
