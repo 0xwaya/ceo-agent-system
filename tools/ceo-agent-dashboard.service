@@ -1,0 +1,17 @@
+[Unit]
+Description=Private CEO Orchestrator dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/apps/ceo-agent-system
+ExecStart=/home/ubuntu/start_ceo.sh
+Restart=on-failure
+RestartSec=3
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

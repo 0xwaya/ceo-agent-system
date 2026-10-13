@@ -43,6 +43,25 @@
 - Validation: `make check PYTHON=.venv/bin/python` passed (188 tests, Black,
   Flake8, consistency gate, and dashboard smoke). A real public HTTPS homepage
   fetch succeeded without invoking a model. No live charges were made.
+- Release `e0ca00b` was pulled onto Oracle. Application authentication is enabled;
+  `/login` and `/setup` returned HTTP 200 through the Mac's port-5002 tunnel,
+  and anonymous scenario API access returned HTTP 401. The setup page was also
+  checked in the browser. No administrator password has been created for you.
+- The dashboard uses the `ceo-agent-dashboard` systemd service with the existing
+  `~/start_ceo.sh`, localhost binding, and port 5001. The service definition is
+  tracked in `tools/ceo-agent-dashboard.service`; install it with:
+
+  ```bash
+  sudo install -m 644 tools/ceo-agent-dashboard.service /etc/systemd/system/
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now ceo-agent-dashboard
+  ```
+
+  For an installed service, use `sudo systemctl restart ceo-agent-dashboard`
+  after updates and `sudo journalctl -u ceo-agent-dashboard --no-pager -n 50`
+  for logs. Do not run a second copy of `~/start_ceo.sh`. Enabling this service
+  restores the app after a VM reboot; it does not start a stopped Oracle VM.
+  The older manual startup examples below describe the pre-service deployment.
 
 ## Latest handoff: Stripe membership integration
 
