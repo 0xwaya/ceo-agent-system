@@ -11,6 +11,10 @@ jobs:
     env:
       APP_ENV: testing
       OPENAI_API_KEY: ""
+      STRIPE_SECRET_KEY: ""
+      STRIPE_API_KEY: ""
+      STRIPE_WEBHOOK_SECRET: ""
+      BILLING_ENABLED: "false"
 
     steps:
       - name: Checkout
@@ -52,9 +56,9 @@ jobs:
           node --check static/js/app.js
           node --check static/js/auth.js
 
-      - name: Verify billing and Stripe credit foundation
+      - name: Verify memberships, signed fulfillment and spending reservations offline
         run: |
-          python3 -c "import services.billing_service; print('Billing service loaded')"
+          pytest -q tests/test_billing.py
 
       - name: Run offline tests including source-build and isolated-runner contracts
         run: pytest -q

@@ -134,6 +134,9 @@ def install_auth(app, store_getter):
 
     @app.before_request
     def authorize():
+        # Stripe has no browser session; the billing route verifies the signed raw body.
+        if request.path == "/api/billing/webhook" and request.method == "POST":
+            return None
         # Historical artifacts never have a trustworthy owner.
         if request.path.startswith("/static/generated_outputs"):
             return jsonify(success=False, error="Public artifact access is disabled"), 404
@@ -175,7 +178,13 @@ def install_auth(app, store_getter):
                 "/api/chat/clear",
                 "/api/connectors/local-export",
             )
-            prefixes = ("/api/jobs/", "/api/memory/", "/api/artifacts/", "/api/agent/execute/")
+            prefixes = (
+                "/api/jobs/",
+                "/api/memory/",
+                "/api/artifacts/",
+                "/api/agent/execute/",
+                "/api/billing/",
+            )
             if request.path.startswith("/api/") and not (
                 request.path in allowed or request.path.startswith(prefixes)
             ):

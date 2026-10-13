@@ -910,7 +910,7 @@ async function runFullOrchestration() {
 }
 
 // Execute specific agent
-async function executeAgent(agentType) {
+async function executeAgent(agentType, selectedTask = null) {
     console.log(`🤖 Execute button clicked for: ${agentType}`);
 
     // CEO is the orchestration entry-point — route to full orchestration
@@ -991,7 +991,9 @@ async function executeAgent(agentType) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                task: `Execute ${agentType} tasks`,
+                task: selectedTask
+                    ? `${selectedTask.task_name || 'Task'}: ${selectedTask.description || ''}`
+                    : `Execute ${agentType} tasks`,
                 company_info: {
                     company_name: companyInfo.company_name,
                     name: companyInfo.company_name,
@@ -3008,7 +3010,7 @@ async function proposeCurrentExport() {
 document.addEventListener('DOMContentLoaded', () => {
     const job = localStorage.getItem(ACTIVE_JOB_STORAGE_KEY);
     if (job) watchDurableJob(job);
-    fetchWalletBalance();
+    fetchWalletBalance().catch(error => addLogEntry(error.message, 'error'));
 });
 
 // ============================================================================
@@ -3020,7 +3022,7 @@ let currentWalletBalance = 0.0;
 async function fetchWalletBalance() {
     try {
         const response = await fetch('/api/billing/balance');
-        if (!response.ok) return;
+        if (!response.ok) throw new Error('Could not load execution allowance');
         const data = await response.json();
         if (data.success && typeof data.balance_usd === 'number') {
             currentWalletBalance = data.balance_usd;
@@ -3028,9 +3030,11 @@ async function fetchWalletBalance() {
             if (walletEl) {
                 walletEl.textContent = `$${currentWalletBalance.toFixed(2)}`;
             }
+            return data;
         }
     } catch (e) {
         console.warn('Could not fetch wallet balance:', e);
+        throw e;
     }
 }
 
@@ -3039,38 +3043,47 @@ function closeBillingModal() {
     if (modal) modal.style.display = 'none';
 }
 
-function openTopUpModal() {
+async function openTopUpModal() {
     const modal = document.getElementById('billingModal');
     const content = document.getElementById('billingModalContent');
     if (!modal || !content) return;
 
-    content.innerHTML = `
-        <h2 style="margin-top:0; color:#f8fafc; font-size:1.3rem; display:flex; align-items:center; gap:0.5rem;">
-            💳 Top Up Agent Workspace Credits
-        </h2>
-        <p style="color:#94a3b8; font-size:0.85rem; line-height:1.5;">
-            Add funds to unlock live agent external tools, specialized research queries, and automated artifact delivery.
-        </p>
-
-        <div style="background:rgba(15,23,42,0.6); border:1px solid rgba(148,163,184,0.2); border-radius:10px; padding:1rem; margin:1rem 0;">
-            <div style="font-size:0.72rem; text-transform:uppercase; color:#94a3b8; font-weight:700;">Current Available Balance</div>
-            <div style="font-size:24px; font-weight:700; color:#38bdf8; margin-top:4px;">$${currentWalletBalance.toFixed(2)} USD</div>
-        </div>
-
-        <div style="margin:1rem 0;">
-            <label style="display:block; font-size:0.82rem; color:#cbd5e1; margin-bottom:6px; font-weight:600;">Select Top-Up Amount</label>
-            <div style="display:flex; gap:8px;">
-                <button type="button" class="btn btn-secondary" onclick="startStripeCheckout(5.00, 'topup')">+$5.00</button>
-                <button type="button" class="btn btn-secondary" onclick="startStripeCheckout(15.00, 'topup')">+$15.00</button>
-                <button type="button" class="btn btn-secondary" onclick="startStripeCheckout(25.00, 'topup')">+$25.00</button>
-            </div>
-        </div>
-
-        <div style="margin-top:1.5rem; text-align:right;">
-            <button type="button" class="btn btn-small" onclick="closeBillingModal()">Close</button>
-        </div>
-    `;
     modal.style.display = 'block';
+    content.textContent = 'Loading membership...';
+    try {
+        const wallet = await fetchWalletBalance();
+        const data = await runtimeRequest('/api/billing/plans');
+        const plan = data.membership;
+        const history = wallet.history.map(item =>
+            `<li>${escapeHTML(item.kind)}: $${(item.amount / 1000000).toFixed(4)}</li>`
+        ).join('');
+        content.innerHTML = `
+            <h2>WayaLabs AI Membership ${data.sandbox ? '(Sandbox)' : ''}</h2>
+            <p>$${plan.price_usd.toFixed(2)}/month includes $${plan.included_usd.toFixed(2)}
+                of model execution allowance. Monthly credits reset at renewal; top-ups remain.</p>
+            <p><strong>Available: $${wallet.balance_usd.toFixed(2)}</strong>
+                &middot; Status: ${escapeHTML(wallet.status)}
+                ${wallet.cancel_at_period_end ? '&middot; Cancels at period end' : ''}</p>
+            <p>No automatic overage charges. Your project budget is not charged.
+                External purchases require separate approval.</p>
+            <p>Pay securely with Apple Pay on eligible devices or a card.</p>
+            ${wallet.has_subscription
+                ? '<button class="btn btn-primary" onclick="openBillingPortal()">Manage membership</button>'
+                : `<button class="btn btn-primary" onclick="startMembershipCheckout()">
+                    Subscribe &mdash; $${plan.price_usd.toFixed(2)}/month</button>`}
+            <h3>Optional one-time top-up</h3>
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="startStripeCheckout(5)">+$5</button>
+                <button class="btn btn-secondary" onclick="startStripeCheckout(15)">+$15</button>
+                <button class="btn btn-secondary" onclick="startStripeCheckout(25)">+$25</button>
+            </div>
+            <h3>Recent credit activity</h3>
+            <ul>${history || '<li>No transactions yet.</li>'}</ul>
+            <button class="btn btn-small" onclick="closeBillingModal()">Close</button>`;
+    } catch (error) {
+        content.textContent = error.message;
+        addLogEntry(error.message, 'error');
+    }
 }
 
 async function executeTaskWithAgent(taskIndex) {
@@ -3089,27 +3102,27 @@ async function executeTaskWithAgent(taskIndex) {
         });
         const quoteData = await res.json();
         if (!quoteData.success) {
-            // Fallback directly to execution if quote fails
-            return executeAgent(assignedAgent);
+            throw new Error(quoteData.error || 'Could not calculate execution estimate');
         }
 
         const quote = quoteData.quote;
         const requiredCost = quote.total_quoted_usd || 0.50;
 
         // Refresh wallet balance
-        await fetchWalletBalance();
+        const wallet = await fetchWalletBalance();
+        if (!wallet.billing_enabled) return executeAgent(assignedAgent, task);
 
         // If sufficient funds, execute immediately
         if (currentWalletBalance >= requiredCost) {
             addLogEntry(`Workspace balance ($${currentWalletBalance.toFixed(2)}) covers quote ($${requiredCost.toFixed(2)}). Launching agent...`, 'success');
-            return executeAgent(assignedAgent);
+            return executeAgent(assignedAgent, task);
         }
 
         // Show cost solicitation & Stripe checkout modal
         showTaskQuoteModal(task, quote, assignedAgent);
     } catch (err) {
         console.error('Task execution error:', err);
-        return executeAgent(assignedAgent);
+        addLogEntry(err.message, 'error');
     }
 }
 
@@ -3128,7 +3141,8 @@ function showTaskQuoteModal(task, quote, assignedAgent) {
             ⚡ Task Execution Budget Required
         </h2>
         <p style="color:#cbd5e1; font-size:0.85rem; line-height:1.5;">
-            Executing <strong>${escapeHTML(taskName)}</strong> requires external compute and specialized API tools.
+            <strong>${escapeHTML(taskName)}</strong>: illustrative model usage estimate.
+            Actual usage is reserved server-side before each model call. External purchases are separate.
         </p>
 
         <div style="background:rgba(15,23,42,0.8); border:1px solid rgba(148,163,184,0.2); border-radius:10px; padding:1rem; margin:1rem 0;">
@@ -3138,11 +3152,11 @@ function showTaskQuoteModal(task, quote, assignedAgent) {
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
                 <span style="color:#94a3b8;">🔧 ${escapeHTML(b.tool_service || 'Specialized API Tooling')}</span>
-                <span style="color:#f8fafc; font-weight:600;">$${(b.tool_cost_usd || 0.20).toFixed(2)}</span>
+                <span style="color:#f8fafc; font-weight:600;">$${(b.tool_cost_usd ?? 0).toFixed(2)}</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:0.85rem;">
                 <span style="color:#94a3b8;">👔 Multi-Agent Orchestration & Validation</span>
-                <span style="color:#f8fafc; font-weight:600;">$${(b.platform_fee_usd || 0.20).toFixed(2)}</span>
+                <span style="color:#f8fafc; font-weight:600;">$${(b.platform_fee_usd ?? 0).toFixed(2)}</span>
             </div>
             <div style="border-top:1px solid rgba(148,163,184,0.2); padding-top:8px; margin-top:8px; display:flex; justify-content:space-between; font-size:1rem;">
                 <strong style="color:#f8fafc;">Total Required Cost</strong>
@@ -3151,13 +3165,15 @@ function showTaskQuoteModal(task, quote, assignedAgent) {
         </div>
 
         <div style="background:rgba(245,158,11,0.08); border:1px solid rgba(245,158,11,0.3); border-radius:8px; padding:10px 14px; margin-bottom:1.25rem; font-size:0.82rem; color:#fde68a;">
-            Your workspace balance is <strong>$${currentWalletBalance.toFixed(2)}</strong>. Please top up <strong>$${deficit}</strong> to proceed with live execution.
+            Your execution allowance is <strong>$${currentWalletBalance.toFixed(2)}</strong>.
+            Estimated shortfall: <strong>$${deficit}</strong>. Start a membership, top up,
+            or wait for renewal. No automatic overage charges.
         </div>
 
         <div style="display:flex; justify-content:flex-end; gap:0.5rem;">
             <button type="button" class="btn btn-secondary btn-small" onclick="closeBillingModal()">Cancel</button>
-            <button type="button" class="btn btn-primary btn-small" onclick="startStripeCheckout(${Math.max(5.0, parseFloat(deficit))}, '${task.task_id || 'task'}')">
-                💳 Top Up with Stripe ($${Math.max(5.0, parseFloat(deficit)).toFixed(2)})
+            <button type="button" class="btn btn-primary btn-small" onclick="openTopUpModal()">
+                Membership and top-ups
             </button>
         </div>
     `;
@@ -3165,13 +3181,13 @@ function showTaskQuoteModal(task, quote, assignedAgent) {
     modal.style.display = 'block';
 }
 
-async function startStripeCheckout(amountUsd, taskId) {
+async function startStripeCheckout(amountUsd) {
     try {
         addLogEntry(`Initiating Stripe checkout for $${amountUsd}...`, 'info');
         const res = await fetch('/api/billing/checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount_usd: amountUsd, task_id: taskId })
+            body: JSON.stringify({ kind: 'topup', amount_cents: Math.round(amountUsd * 100) })
         });
         const data = await res.json();
         if (data.success && data.checkout && data.checkout.checkout_url) {
@@ -3179,9 +3195,41 @@ async function startStripeCheckout(amountUsd, taskId) {
         } else {
             alert(`Unable to create Stripe checkout session: ${data.error || 'Server error'}`);
         }
+
     } catch (err) {
         console.error('Checkout error:', err);
         alert(`Checkout initiation error: ${err.message}`);
     }
 }
 
+async function startMembershipCheckout() {
+    try {
+        const data = await runtimeRequest('/api/billing/checkout', {kind: 'membership'});
+        window.location.assign(data.checkout.checkout_url);
+    } catch (error) {
+        addLogEntry(error.message, 'error');
+    }
+}
+
+async function openBillingPortal() {
+    try {
+        const data = await runtimeRequest('/api/billing/portal', {});
+        window.location.assign(data.url);
+    } catch (error) {
+        addLogEntry(error.message, 'error');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const payment = new URLSearchParams(window.location.search).get('payment');
+    if (payment === 'processing') {
+        addLogEntry('Checkout returned. Credits appear only after verified payment confirmation. Refresh the membership panel if processing takes longer.', 'info');
+        let remaining = 10;
+        const refresh = setInterval(() => {
+            fetchWalletBalance().catch(error => addLogEntry(error.message, 'error'));
+            if (--remaining <= 0) clearInterval(refresh);
+        }, 3000);
+    } else if (payment === 'cancelled') {
+        addLogEntry('Checkout cancelled. No credits were added.', 'info');
+    }
+});

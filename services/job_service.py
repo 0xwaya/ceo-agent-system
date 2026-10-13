@@ -4,6 +4,8 @@ import json
 import sqlite3
 import threading
 import logging
+import os
+import math
 from contextlib import closing
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,7 +44,22 @@ class JobStore:
         db.row_factory = sqlite3.Row
         return db
 
+    @staticmethod
+    def usage_limits():
+        from services.billing_service import billing_service
+
+        max_cost = float(
+            os.getenv("API_JOB_MAX_COST_USD", "5" if billing_service.enabled() else "1")
+        )
+        max_tokens = int(
+            os.getenv("API_JOB_MAX_TOKENS", "100000" if billing_service.enabled() else "20000")
+        )
+        if not math.isfinite(max_cost) or max_cost <= 0 or max_tokens <= 0:
+            raise ValueError("Positive finite job spending and token limits are required")
+        return max_cost, max_tokens
+
     def create(self, owner, kind, payload, approval=False):
+        max_cost, max_tokens = self.usage_limits()
         identifier = uuid4().hex
         with closing(self.connect()) as db, db:
             db.execute("BEGIN IMMEDIATE")
@@ -66,8 +83,8 @@ class JobStore:
                     json.dumps(payload),
                     timestamp(),
                     timestamp(),
-                    20000,
-                    1.0,
+                    max_tokens,
+                    max_cost,
                 ),
             )
         return self.get(identifier, owner)

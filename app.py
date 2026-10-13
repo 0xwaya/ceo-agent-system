@@ -26,6 +26,8 @@ from services.state_builder import CFOStateBuilder
 from services.analysis_service import analyze_strategic_state as ceo_analyze
 from services.agent_service import AgentExecutionService, SUPPORTED_AGENTS
 from services.auth_service import AuthStore, install_auth
+from services.billing_routes import billing_blueprint
+from services.billing_service import InsufficientCredits
 from services.runtime_service import runtime_blueprint
 from exceptions import ValidationError
 from config import APP_VERSION, FLASK_HOST, FLASK_PORT, SECRET_KEY as _APP_SECRET_KEY
@@ -554,7 +556,7 @@ def _allowlist_violation_response(errors: list[str], source: str):
 @app.before_request
 def enforce_request_security():
     """Reject malicious web content/prompt injection and sanitize safe JSON."""
-    if request.path == "/login":
+    if request.path in {"/login", "/api/billing/webhook"}:
         return None  # Passwords are credentials, not model prompt input.
     if not UTILS_AVAILABLE:
         return None
@@ -1407,6 +1409,8 @@ def analyze_objectives():
     except ValidationError as e:
         logger.warning(f"Invalid analysis scenario: {e}")
         return jsonify({"success": False, "error": str(e)}), 400
+    except InsufficientCredits as e:
+        return insufficient_execution_credits(e)
     except Exception as e:
         print(f"❌ Analysis error: {str(e)}")
         import traceback
@@ -1594,6 +1598,8 @@ def execute_agent(agent_type):
     except ValidationError as e:
         logger.warning(f"Invalid agent scenario: {e}")
         return jsonify({"success": False, "error": str(e)}), 400
+    except InsufficientCredits as e:
+        return insufficient_execution_credits(e)
     except Exception as e:
         logger.error("Agent execution failed", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
@@ -1617,18 +1623,21 @@ def get_guard_rails(agent_type):
             "software_eng",
             "prompt_expert",
         ):
+            from services.job_service import JobStore
+
+            max_cost, max_tokens = JobStore.usage_limits()
             return jsonify(
                 success=True,
                 guard_rail={
                     "summary": "Model-backed local reports only; no external execution.",
-                    "max_budget": 1.0,
+                    "max_budget": max_cost,
                     "allowed_categories": ["Metered model API calls", "Private local artifacts"],
                     "forbidden_categories": ["External deployment", "Purchases", "Outreach"],
                     "permitted_tasks": ["Generate scenario-specific JSON/Markdown reports"],
                     "quality_standards": {
                         "scenario_fidelity": "required",
                         "artifact_hash_verification": "required",
-                        "max_tokens_per_operation": 20000,
+                        "max_tokens_per_operation": max_tokens,
                         "budget_unit": "USD API cost, not scenario budget",
                     },
                 },
@@ -1834,94 +1843,9 @@ def reject_payment(approval_id):
 # ============================================================================
 
 
-@app.route("/api/billing/balance", methods=["GET"])
-def get_billing_balance():
-    """Get current credit balance for the session workspace."""
-    try:
-        from services.billing_service import billing_service
-
-        workspace_id = _browser_session_id()
-        balance_info = billing_service.get_balance(workspace_id)
-        return jsonify({"success": True, **balance_info})
-    except Exception as e:
-        logger.error(f"Billing balance lookup failed: {e}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/billing/quote", methods=["POST"])
-def get_task_quote():
-    """Calculate cost quote for a task before live external execution."""
-    try:
-        from services.billing_service import billing_service
-
-        data = request.json or {}
-        task = data.get("task") or {}
-        agent_type = data.get("agent_type") or "researcher"
-        quote = billing_service.calculate_task_quote(task, agent_type)
-        return jsonify({"success": True, "quote": quote})
-    except Exception as e:
-        logger.error(f"Task quote calculation failed: {e}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/billing/checkout", methods=["POST"])
-@require_account
-def create_billing_checkout():
-    """Create a Stripe checkout session to fund task execution credits."""
-    try:
-        from services.billing_service import billing_service
-
-        data = request.json or {}
-        workspace_id = _browser_session_id()
-        amount_usd = float(data.get("amount_usd") or 5.0)
-        task_id = data.get("task_id")
-
-        origin = request.host_url.rstrip("/")
-        success_url = f"{origin}/?payment=success"
-        cancel_url = f"{origin}/?payment=cancelled"
-
-        checkout = billing_service.create_stripe_checkout_session(
-            workspace_id=workspace_id,
-            amount_usd=amount_usd,
-            task_id=task_id,
-            success_url=success_url,
-            cancel_url=cancel_url,
-        )
-        return jsonify({"success": True, "checkout": checkout})
-    except Exception as e:
-        logger.error(f"Billing checkout creation failed: {e}", exc_info=True)
-        return jsonify({"success": False, "error": str(e)}), 500
-
-
-@app.route("/api/billing/mock-checkout", methods=["GET"])
-def handle_mock_checkout():
-    """Simulate Stripe payment fulfillment in development/sandbox mode."""
-    from services.billing_service import billing_service
-
-    workspace_id = request.args.get("workspace") or _browser_session_id()
-    amount_usd = float(request.args.get("amount") or 5.0)
-    task_id = request.args.get("task_id") or "topup"
-    session_id = request.args.get("session_id") or "mock_session"
-
-    billing_service.credit_balance(
-        workspace_id=workspace_id,
-        amount_usd=amount_usd,
-        kind="topup",
-        reference_id=session_id,
-        description=f"Sandbox Top-up for Task {task_id}",
-    )
-
-    return (
-        "<html><body style='background:#0b0f17;color:#f8fafc;"
-        "font-family:sans-serif;padding:40px;text-align:center;'>"
-        f"<h2 style='color:#34d399;'>✅ Payment Successful (${amount_usd:.2f} USD Credited)</h2>"
-        f"<p style='color:#94a3b8;'>Sandbox Stripe session {session_id} verified for "
-        f"workspace {workspace_id}.</p>"
-        "<p><a href='/' style='color:#60a5fa;text-decoration:none;font-weight:600;'>"
-        "← Return to Executive Dashboard</a></p>"
-        "<script>setTimeout(() => { window.location.href = '/?payment=success'; }, 2000);</script>"
-        "</body></html>"
-    )
+app.register_blueprint(billing_blueprint(_browser_session_id, require_account))
+if limiter:
+    limiter.exempt(app.view_functions["billing.webhook"])
 
 
 @app.route("/api/reports/history", methods=["GET"])
@@ -2634,13 +2558,21 @@ app.register_blueprint(
 
 @app.before_request
 def begin_metered_operation():
-    if request.path == "/api/ceo/analyze" or request.path.startswith("/api/agent/execute/"):
+    if request.path in {"/api/ceo/analyze", "/api/cfo/analyze"} or request.path.startswith(
+        "/api/agent/execute/"
+    ):
         from services.usage_service import UsageCallback, active_usage
 
         runtime = get_runtime()
         job = runtime.store.begin_operation(_browser_session_id())
         g.usage_job = job
         g.usage_token = active_usage.set(UsageCallback(runtime.store, job))
+
+
+@app.errorhandler(InsufficientCredits)
+def insufficient_execution_credits(exc):
+    logger.warning("Execution stopped for insufficient credits")
+    return jsonify(success=False, error=str(exc), code="insufficient_credits"), 402
 
 
 @app.after_request

@@ -16,6 +16,10 @@ os.environ["OPENAI_API_KEY"] = ""
 os.environ["SECRET_KEY"] = "offline-test-session-key"
 os.environ["ENABLE_AUTH"] = "False"
 os.environ["APP_ENV"] = "testing"
+os.environ["STRIPE_SECRET_KEY"] = ""
+os.environ["STRIPE_API_KEY"] = ""
+os.environ["STRIPE_WEBHOOK_SECRET"] = ""
+os.environ["BILLING_ENABLED"] = "false"
 
 app_module = importlib.import_module("app")
 app, socketio = app_module.app, app_module.socketio

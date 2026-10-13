@@ -29,6 +29,7 @@ anthropic>=0.18.0
 # Environment Configuration
 python-decouple==3.8
 python-dotenv==1.0.0
+stripe>=13.0.0,<14.0.0
 
 # Security & Encryption
 cryptography>=41.0.0

@@ -91,7 +91,7 @@ OPENAI_CODEX_MODEL = os.getenv("OPENAI_CODEX_MODEL", "gpt-5-codex")
 OPENAI_CODEX_TIMEOUT_SECONDS = int(os.getenv("OPENAI_CODEX_TIMEOUT_SECONDS", "45"))
 
 # Stripe API Configuration
-STRIPE_API_KEY = os.getenv("STRIPE_API_KEY", "")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY") or os.getenv("STRIPE_API_KEY", "")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
 STRIPE_CURRENCY = os.getenv("STRIPE_CURRENCY", "usd").lower()
 
