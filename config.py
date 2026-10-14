@@ -16,7 +16,7 @@ from pathlib import Path
 # ============================================================================
 
 PROJECT_ROOT = Path(__file__).parent
-APP_VERSION = "0.8.1"
+APP_VERSION = "0.8.2"
 TEMPLATES_DIR = PROJECT_ROOT / "templates"
 STATIC_DIR = PROJECT_ROOT / "static"
 LOGS_DIR = PROJECT_ROOT / "logs"

@@ -64,5 +64,8 @@ jobs:
         run: |
           pytest -q tests/test_account_onboarding.py tests/test_website_service.py
 
+      - name: Verify dashboard layout and styled controls
+        run: pytest -q tests/test_v04_features.py::TestIndexHTMLV4Layout
+
       - name: Run offline tests including source-build and isolated-runner contracts
         run: pytest -q

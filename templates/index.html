@@ -98,17 +98,17 @@
             else %}-{% endif %}
           </span>
         </div>
-        <button type="button" class="v4-hb-item" id="walletCreditsContainer" onclick="openTopUpModal()" title="Subscribe with Stripe or manage your membership">
-          <span class="v4-hb-label">Subscribe / Membership</span>
-          <span class="v4-hb-val" id="walletCredits" style="color: #38bdf8;">$0.00</span>
+        <button type="button" class="v4-membership-btn" id="walletCreditsContainer" onclick="openTopUpModal()" title="Subscribe with Stripe or manage your membership">
+          <span class="v4-membership-label">Membership</span>
+          <span class="v4-membership-detail">Manage <span aria-hidden="true">&rarr;</span> <span id="walletCredits">$0.00</span></span>
         </button>
         {% if g.account %}
-        <form action="/logout" method="post">
+        <form class="v4-account-action" action="/logout" method="post">
           <input type="hidden" name="csrf" value="{{ csrf_token() }}">
-          <button type="submit">Log out</button>
+          <button class="v4-account-btn" type="submit">Log out</button>
         </form>
         {% else %}
-        <a href="/login">Log in</a>
+        <a class="v4-account-btn" href="/login">Log in</a>
         {% endif %}
       </div>
 
@@ -148,7 +148,7 @@
                 placeholder="https://example.com"
                 value="{{ scenario_defaults.website | default('') }}"
               />
-              <small>Optional: public homepage text informs the analysis.</small>
+              <small class="v4-control-help">Optional: public homepage text informs the analysis.</small>
             </div>
             <div class="v4-cfg-field">
               <label>Industry</label>
@@ -232,44 +232,44 @@
                 🔍 Analyze
               </button>
             </div>
-            <div class="v4-cfg-actions">
+            <section class="v4-control-card" aria-labelledby="scenarioMemoryHeading">
+              <h2 id="scenarioMemoryHeading">Scenario memory</h2>
+              <p class="v4-control-help">Opt-in and stored locally. Saved excerpts inform future prompts.</p>
+              <div class="v4-memory-actions">
+                <button
+                  class="btn btn-small v4-control-primary"
+                  type="button"
+                  onclick="setScenarioMemory(true)"
+                >
+                  Enable memory
+                </button>
+                <button
+                  class="btn btn-small"
+                  type="button"
+                  onclick="setScenarioMemory(false)"
+                >
+                  Disable memory
+                </button>
+                <button
+                  class="btn btn-small"
+                  type="button"
+                  onclick="deleteScenarioMemory()"
+                >
+                  Delete saved memory
+                </button>
+              </div>
+            </section>
+            <section class="v4-control-card" aria-labelledby="sourceBuildHeading">
+              <h2 id="sourceBuildHeading">Source build</h2>
+              <p class="v4-control-help">Approval required. Generated code is not run here; isolated testing is not configured.</p>
               <button
-                class="btn btn-small"
+                class="btn btn-small v4-control-primary"
                 type="button"
-                onclick="setScenarioMemory(true)"
+                onclick="proposeSourceBuild()"
               >
-                Enable scenario memory
+                Propose Python source build
               </button>
-              <button
-                class="btn btn-small"
-                type="button"
-                onclick="setScenarioMemory(false)"
-              >
-                Disable memory
-              </button>
-              <button
-                class="btn btn-small"
-                type="button"
-                onclick="deleteScenarioMemory()"
-              >
-                Delete scenario memory
-              </button>
-            </div>
-            <p>
-              Memory is opt-in and local. Retrieved excerpts enter model
-              prompts.
-            </p>
-            <button
-              class="btn btn-small"
-              type="button"
-              onclick="proposeSourceBuild()"
-            >
-              Propose Python source build
-            </button>
-            <p>
-              Source builds require approval. Generated code is not run locally.
-              Isolated Oracle testing is not configured.
-            </p>
+            </section>
             <div id="jobControls" hidden>
               <p id="jobState"></p>
               <button

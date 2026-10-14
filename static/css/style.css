@@ -1600,7 +1600,7 @@ body.v4-layout ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); bor
 
 /* Agent status pills */
 .v4-header-agents {
-  display: flex; align-items: center; gap: .3rem; flex: 1;
+  display: flex; align-items: center; gap: .3rem; flex: 1; min-width: 0;
   overflow-x: auto; padding: 0 .25rem;
 }
 .v4-header-agents::-webkit-scrollbar { height: 0; }
@@ -1625,7 +1625,7 @@ body.v4-layout ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); bor
 
 /* Header budget */
 .v4-header-budget {
-  display: flex; gap: 1.25rem; flex-shrink: 0;
+  display: flex; align-items: center; gap: .9rem; flex-shrink: 0;
   border-left: 1px solid var(--v4-border); padding-left: .9rem;
 }
 .v4-hb-item { display: flex; flex-direction: column; align-items: flex-end; }
@@ -1636,6 +1636,39 @@ body.v4-layout ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); bor
 .v4-hb-val { font-weight: 700; font-size: .88rem; }
 .v4-val-ok  { color: var(--v4-green); }
 .v4-val-warn{ color: var(--v4-amber); }
+
+.v4-membership-btn {
+  appearance: none; display: flex; flex-direction: column; align-items: flex-start;
+  gap: 2px; padding: 5px 10px; min-height: 38px; font-family: inherit;
+  background: rgba(59, 130, 246, .1); border: 1px solid rgba(59, 130, 246, .35);
+  border-radius: 8px; color: var(--v4-text); cursor: pointer; white-space: nowrap;
+  transition: background .15s, border-color .15s;
+}
+.v4-membership-btn:hover {
+  background: rgba(59, 130, 246, .2); border-color: var(--v4-accent);
+}
+.v4-membership-label { font-size: .73rem; font-weight: 600; }
+.v4-membership-detail {
+  display: flex; align-items: center; gap: .4rem; font-size: .65rem; color: #93c5fd;
+}
+#walletCredits {
+  padding-left: .4rem; border-left: 1px solid rgba(147, 197, 253, .3);
+  font-weight: 700; font-variant-numeric: tabular-nums;
+}
+.v4-account-action { margin: 0; display: flex; }
+.v4-account-btn {
+  appearance: none; display: inline-flex; align-items: center; justify-content: center;
+  min-height: 32px; padding: 5px 9px; border: 1px solid var(--v4-border);
+  border-radius: 6px; background: transparent; color: var(--v4-text-secondary);
+  font-family: inherit; font-size: .72rem; text-decoration: none; cursor: pointer;
+  white-space: nowrap; box-sizing: border-box;
+}
+.v4-account-btn:hover { background: var(--v4-card); color: var(--v4-text); }
+.v4-membership-btn:focus-visible,
+.v4-account-btn:focus-visible,
+.v4-sidebar .btn:focus-visible {
+  outline: 2px solid #93c5fd; outline-offset: 3px;
+}
 
 /* Run button */
 .v4-run-btn {
@@ -1694,6 +1727,49 @@ body.v4-layout ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); bor
 .v4-cfg-field textarea:focus { outline: none; border-color: var(--v4-accent); }
 .v4-cfg-actions { margin-top: .35rem; }
 .v4-cfg-actions .btn { grid-column: auto; width: 100%; }
+.v4-sidebar .btn {
+  appearance: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 34px; margin: 0; padding: 7px 10px;
+  border: 1px solid var(--v4-border); border-radius: 7px; box-shadow: none;
+  background: var(--v4-card); color: var(--v4-text-secondary);
+  font-family: inherit; font-size: .73rem; font-weight: 500; line-height: 1.35;
+  white-space: normal; cursor: pointer; transition: background .15s, border-color .15s;
+}
+.v4-sidebar .btn:hover {
+  background: #223149; border-color: rgba(148, 163, 184, .4); color: var(--v4-text);
+  transform: none;
+}
+.v4-sidebar #analyzeBtn {
+  background: #d97706; border-color: #f59e0b; color: #fff; font-weight: 600;
+}
+.v4-sidebar #analyzeBtn:hover { background: #b45309; }
+.v4-control-card {
+  margin-top: .5rem; padding: 10px; border: 1px solid var(--v4-border);
+  border-radius: 9px; background: rgba(24, 34, 52, .45);
+}
+.v4-control-card h2 {
+  margin: 0 0 5px; font-size: .73rem; font-weight: 600; color: var(--v4-text);
+}
+.v4-control-help {
+  display: block; margin: 4px 0 9px; color: var(--v4-muted);
+  font-size: .68rem; line-height: 1.5;
+}
+.v4-memory-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.v4-memory-actions .btn:last-child {
+  grid-column: 1 / -1; background: transparent; color: #fca5a5;
+  border-color: rgba(248, 113, 113, .25);
+}
+.v4-memory-actions .btn:last-child:hover { background: rgba(239, 68, 68, .1); }
+.v4-sidebar .v4-control-primary {
+  background: rgba(59, 130, 246, .13); border-color: rgba(59, 130, 246, .35);
+  color: #bfdbfe;
+}
+#jobControls:not([hidden]) {
+  display: flex; flex-direction: column; gap: 6px; padding: 10px;
+  border: 1px solid var(--v4-border); border-radius: 9px;
+}
+#jobState { margin: 0 0 4px; color: var(--v4-muted); font-size: .68rem; line-height: 1.5; overflow-wrap: anywhere; }
+.v4-sidebar .btn[hidden] { display: none; }
 
 /* Agent roster */
 .v4-roster-section { flex: 1; min-height: 0; overflow-y: auto; }
@@ -1924,4 +2000,7 @@ body.v4-layout ::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); bor
   .v4-sidebar { max-height: none; }
   .v4-center-toolbar { flex-wrap: wrap; gap: .5rem; }
   .v4-header-agents { display: none; }
+  .v4-header-budget { flex-wrap: wrap; gap: .65rem; border-left: 0; padding-left: 0; }
+  .v4-logo { flex-wrap: wrap; white-space: normal; }
+  .v4-run-btn { margin-left: 0; }
 }

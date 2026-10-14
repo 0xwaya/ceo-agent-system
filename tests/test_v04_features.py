@@ -328,6 +328,26 @@ class TestIndexHTMLV4Layout:
         ):
             assert panel_id in body, f"Missing panel element: {panel_id}"
 
+    def test_membership_and_sidebar_controls_have_dashboard_styles(self, client):
+        body = client.get("/").get_data(as_text=True)
+        for marker in (
+            'class="v4-membership-btn"',
+            'id="walletCreditsContainer"',
+            'id="walletCredits"',
+            'class="v4-account-btn"',
+            'class="v4-memory-actions"',
+            'aria-labelledby="scenarioMemoryHeading"',
+            'aria-labelledby="sourceBuildHeading"',
+            'onclick="setScenarioMemory(true)"',
+            'onclick="setScenarioMemory(false)"',
+            'onclick="deleteScenarioMemory()"',
+            'onclick="proposeSourceBuild()"',
+        ):
+            assert marker in body
+        assert (
+            "background" not in body.split('id="walletCreditsContainer"', 1)[0].split("<button")[-1]
+        )
+
     def test_chat_agent_order_ceo_cfo_cto_legal(self, client):
         """Buttons in the CHAT PANEL selector must appear in CEO → CFO → CTO → Legal order."""
         resp = client.get("/")

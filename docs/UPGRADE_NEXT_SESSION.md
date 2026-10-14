@@ -1,5 +1,21 @@
 # Oracle VCN access and release handoff: October 13, 2026
 
+## Dashboard polish: v0.8.2
+
+- Membership and logout controls now use the dark dashboard palette, consistent
+  borders, hover states, and visible keyboard focus instead of browser-default
+  button backgrounds.
+- Lower sidebar controls are grouped into Scenario memory and Source build cards,
+  with aligned enable/disable buttons, a distinct delete action, and compact help
+  text. Job actions share the same styling; hidden controls remain hidden.
+- Header agents can shrink without pushing account actions off-screen; narrow
+  screens wrap the budget/account controls. Existing actions and billing behavior
+  are unchanged. The version bump refreshes cached dashboard styles.
+- Validation: `make check PYTHON=.venv/bin/python` passed formatting, lint,
+  consistency, dashboard-render smoke checks, and all 189 tests. Browser checks
+  confirmed no horizontal overflow at 1360px and 390px viewport widths and that
+  hidden job controls remain hidden.
+
 ## Account onboarding, website evidence, and free analysis
 
 - Application accounts are separate from Oracle and Stripe logins. No account

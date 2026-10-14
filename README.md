@@ -4,7 +4,8 @@
 
 > Most multi-agent demos stop at chat. This one produces reviewable files and a live ops dashboard.
 
-**Current release: v0.8.1** — protected first-administrator setup, customer sign-up,
+**Current release: v0.8.2** — polished membership and sidebar controls,
+protected first-administrator setup, customer sign-up,
 one free successful customer analysis followed by verified subscription gating,
 public homepage evidence, named authentication, private owner-scoped artifacts,
 legacy runtime cleanup, opt-in MemPalace memory, durable local jobs,
