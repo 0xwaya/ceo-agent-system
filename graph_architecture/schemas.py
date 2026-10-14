@@ -529,6 +529,8 @@ class SharedState(TypedDict):
     pending_approvals: Annotated[List[ApprovalRequest], operator.add]
     approved_actions: Annotated[List[str], operator.add]
     rejected_actions: Annotated[List[str], operator.add]
+    cfo_skepticism_report: NotRequired[Dict[str, Any]]
+    cfo_flags: Annotated[List[Dict[str, Any]], operator.add]
 
     # Deliverables and reporting
     deliverables: Annotated[List[str], operator.add]
@@ -794,6 +796,8 @@ def create_initial_shared_state(
         pending_approvals=[],
         approved_actions=[],
         rejected_actions=[],
+        cfo_skepticism_report={},
+        cfo_flags=[],
         # Deliverables
         deliverables=[],
         status_reports=[],

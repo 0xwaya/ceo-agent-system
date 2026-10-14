@@ -1,4 +1,103 @@
-# Oracle VCN access and release handoff: October 13, 2026
+# Oracle VCN access and release handoff: October 14, 2026
+
+## October 14 pickup: documented todos
+
+- [x] Investigate OpenClaw/Ollama background startup. Both user LaunchAgents
+  (`ai.openclaw.gateway` and `com.ollama.server`) have `RunAtLoad=true` and
+  `KeepAlive=true`: they start when loaded at login and are supervised for
+  restart. Last night's `bootout` unloaded them for that login session; it did
+  not permanently disable automatic startup. Both are running again today.
+- [x] Check whether OpenClaw uses Ollama. Its configured primary model is
+  `openai/gpt-5.4-nano`, with `ollama/gemma3:4b` and `ollama/llama3:8b` among
+  fallbacks. Ollama is a separately supervised service, not a required OpenClaw
+  dependency, but those local fallbacks require it. Configuration explains the
+  possible use, not which request loaded yesterday's model runner; that request
+  has not been traced. No credentials were printed or startup settings changed.
+- [ ] Decide whether to keep automatic startup or make OpenClaw/Ollama manual.
+  Do not disable services or change model-provider configuration without approval.
+- [x] Implement CFO skepticism review after all dispatched domains and before
+  consolidation. Cover missing irreversible-action approvals, untracked external
+  costs, spend above CFO approval, missing CEO rationale, and unknown dispatch
+  roles. Add state fields, risk-escalation requests, high/critical approval
+  routing, report visibility, and offline regression coverage for all seven
+  requested scenarios. Implemented from the specification with operator approval;
+  no source file was attached. Validation results are recorded below.
+- [ ] Configure Oracle Stripe secrets/prices and a reachable signed HTTPS
+  webhook before enabling payment delivery. Earlier SSH outage notes are
+  historical; the VM was intentionally stopped at the end of October 13.
+- [ ] Operator: revoke/rotate the previously exposed Supabase access token.
+- [ ] Keep the echo-agent VM stopped until the echo agent is ready.
+
+### Local server stop/start reference
+
+OpenClaw and Ollama were stopped again on October 14 at the operator's request;
+their launchd jobs and process/listener checks confirmed they exited. Leave
+them stopped while working on the CEO app. To stop them on the Mac:
+
+```bash
+launchctl bootout "gui/$(id -u)/ai.openclaw.gateway"
+launchctl bootout "gui/$(id -u)/com.ollama.server"
+```
+
+An error saying a service cannot be found can mean it is already unloaded;
+verify with `launchctl list` and process/listener checks rather than assuming.
+Use the bootstrap commands in "Resume next session" only when intentionally
+returning to OpenClaw/echo-agent work. `bootout` is temporary; automatic startup
+at a later login remains configured. First update/troubleshoot the echo agent
+locally; deploy to its reserved Oracle instance only after separate readiness
+checks and authorization. Do not start that VM as part of CFO development.
+
+### CFO skepticism review contract
+
+Source version is now v0.8.3 (including dashboard asset cache refresh).
+Oracle's last deployed version remains v0.8.2; this work does not start either VM.
+
+`graph_architecture/cfo_skepticism.py` adds a deterministic review after domain
+dispatch and before consolidation. It makes no model calls and does not
+re-analyze finances. It appends `cfo_flags`, writes `cfo_skepticism_report`, and
+creates risk-escalation requests using the existing approval schema.
+
+- Unknown dispatch roles and irreversible actions without matching approval
+  IDs are critical; zero-cost external effects and spend over CFO approval
+  are high; missing CEO rationale is medium. Every finding creates a request.
+  High/critical findings bypass consolidation and go directly to approval.
+  Medium findings consolidate but still reach the existing pending-approval gate.
+  Invalid dispatch plans are intercepted before invoking any domain, so an
+  unknown role can be escalated without ever being executed.
+- Review reads every `agent_outputs` record's structured `summary`. Operational
+  evidence uses `actions: [{action_id, irreversible, approval_request_id,
+  external_side_effect, cost}]`, `external_actions_executed`, and `budget_used`.
+  Action approval IDs must occur in the trusted state's `approved_actions`;
+  model-generated approval booleans and prose do not count.
+- Spend comes from `budget_spent` and reported actual output/action costs.
+  Overlapping ledger/output totals are not counted twice. Planning estimates
+  are not spend. The ceiling comes from the latest CFO summary only when its
+  recommendation is unconditional `approve`, using `key_numbers.total_budget`;
+  a conditional/rejected/missing approval cannot authorize actual spend.
+  Invalid monetary values fail explicitly. API token metering remains separate
+  from business-action spending.
+- Checks inspect structured execution evidence, not arbitrary natural-language
+  promises. Existing local-artifact agents do not execute business actions.
+  Future live connectors must supply trustworthy action/cost/approval records;
+  this post-execution review is not a substitute for pre-action authorization.
+- Checkpointed graph jobs persist as `awaiting_approval`, retain trial
+  reservations, show CFO findings, and use the existing owner/admin-protected
+  approval endpoint. Acknowledgement resumes the exact paused checkpoint to
+  reporting without replaying domains. It does not authorize new external work.
+  Cancellation remains available. Pending approvals cannot produce a completed
+  report, even on graphs compiled without a checkpointer.
+- Final reports include flags and condition their external-action statement on
+  the execution records, rather than always claiming no external actions.
+  Historical checkpoint state without these fields remains readable.
+- Validation: `make check PYTHON=/Users/pc/code/ceo/ceo-agent-system/.venv/bin/python`
+  passed Black, Flake8, consistency, development/production dashboard render
+  smoke, and **214 offline tests**, including 25 CFO/approval regressions.
+  `node --check static/js/app.js` and `git diff --check` passed. Coverage includes
+  the seven requested scenarios, exact decimal spending boundaries, idempotent
+  flags, invalid monetary data, unsupported-role interception, real checkpoint
+  interruption/resume, durable job status, retained free trials, and dashboard
+  risk-acknowledgement wording. No live models, payments, or external actions
+  were invoked.
 
 ## End-of-day handoff and restart
 

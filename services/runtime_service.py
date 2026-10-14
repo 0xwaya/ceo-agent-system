@@ -93,7 +93,14 @@ class RuntimeService:
                 from services.build_service import generate_source
 
                 return generate_source(job["payload"])
-            result = self.graph_execute(**job["payload"], thread_id=f'{job["owner"]}:{job["id"]}')
+            thread_id = f'{job["owner"]}:{job["id"]}'
+            if (job.get("result") or {}).get("approval_required"):
+                from graph_architecture.main_graph import resume_multi_agent_system
+
+                request_ids = [item["request_id"] for item in job["result"]["pending_approvals"]]
+                result = resume_multi_agent_system(thread_id, request_ids)
+            else:
+                result = self.graph_execute(**job["payload"], thread_id=thread_id)
             from services.analysis_access import AnalysisAccess
 
             result["free_analysis_completed"] = AnalysisAccess().is_free(job["owner"], job["id"])

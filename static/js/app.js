@@ -2924,7 +2924,16 @@ async function watchDurableJob(identifier) {
         if (tests) tests.hidden = job.kind !== 'build' || job.status !== 'succeeded';
         if (runnerLink) runnerLink.hidden = true;
         if (job.status === 'awaiting_approval') {
-            updateStatus(`${job.kind}: awaiting your approval; no work started`, 'pending');
+            const riskReview = job.kind === 'graph' && job.result?.approval_required;
+            updateStatus(riskReview
+                ? 'CFO review: awaiting risk acknowledgement; orchestration is not complete.'
+                : `${job.kind}: awaiting your approval; no work started`, 'pending');
+            if (riskReview) {
+                const flags = job.result.cfo_flags || [];
+                addChatMessage(`CFO review paused this run:\n${flags.map(flag =>
+                    `[${flag.severity}] ${flag.message}`).join('\n')}\nApproval acknowledges these findings only; it does not authorize external execution.`, 'system');
+                hideProgressBar();
+            }
         } else if (['queued', 'running'].includes(job.status)) {
             updateStatus(`Job ${job.status}`, 'running');
             jobPollTimer = setTimeout(() => watchDurableJob(identifier), 2000);
@@ -2980,7 +2989,9 @@ async function approveCurrentJob() {
         if (job.status !== 'awaiting_approval') throw new Error('Job is not awaiting approval');
         const description = job.kind === 'build'
             ? `Approve Python source generation for ${job.payload.scenario.company_name}?\nObjectives: ${job.payload.scenario.objectives.join('; ')}\nLimit: ${job.max_tokens} tokens / $${job.max_cost}. Files are untrusted; tests will NOT run.`
-            : 'Approve preparing a hash-bound isolated test request? No Oracle connection or code execution occurs; tests remain NOT run.';
+            : job.kind === 'graph'
+                ? `Acknowledge all CFO risk findings and generate the final report?\n${(job.result?.pending_approvals || []).map(item => `[${item.risk_level}] ${item.rationale}`).join('\n')}\nThis acknowledges findings only. It does NOT approve purchases, deployment, outreach, or other external execution.`
+                : 'Approve preparing a hash-bound isolated test request? No Oracle connection or code execution occurs; tests remain NOT run.';
         if (!confirm(description)) return;
         await runtimeRequest(`/api/jobs/${encodeURIComponent(job.id)}/approve`, {});
         await watchDurableJob(job.id);

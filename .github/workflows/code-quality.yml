@@ -67,5 +67,8 @@ jobs:
       - name: Verify dashboard layout and styled controls
         run: pytest -q tests/test_v04_features.py::TestIndexHTMLV4Layout
 
+      - name: Verify CFO skepticism checks and approval boundaries
+        run: pytest -q tests/test_cfo_skepticism.py
+
       - name: Run offline tests including source-build and isolated-runner contracts
         run: pytest -q

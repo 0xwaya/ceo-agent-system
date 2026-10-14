@@ -12,7 +12,7 @@ START → privacy_scrub → prompt_expert → ceo_analyze → dispatch_orchestra
         ↓ (loop until dispatch_plan empty)
         → <domain>_subgraph  →  back to dispatch_orchestrator
         ↓ (all dispatched)
-        → consolidate → [approval?] → final_report → END
+        → cfo_skepticism_review → [approval?] / consolidate → final_report → END
 """
 
 from __future__ import annotations
@@ -24,6 +24,7 @@ from typing import Any, Dict, List, Optional
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.types import Overwrite
 
 from graph_architecture.schemas import (
     CEOState,
@@ -36,6 +37,7 @@ from graph_architecture.approval_nodes import (
 )
 from graph_architecture.prompt_expert import prompt_expert_node
 from graph_architecture.privacy import privacy_scrub_node
+from graph_architecture.cfo_skepticism import cfo_skepticism_review, route_after_skepticism
 from graph_architecture.llm_nodes import ceo_llm_analyze_node, TIER2_NODE_MAP
 from services.agent_service import run_agent_node
 
@@ -70,13 +72,19 @@ def ceo_analyze_wrapper(state: CEOState) -> Dict[str, Any]:
 
     # Build dispatch_plan from prompt_expert_output if not already set
     routing_data = updated.get("llm_routing_decision")
-    routing = LLMRoutingDecision.model_validate(routing_data) if routing_data else None
-    if routing is None:
+    if not routing_data:
         raise RuntimeError("CEO did not produce a routing decision")
-    dispatch_plan = list(dict.fromkeys(routing.dispatch_plan))
+    raw_plan = routing_data.get("dispatch_plan")
+    if not isinstance(raw_plan, list) or any(not isinstance(role, str) for role in raw_plan):
+        raise ValueError("CEO dispatch_plan must be a list of role names")
+    # Unknown names are retained as evidence, but can never be dispatched.
+    routing = LLMRoutingDecision.model_validate(
+        {**routing_data, "dispatch_plan": [role for role in raw_plan if role in TIER2_NODE_MAP]}
+    )
+    dispatch_plan = list(dict.fromkeys(raw_plan))
     unknown = set(dispatch_plan) - set(TIER2_NODE_MAP)
     if unknown:
-        raise ValueError(f"Unsupported dispatch roles: {sorted(unknown)}")
+        logger.warning("Unsupported dispatch roles require CFO review: %s", sorted(unknown))
     if "cfo" in dispatch_plan:
         dispatch_plan.remove("cfo")
         dispatch_plan.insert(0, "cfo")
@@ -102,24 +110,26 @@ def dispatch_orchestrator_node(state: CEOState) -> Dict[str, Any]:
     idx: int = state.get("current_dispatch_index", 0)
 
     if idx < len(plan):
+        if any(role not in TIER2_NODE_MAP for role in plan):
+            return {"current_phase": "cfo_review"}
         domain = plan[idx]
         logger.info(f"[Dispatch] Step {idx + 1}/{len(plan)}: {domain}")
         return {"current_dispatch_index": idx, "current_phase": f"dispatching_{domain}"}
     else:
-        logger.info("[Dispatch] All domains completed — consolidating")
-        return {"current_phase": "consolidation"}
+        logger.info("[Dispatch] All domains completed — CFO skepticism review")
+        return {"current_phase": "cfo_review"}
 
 
 def route_dispatch(state: CEOState) -> str:
     """
     Conditional edge function from dispatch_orchestrator.
-    Returns the name of the next subgraph node OR 'consolidate'.
+    Returns the next subgraph node or the CFO skepticism review.
     """
     plan: List[str] = state.get("dispatch_plan", [])
     idx: int = state.get("current_dispatch_index", 0)
 
-    if idx >= len(plan):
-        return "consolidate"
+    if idx >= len(plan) or any(role not in TIER2_NODE_MAP for role in plan):
+        return "cfo_skepticism_review"
 
     domain = plan[idx]
     route_map = {
@@ -130,7 +140,7 @@ def route_dispatch(state: CEOState) -> str:
         "martech": "martech_subgraph",
         "security": "security_subgraph",
     }
-    return route_map.get(domain, "consolidate")
+    return route_map.get(domain, "cfo_skepticism_review")
 
 
 def _advance_dispatch_index(state: CEOState) -> Dict[str, Any]:
@@ -234,6 +244,7 @@ def ceo_consolidate_summaries_node(state: CEOState) -> Dict[str, Any]:
     final_decision = {
         "decision_id": f"final-{uuid.uuid4().hex[:6]}",
         "decision": "Accept all agent outputs and proceed to final report",
+        "rationale": "Domain outputs completed and CFO skepticism review is on file.",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
     return {"executive_decisions": [final_decision], "current_phase": "consolidation"}
@@ -248,6 +259,16 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
     executive_decisions = state.get("executive_decisions", [])
     budget_remaining = state.get("budget_remaining", 0)
     dispatch_plan = state.get("dispatch_plan", [])
+    review = state.get("cfo_skepticism_report", {})
+    external_note = (
+        "Agent outputs report external actions; review execution evidence and CFO flags."
+        if review.get("external_actions_reported")
+        else "No deployment, purchases or outreach reported by agent execution records."
+    )
+    flags = state.get("cfo_flags", [])
+    flag_notes = (
+        "\n".join(f"  - [{flag['severity']}] {flag['message']}" for flag in flags) or "  None."
+    )
 
     domains_completed = ", ".join(dispatch_plan) if dispatch_plan else "N/A"
     evidence = state.get("website_evidence", {})
@@ -267,7 +288,8 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
         f"CEO DECISIONS : {len(executive_decisions)}\n"
         f"BUDGET LEFT   : ${budget_remaining:,.2f}\n\n"
         f"STATUS: Local planning artifacts generated; review required.\n"
-        f"EXTERNAL ACTIONS: No deployment, purchases or outreach.\n"
+        f"EXTERNAL ACTIONS: {external_note}\n"
+        f"CFO REVIEW FLAGS: {len(flags)}\n{flag_notes}\n"
         f"WEBSITE: {website_note}\n"
         f"No other live research was performed.\n"
         f"REVIEW DATE: {datetime.now(timezone.utc).date()}\n"
@@ -283,7 +305,8 @@ def ceo_generate_final_report_node(state: CEOState) -> Dict[str, Any]:
             "prompt_expert",
             "ceo_analyze",
             "dispatch",
-            "consolidation",
+            "cfo_skepticism_review",
+            *([] if review.get("requires_approval") else ["consolidation"]),
         ],
     }
 
@@ -310,7 +333,8 @@ def build_master_graph(
           → cfo_subgraph  / engineer_subgraph / researcher_subgraph
             / legal_subgraph / martech_subgraph / security_subgraph
           → (each subgraph returns to dispatch_orchestrator)
-      → consolidate          (after all dispatched)
+      → cfo_skepticism_review (after all dispatched; high/critical → approval)
+      → consolidate
           ↓ conditional — approval gate
       → approval  (human-in-the-loop, interrupt_before)
       → final_report
@@ -335,6 +359,7 @@ def build_master_graph(
 
     # CEO wrap-up
     graph.add_node("consolidate", ceo_consolidate_summaries_node)
+    graph.add_node("cfo_skepticism_review", cfo_skepticism_review)
     graph.add_node("approval", human_approval_node)
     graph.add_node("final_report", ceo_generate_final_report_node)
 
@@ -356,13 +381,17 @@ def build_master_graph(
     ):
         graph.add_edge(domain_node, "dispatch_orchestrator")
 
-    # Approval → final_report (unconditional after human interaction)
-    graph.add_edge("approval", "final_report")
+    # Without a checkpointer, pending approval must still prevent completion.
+    graph.add_conditional_edges(
+        "approval",
+        lambda state: END if state.get("pending_approvals") else "final_report",
+        {END: END, "final_report": "final_report"},
+    )
     graph.add_edge("final_report", END)
 
     # ── Conditional edges ────────────────────────────────────────────────────
 
-    # dispatch_orchestrator → next domain OR consolidate
+    # dispatch_orchestrator → next domain OR CFO skepticism review
     graph.add_conditional_edges(
         "dispatch_orchestrator",
         route_dispatch,
@@ -373,8 +402,13 @@ def build_master_graph(
             "legal_subgraph": "legal_subgraph",
             "martech_subgraph": "martech_subgraph",
             "security_subgraph": "security_subgraph",
-            "consolidate": "consolidate",
+            "cfo_skepticism_review": "cfo_skepticism_review",
         },
+    )
+    graph.add_conditional_edges(
+        "cfo_skepticism_review",
+        route_after_skepticism,
+        {"approval": "approval", "consolidate": "consolidate"},
     )
 
     # consolidate → approval gate OR skip straight to final_report
@@ -467,19 +501,63 @@ def execute_multi_agent_system(
         if checkpointer is not None:
             checkpointer.conn.close()
 
-    logger.info("\n✅ EXECUTION COMPLETE")
+    logger.info(
+        "Execution %s",
+        "complete" if result.get("current_phase") == "complete" else "paused for approval",
+    )
     logger.info("=" * 80)
 
-    if result.get("current_phase") != "complete":
+    if result.get("current_phase") != "complete" and not (
+        use_checkpointing and result.get("pending_approvals")
+    ):
         raise RuntimeError("Workflow paused or incomplete; no completion claim was made")
+    return _execution_result(result)
+
+
+def _execution_result(result):
+    result["approval_required"] = bool(result.get("pending_approvals"))
+    result["pending_approvals"] = [
+        item.model_dump(mode="json") if hasattr(item, "model_dump") else item
+        for item in result.get("pending_approvals", [])
+    ]
     result["execution_mode"] = "local_artifacts"
-    result["external_actions_executed"] = False
+    result["external_actions_executed"] = bool(
+        result.get("cfo_skepticism_report", {}).get("external_actions_reported")
+    )
     result["artifacts"] = [
         artifact
         for output in result.get("agent_outputs", [])
         for artifact in output.get("artifacts", [])
     ]
     return result
+
+
+def resume_multi_agent_system(thread_id: str, request_ids: List[str]) -> Dict[str, Any]:
+    """Acknowledge the exact checkpointed risks; never replay domain execution."""
+    checkpointer = create_checkpointer("sqlite", "./data/checkpoints.sqlite")
+    config = {"configurable": {"thread_id": thread_id}}
+    try:
+        graph = build_master_graph(checkpointer=checkpointer)
+        snapshot = graph.get_state(config)
+        if snapshot.next != ("approval",):
+            raise ValueError("Graph is not paused at its approval gate")
+        pending = snapshot.values.get("pending_approvals", [])
+        expected = {
+            item.request_id if hasattr(item, "request_id") else item["request_id"]
+            for item in pending
+        }
+        if not expected or set(request_ids) != expected:
+            raise ValueError("Approval must acknowledge the exact pending risk requests")
+        graph.update_state(
+            config,
+            {"pending_approvals": Overwrite([]), "approved_actions": sorted(expected)},
+        )
+        result = graph.invoke(None, config)
+        if result.get("current_phase") != "complete":
+            raise RuntimeError("Approved workflow did not complete")
+        return _execution_result(result)
+    finally:
+        checkpointer.conn.close()
 
 
 # Test execution

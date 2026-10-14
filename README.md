@@ -4,7 +4,8 @@
 
 > Most multi-agent demos stop at chat. This one produces reviewable files and a live ops dashboard.
 
-**Current release: v0.8.2** — polished membership and sidebar controls,
+**Current source release: v0.8.3** — CFO skepticism review and durable risk approval,
+polished membership and sidebar controls,
 protected first-administrator setup, customer sign-up,
 one free successful customer analysis followed by verified subscription gating,
 public homepage evidence, named authentication, private owner-scoped artifacts,
@@ -29,6 +30,18 @@ for stopping the VM/tunnel and local model/gateway services without losing
 accounts, environment files, or runtime databases. A deliberately stopped VM must
 be started before SSH will work; do not repeat administrator setup or change VCN
 rules to recover from an intentional shutdown.
+
+### CFO skepticism review
+
+After all dispatched domains return, the CFO reviews structured action/cost
+evidence and CEO decisions before consolidation. Missing irreversible-action
+approvals, zero-cost external effects, spend over CFO approval, missing rationale,
+and unknown dispatch roles create risk-escalation requests. High/critical findings
+go straight to human approval; all pending requests block completion. The
+dashboard retains flagged runs as awaiting approval and resumes reporting without
+replaying agents. Acknowledgement does not authorize external execution.
+See the [review contract and current todos](docs/UPGRADE_NEXT_SESSION.md#cfo-skepticism-review-contract)
+for evidence fields, boundaries, and the OpenClaw/Ollama startup investigation.
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-blueviolet)](https://github.com/langchain-ai/langgraph)

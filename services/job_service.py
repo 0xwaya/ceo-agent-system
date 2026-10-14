@@ -133,7 +133,15 @@ class JobStore:
                 "UPDATE jobs SET status=CASE WHEN cancel_requested=1 THEN 'cancelled' "
                 "ELSE ? END,result=?,error=?,updated_at=? WHERE id=?",
                 (
-                    "failed" if error else "succeeded",
+                    (
+                        "failed"
+                        if error
+                        else (
+                            "awaiting_approval"
+                            if job["kind"] == "graph" and result and result.get("approval_required")
+                            else "succeeded"
+                        )
+                    ),
                     json.dumps(result),
                     error,
                     timestamp(),
@@ -144,7 +152,8 @@ class JobStore:
             from services.analysis_access import AnalysisAccess
 
             completed = self.get(job["id"], job["owner"])
-            AnalysisAccess().finish(job["id"], completed["status"] == "succeeded")
+            if completed["status"] != "awaiting_approval":
+                AnalysisAccess().finish(job["id"], completed["status"] == "succeeded")
 
     def begin_operation(self, owner):
         return self.create(owner, "usage", {})

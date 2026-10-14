@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 # ============================================================================
 
 
-def human_approval_node(state: SharedState) -> SharedState:
+def human_approval_node(state: SharedState) -> Dict[str, Any]:
     """
     Human-in-the-loop approval checkpoint
 
@@ -48,23 +48,22 @@ def human_approval_node(state: SharedState) -> SharedState:
 
     if not pending:
         logger.info("No pending approvals, continuing execution")
-        return state
+        return {}
 
     # Log approval checkpoint
     logger.info(f"APPROVAL REQUIRED: {len(pending)} pending approvals")
 
     for approval_request in pending:
+        approval_request = ApprovalRequest.model_validate(approval_request)
         logger.info(
             f"  - {approval_request.action}: ${approval_request.cost} "
             f"(risk: {approval_request.risk_level})"
         )
 
     # Create checkpoint metadata
-    state["current_phase"] = "awaiting_approval"
-
     # Execution will interrupt here
     # User must call graph.update_state() to provide approval
-    return state
+    return {"current_phase": "awaiting_approval"}
 
 
 def process_approval_response(state: SharedState, approval_response: Dict[str, Any]) -> SharedState:
