@@ -15,6 +15,21 @@ execution is performed. Optional website text is attributed, untrusted homepage 
 Model and homepage failures are reported rather than replaced with preset results.
 See [account setup and Oracle access](docs/UPGRADE_NEXT_SESSION.md) for onboarding.
 
+### Current private deployment and nightly handoff
+
+v0.8.2 is deployed on the existing Oracle CEO VM with an enabled
+`ceo-agent-dashboard` systemd service. Administrator setup is complete; use the
+existing application account, not Oracle or Stripe credentials. The app stays
+localhost-only behind the Mac's SSH tunnel (`127.0.0.1:5002` to Oracle port 5001).
+Stripe payments are not yet available on Oracle: the integration is implemented,
+but the server still needs payment and signed-webhook configuration.
+
+See the [end-of-day shutdown and restart procedure](docs/UPGRADE_NEXT_SESSION.md#end-of-day-handoff-and-restart)
+for stopping the VM/tunnel and local model/gateway services without losing
+accounts, environment files, or runtime databases. A deliberately stopped VM must
+be started before SSH will work; do not repeat administrator setup or change VCN
+rules to recover from an intentional shutdown.
+
 [![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![LangGraph](https://img.shields.io/badge/LangGraph-multi--agent-blueviolet)](https://github.com/langchain-ai/langgraph)
 [![Flask](https://img.shields.io/badge/Flask-SocketIO-black?logo=flask)](https://flask.palletsprojects.com)

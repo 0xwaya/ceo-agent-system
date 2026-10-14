@@ -1,5 +1,91 @@
 # Oracle VCN access and release handoff: October 13, 2026
 
+## End-of-day handoff and restart
+
+This section and the v0.8.2/onboarding sections are the current state. Older
+October 12 snapshots below are historical, not instructions to repeat setup.
+
+- Releases on `main` and deployed on Oracle: `e0ca00b` (onboarding, website
+  evidence, free-trial/membership gates), `61add3e` (persistent systemd hosting),
+  and `e5e795e` (v0.8.2 dashboard polish). GitHub Code Quality passed for all
+  three commits, including the full offline suite.
+- Final local handoff validation:
+  `make check PYTHON=/Users/pc/code/ceo/ceo-agent-system/.venv/bin/python`
+  passed Black, Flake8, consistency, dashboard render smoke, and **189 tests**
+  (two expected offline/deprecation warnings). `git diff --check` passed.
+  Before shutdown, Oracle had 19 succeeded and two failed historical jobs,
+  with no running or queued jobs.
+- The administrator account was created by the operator, and login succeeded.
+  Preserve it: do not rerun first-administrator setup, reset credentials, or
+  recreate the runtime databases.
+- Oracle serves the app on `127.0.0.1:5001`; the Mac SSH tunnel exposes it only
+  on `127.0.0.1:5002`. This remains private development, not public production.
+- Stripe integration is implemented and previously tested in the local sandbox,
+  but Oracle payment configuration is still missing. Checkout is unavailable
+  there until secrets, prices, and a reachable signed webhook are configured.
+  No live charges were made. Email verification/password recovery, a public TLS
+  rollout, and isolated generated-code execution remain outstanding.
+- OCI signing credentials are secured under `~/.oci`, SSH keys under `~/.ssh`,
+  and the old Oracle console auth token was deleted. The previously exposed
+  Supabase personal access token still needs revocation/rotation by the operator;
+  protected local storage is not a substitute for rotation.
+- The echo-agent VM remains stopped. Do not start it until that project is ready.
+- Tonight's authorized shutdown scope is the CEO Oracle VM, its Mac SSH tunnel,
+  and local Ollama/OpenClaw servers. Leave macOS services and VS Code alone.
+  Stop supervised services through their supervisors so they do not respawn.
+  VM stop/start preserves accounts, ignored environment files, and runtime data.
+
+### Safe shutdown after a green push
+
+1. Commit/push only reviewed changes after `make check PYTHON=.venv/bin/python`
+   and `git diff --check` pass; verify GitHub Code Quality for the pushed commit.
+2. Pull that commit on Oracle using `git pull --ff-only`, with a clean worktree.
+   Check for running/queued jobs before shutdown; do not interrupt user work
+   without reporting it and obtaining approval.
+3. Stop the app on Oracle with `sudo systemctl stop ceo-agent-dashboard`.
+   Verify it is inactive and port 5001 has no listener. Keep the service enabled
+   so it starts automatically when the VM is started again.
+4. From the Mac, stop `instance-20261010-0931` through the OCI API:
+
+   ```bash
+   ~/.oci/cli-venv/bin/oci compute instance action --action SOFTSTOP \
+     --instance-id <instance-20261010-0931 OCID> --wait-for-state STOPPED
+   ```
+
+   Verify both known Oracle instances are `STOPPED`. Do not change VCN rules,
+   delete instances, or run a guest shutdown command merely to exit SSH.
+5. Close the project tunnel by its verified PID (`kill <tunnel PID>`).
+   Local launchd-managed servers can be stopped for this login session with:
+
+   ```bash
+   launchctl bootout "gui/$(id -u)/ai.openclaw.gateway"
+   launchctl bootout "gui/$(id -u)/com.ollama.server"
+   ```
+
+   These commands unload the jobs, not their saved configuration. Verify the
+   project tunnel, gateway, model server, and any Ollama runner listeners are gone.
+
+### Resume next session
+
+1. Start **only** `instance-20261010-0931` in the Oracle Console, or use the OCI
+   `START` command below and wait for `RUNNING`. SSH timeouts while it is stopped
+   are expected; they do not mean the repository or network configuration broke.
+2. On the Mac, run `ssh oracle-ceo`. The existing alias forwards local port 5002.
+   On Oracle, verify `systemctl is-active ceo-agent-dashboard`; the enabled
+   service should start automatically. If needed, use
+   `sudo systemctl start ceo-agent-dashboard`, not a duplicate manual process.
+3. Open **http://127.0.0.1:5002/login** and use the existing application account.
+   Oracle and Stripe account passwords are not application credentials.
+4. Restart local model/gateway services only if needed, on the Mac:
+
+   ```bash
+   launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/com.ollama.server.plist
+   launchctl bootstrap "gui/$(id -u)" ~/Library/LaunchAgents/ai.openclaw.gateway.plist
+   ```
+
+   A subsequent Mac login may already load them; check before bootstrapping.
+   No local Flask or Stripe listener needs to run to access the Oracle dashboard.
+
 ## Dashboard polish: v0.8.2
 
 - Membership and logout controls now use the dark dashboard palette, consistent
@@ -62,7 +148,8 @@
 - Release `e0ca00b` was pulled onto Oracle. Application authentication is enabled;
   `/login` and `/setup` returned HTTP 200 through the Mac's port-5002 tunnel,
   and anonymous scenario API access returned HTTP 401. The setup page was also
-  checked in the browser. No administrator password has been created for you.
+  checked in the browser. The operator subsequently created their administrator
+  account and successfully logged in; do not repeat initial setup.
 - The dashboard uses the `ceo-agent-dashboard` systemd service with the existing
   `~/start_ceo.sh`, localhost binding, and port 5001. The service definition is
   tracked in `tools/ceo-agent-dashboard.service`; install it with:
@@ -79,9 +166,10 @@
   restores the app after a VM reboot; it does not start a stopped Oracle VM.
   The older manual startup examples below describe the pre-service deployment.
 
-## Latest handoff: Stripe membership integration
+## Historical handoff: Stripe membership integration
 
-This section supersedes the older October 12 snapshots below.
+This records the earlier Stripe sandbox work. The current Oracle deployment and
+onboarding state are documented above; the outage described here was resolved.
 
 - Implementation committed and pushed to `main`: `9072566`.
 - Sandbox membership: $29/month, $10 monthly execution allowance, no rollover.
@@ -123,7 +211,10 @@ This section supersedes the older October 12 snapshots below.
 - The local app and Stripe CLI listener were stopped cleanly for the PC reboot.
   Local processes and forwarding do not persist through reboot.
 
-### Resume after reboot
+### Historical local Stripe sandbox startup
+
+These steps start the local sandbox, not the current Oracle deployment. For
+normal dashboard access, use the restart procedure at the top of this document.
 
 1. From the repository root, activate the existing virtual environment:
    `source .venv/bin/activate`.
@@ -293,8 +384,10 @@ connectivity and dashboard account authentication are separate controls.
 
 ### Remote server helper script (`~/start_ceo.sh`)
 
-On the remote instance, create a helper script to activate the virtual
-environment and start the single-worker Flask service on port `5001`:
+The following describes the historical helper script. It already exists on
+Oracle and is now launched by `ceo-agent-dashboard`; do not overwrite it during
+routine startup. It activates the virtual environment and starts the
+single-worker Flask service on port `5001`:
 
 ```bash
 cat << 'EOF' > /home/ubuntu/start_ceo.sh
@@ -306,10 +399,11 @@ EOF
 chmod +x /home/ubuntu/start_ceo.sh
 ```
 
-To run it in the background on the server:
+For the current deployment, start the installed service on Oracle:
 
 ```bash
-nohup /home/ubuntu/start_ceo.sh > /home/ubuntu/apps/ceo-agent-system/app.log 2>&1 &
+sudo systemctl start ceo-agent-dashboard
+systemctl is-active ceo-agent-dashboard
 ```
 
 To verify the process and port listener:
@@ -418,10 +512,12 @@ repository.
 
 ## Holds and safety boundaries
 
-- No live Oracle SSH session, VCN change, or app deployment has been made; this
-  walkthrough does not verify host reachability or credentials.
-- Dashboard login activation and tester provisioning are separate from SSH host
-  login. Login-disabled mode is localhost-only, not safe shared dashboard access.
+- Oracle SSH access and v0.8.2 deployment were verified on October 13; no VCN
+  changes were required. An intentional nightly VM stop makes SSH unavailable
+  until the instance is started again.
+- Dashboard authentication is enabled and the administrator account exists.
+  Application login is separate from SSH host login. Login-disabled mode is
+  localhost-only, not safe shared dashboard access.
 - The dashboard is text-chat only; no audio integration is included.
   Cross-account reviewer approvals remain undecided and blocked.
 - No unrestricted generated-code execution, deployment, publishing, purchases or
