@@ -29,6 +29,30 @@
   automatically refund the user or recover already-consumed credits.
 - Simulated checkout has been removed. API errors never grant credits.
 
+### Implementation map and deployment status
+
+The integration is implemented; that does not mean payments are enabled on every
+deployment. Local sandbox Checkout/webhook fulfillment was previously exercised.
+Oracle payment setup remains pending: its private credentials, public HTTPS origin,
+and signed webhook delivery must be configured before checkout is usable there.
+The endpoint registration described below is historical setup evidence, not a
+current reachability check or production approval.
+
+| Source | Responsibility |
+| --- | --- |
+| [billing_service.py](../services/billing_service.py) | Stripe customers, orders, hosted Checkout/Portal, signature/mode verification, invoice/top-up fulfillment, wallet reservations and reconciliation |
+| [billing_routes.py](../services/billing_routes.py) | Browser APIs, origin/webhook readiness checks, signed webhook endpoint and operator reconciliation command |
+| [usage_service.py](../services/usage_service.py) | Per-model-call reservation and settlement; eligible free analyses bypass wallet charging |
+| [app.py](../app.py) | Account protection, webhook CSRF exemption and membership access checks |
+| [app.js](../static/js/app.js) | Membership card, checkout/portal navigation and balance presentation |
+| [run_stripe_sandbox.py](../tools/run_stripe_sandbox.py) | Supervised local Flask and Stripe listener with an in-memory signing secret |
+| [verify_stripe_sandbox.py](../tools/verify_stripe_sandbox.py) | Explicit sandbox-only portal/Checkout verification without submitting a payment |
+| [test_billing.py](../tests/test_billing.py) | Offline regression coverage for fulfillment, deduplication, reservations, signatures and billing APIs |
+
+Checkout creates its recurring USD price inline from server settings; a pre-created
+Stripe Price ID is not required. Membership orders snapshot price and allowance.
+Changing environment pricing does not migrate existing subscriptions or their orders.
+
 ## 1. Private environment configuration
 
 ### Application endpoints
@@ -49,7 +73,7 @@ server-controlled. `/api/billing/mock-checkout` has been removed.
 Install the project's dependencies in its existing virtual environment:
 
 ```bash
-python -m pip install -r requirements.txt
+.venv/bin/python -m pip install -r requirements.txt
 ```
 
 Set these in your private `.env` (never commit or paste credentials into chat):
@@ -88,19 +112,19 @@ payments. It configures the app's sandbox Customer Portal, creates a test member
 Checkout/Portal session, then expires the Checkout and removes its test customer:
 
 ```bash
-python -m tools.verify_stripe_sandbox --setup-portal --checkout
+.venv/bin/python -m tools.verify_stripe_sandbox --setup-portal --checkout
 ```
 
 ## 3. Webhooks are required, not optional
 
-For localhost testing, install the official Stripe CLI and authenticate it to the
-**WayaLabs sandbox**, then run:
+For localhost testing, install the official Stripe CLI and use the same
+**WayaLabs sandbox** as the application's secret key.
 
 The included supervisor can run both the listener and Flask together, using the
 configured sandbox key and keeping the listener's signing secret in process memory:
 
 ```bash
-python -m tools.run_stripe_sandbox
+.venv/bin/python -m tools.run_stripe_sandbox
 ```
 
 Stop any existing app on port 5001 first. Keep this command running while testing.
@@ -144,9 +168,19 @@ Neither success redirects nor Checkout completion alone grant subscription credi
 
 ## 4. Run and test
 
+With the supervisor above, Flask is already running; do not start a second copy.
+Only when managing the listener and application separately, start the application
+from the repository root using its virtual environment:
+
 ```bash
-python app.py
+.venv/bin/python app.py
 ```
+
+Do not use system Python if the project dependencies are installed in `.venv`.
+On the existing Oracle installation, use `sudo systemctl start ceo-agent-dashboard`
+and `systemctl status ceo-agent-dashboard --no-pager`, not this local development
+command. The service uses its configured environment. The private SSH tunnel is
+for dashboard access only; Stripe cannot deliver webhooks through it.
 
 Open the dashboard, select **Membership**, then **Subscribe**.
 Use the exact `BILLING_PUBLIC_URL` hostname (by default `http://localhost:5001`),
@@ -174,9 +208,15 @@ Complete an app-created sandbox Checkout, or use Stripe test clocks for renewal 
 Offline validation:
 
 ```bash
+.venv/bin/python -m pytest -q tests/test_billing.py
 make check PYTHON=.venv/bin/python
 node --check static/js/app.js
 ```
+
+Offline tests use mocked Stripe responses; they do not establish current sandbox
+connectivity, Apple Pay availability, or Oracle HTTPS/webhook readiness. The sandbox
+verification command creates test resources; only a completed application-created
+Checkout plus verified webhook delivery proves end-to-end payment fulfillment.
 
 ## 5. Refund/dispute reconciliation
 
@@ -185,7 +225,7 @@ purchased top-up balance, accounting for refunded purchases and consumed credits
 An operator with server-shell access can then run:
 
 ```bash
-flask --app app billing reconcile --workspace <account-id> --topup-usd <corrected-balance>
+.venv/bin/flask --app app billing reconcile --workspace <account-id> --topup-usd <corrected-balance>
 ```
 
 The command asks for confirmation, records the adjustment, and clears the pause.
